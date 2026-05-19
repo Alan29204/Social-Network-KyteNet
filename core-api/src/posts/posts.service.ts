@@ -57,8 +57,8 @@ export class PostsService {
             ...comment,
             interactions: {
               likes:
-                comment.reactions?.filter((r) => r.reaction === 'like').length ||
-                0,
+                comment.reactions?.filter((r) => r.reaction === 'like')
+                  .length || 0,
               recomments: 0,
               comments: 0,
             },
