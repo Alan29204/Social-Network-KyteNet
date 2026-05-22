@@ -29,11 +29,10 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get()
-  @Public()
   @ResponseMessage('Fetch posts feed successfully')
-  @ApiOperation({ summary: 'Get posts feed' })
+  @ApiOperation({ summary: 'Get posts by user (profile page)' })
   @Doc({
-    summary: 'Get posts feed',
+    summary: 'Get posts by user',
     request: {
       queries: [
         { name: 'page', description: 'Page number', required: false },
@@ -52,7 +51,6 @@ export class PostsController {
   }
 
   @Post()
-  @Public()
   @ResponseMessage('Create post successfully')
   @ApiOperation({ summary: 'Create post' })
   @ApiConsumes('multipart/form-data')
@@ -85,7 +83,7 @@ export class PostsController {
     @UploadedFiles(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
-          fileType: /(jpg|jpeg|png|gif)$/,
+          fileType: /(jpg|jpeg|png|gif|mp4|mov|webm)$/,
         })
         .addMaxSizeValidator({
           maxSize: 1024 * 1024 * 10, // 10MB
@@ -110,6 +108,21 @@ export class PostsController {
     return this.postsService.findOne(user, id);
   }
 
+  @Post('share')
+  @ResponseMessage('Share post successfully')
+  @ApiOperation({ summary: 'Share/Repost a post' })
+  sharePost(
+    @User() user: IUser,
+    @Body() body: { post_id: string; content?: string; privacy?: string },
+  ) {
+    return this.postsService.sharePost(
+      user,
+      body.post_id,
+      body.content,
+      body.privacy,
+    );
+  }
+
   @Patch()
   @ResponseMessage('Cập nhật bài viết thành công')
   @ApiOperation({ summary: 'Cập nhật bài viết' })
@@ -121,7 +134,7 @@ export class PostsController {
   @Delete(':id')
   @ResponseMessage('Xóa bài viết thành công')
   @ApiOperation({ summary: 'Xóa bài viết' })
-  remove(@Param('id') id: string) {
-    return this.postsService.remove(id);
+  remove(@Param('id') id: string, @User() user: IUser) {
+    return this.postsService.remove(id, user);
   }
 }

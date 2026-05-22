@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MulterModule } from '@nestjs/platform-express';
-import { MulterConfigService } from 'src/core/multer.config';
 
 import { ChatMember } from './entities/chat-member.entity';
 import { WaitingMembers } from './entities/waiting-members.entity';
@@ -28,9 +26,6 @@ import { ChatRoomsService } from './chat-rooms.service';
     ]),
     RedisModule,
     NotificationModule,
-    MulterModule.registerAsync({
-      useClass: MulterConfigService,
-    }),
     UsersModule,
   ],
   controllers: [

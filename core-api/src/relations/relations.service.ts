@@ -11,6 +11,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IUser } from 'src/users/users.interface';
 import { RedisService } from 'src/redis/redis.service';
 import { UsersService } from 'src/users/users.service';
+import { FeedService } from 'src/feed/feed.service';
+import { NotificationService } from 'src/notifications/notifications.service';
 import { Relation } from './entities/relation.entity';
 import { UpdateRelationDto } from './dto/update-relation.dto';
 
@@ -22,6 +24,8 @@ export class RelationsService {
     private redisService: RedisService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    private readonly feedService: FeedService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async getListRelation(
@@ -140,6 +144,21 @@ export class RelationsService {
           relation: RelationType.FOLLOWING,
         });
 
+        // Backfill feed with followed user's recent posts
+        await this.feedService.backfillFeedOnFollow(user.id, dto.user_id);
+
+        // Notify the followed user
+        try {
+          const requestUser = await this.usersService.findUserById(user.id);
+          await this.notificationService.notifyFollow(
+            user.id,
+            requestUser?.username || 'Someone',
+            dto.user_id,
+            'following',
+          );
+        } catch (e) {
+          console.error('Error sending follow notification:', e);
+        }
         break;
 
       // RequestUser -> acceptUser does not exits relation
@@ -156,6 +175,10 @@ export class RelationsService {
           request_side_id: dto.user_id,
           accept_side_id: user.id,
         });
+
+        // Cleanup feed: remove unfollowed user's posts
+        await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
+        await this.feedService.cleanupFeedOnUnfollow(dto.user_id, user.id);
         break;
 
       // RequestUser -> acceptUser relation block

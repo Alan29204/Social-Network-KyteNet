@@ -242,4 +242,69 @@ export class UsersService {
       throw new InternalServerErrorException('Error updating user');
     }
   }
+
+  // ═══════════════════════════════════════════
+  //  Forgot Password Flow
+  // ═══════════════════════════════════════════
+
+  /**
+   * Generate a password reset token and store it in Redis (15 min TTL).
+   * In production, this would send an email with the token.
+   */
+  async forgotPassword(email: string) {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      // Don't reveal whether email exists (security best practice)
+      return { message: 'If this email exists, a reset link has been sent' };
+    }
+
+    // Generate a 6-digit OTP code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store in Redis with 15 minute TTL
+    await this.redisService.set(
+      `password_reset:${email}`,
+      resetCode,
+    );
+    await this.redisService.getClient().expire(`password_reset:${email}`, 900); // 15 min
+
+    // TODO: Send email with reset code in production
+    console.log(`[DEV] Password reset code for ${email}: ${resetCode}`);
+
+    return {
+      message: 'If this email exists, a reset link has been sent',
+      // Only return code in development mode
+      ...(this.configService.get('NODE_ENV') !== 'production' && {
+        dev_reset_code: resetCode,
+      }),
+    };
+  }
+
+  /**
+   * Reset password using the token from forgotPassword.
+   */
+  async resetPassword(email: string, resetCode: string, newPassword: string) {
+    const storedCode = await this.redisService.get(`password_reset:${email}`);
+
+    if (!storedCode || storedCode !== resetCode) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Hash new password and update
+    user.password = await this.getHashPassword(newPassword);
+    await this.usersRepository.save(user);
+
+    // Delete reset code from Redis
+    await this.redisService.del(`password_reset:${email}`);
+
+    // Invalidate user cache
+    await this.redisService.del(`user:${user.id}`);
+
+    return { message: 'Password reset successfully' };
+  }
 }

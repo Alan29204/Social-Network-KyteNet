@@ -44,6 +44,9 @@ export class User {
   @Column({ nullable: true })
   avatar: string;
 
+  @Column({ nullable: true })
+  cover_photo: string;
+
   @Index()
   @Column()
   username: string;

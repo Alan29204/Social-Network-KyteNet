@@ -24,6 +24,13 @@ export class CreatePostDto {
   })
   hashtags: string[];
 
+  @IsOptional()
+  @ApiProperty({
+    example: ['user-id-1', 'user-id-2'],
+    description: 'tagged user IDs',
+  })
+  tagged_users: string[];
+
   @IsEnum(PrivacyType)
   @IsNotEmpty()
   @ApiProperty({ example: PrivacyType.PUBLIC, description: 'privacy' })

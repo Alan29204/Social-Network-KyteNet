@@ -28,6 +28,10 @@ export class ChatRoom {
   name: string;
 
   @Index()
+  @Column({ default: 'group' })
+  type: 'direct' | 'group';
+
+  @Index()
   @Column({ default: 'chat-room.png' })
   avatar: string;
 
@@ -39,6 +43,9 @@ export class ChatRoom {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_message_at: Date;
 
   @Index()
   @Column({ type: 'enum', enum: ReactionType, default: ReactionType.LIKE })

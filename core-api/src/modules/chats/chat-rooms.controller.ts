@@ -28,9 +28,16 @@ import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member
 export class ChatRoomsController {
   constructor(private readonly chatRoomsService: ChatRoomsService) {}
 
+  @Get()
+  @ResponseMessage('Get list chat room success')
+  @ApiOperation({ summary: 'Get list chat room' })
+  getListChatRoom(@User() user: IUser, @Query() query: PaginationDto) {
+    return this.chatRoomsService.getListChatRoom(user, query);
+  }
+
   @Get(':id')
   @ResponseMessage('Find chat room success')
-  @ApiOperation({ summary: 'Find chat room' })
+  @ApiOperation({ summary: 'Find chat room by ID' })
   findChatRoomById(@Param('id') id: string) {
     if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
     const room = this.chatRoomsService.findChatRoomByID(id);
@@ -39,18 +46,21 @@ export class ChatRoomsController {
     return room;
   }
 
-  @Get('list-chat-room')
-  @ResponseMessage('Get list chat room success')
-  @ApiOperation({ summary: 'Get list chat room' })
-  getListChatRoom(@User() user: IUser, @Query() query: PaginationDto) {
-    return this.chatRoomsService.getListChatRoom(user, query);
-  }
-
   @Post()
   @ResponseMessage('Create chat room success')
-  @ApiOperation({ summary: 'Create chat room' })
+  @ApiOperation({ summary: 'Create group chat room' })
   createChatRoom(@Body() dto: CreateChatRoomDto, @User() user: IUser) {
     return this.chatRoomsService.createChatRoom(dto, user);
+  }
+
+  @Post('direct/:targetUserId')
+  @ResponseMessage('Get or create direct chat success')
+  @ApiOperation({ summary: 'Get or create a direct (1-on-1) chat' })
+  getOrCreateDirectChat(
+    @Param('targetUserId') targetUserId: string,
+    @User() user: IUser,
+  ) {
+    return this.chatRoomsService.getOrCreateDirectChat(user.id, targetUserId);
   }
 
   @Patch()

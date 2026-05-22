@@ -382,10 +382,74 @@
         ]
       }
     },
+    "/feed/following": {
+      "get": {
+        "operationId": "FeedController_getFollowingFeed",
+        "summary": "Get Following Feed (cursor-based)",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Feed"
+        ]
+      }
+    },
+    "/feed/foryou": {
+      "get": {
+        "operationId": "FeedController_getForYouFeed",
+        "summary": "Get For You Feed (ranked by engagement)",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Feed"
+        ]
+      }
+    },
     "/posts": {
       "get": {
         "operationId": "PostsController_findAll",
-        "summary": "Get posts feed",
+        "summary": "Get posts by user (profile page)",
         "parameters": [
           {
             "name": "page",
@@ -626,6 +690,52 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Comments"
+        ]
+      }
+    },
+    "/comments/{id}": {
+      "patch": {
+        "operationId": "CommentsController_update",
+        "summary": "Update comment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Comments"
+        ]
+      },
+      "delete": {
+        "operationId": "CommentsController_remove",
+        "summary": "Delete comment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -1229,6 +1339,9 @@
           "name": {
             "type": "string"
           },
+          "type": {
+            "type": "object"
+          },
           "avatar": {
             "type": "string"
           },
@@ -1243,6 +1356,10 @@
             "type": "string"
           },
           "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_at": {
             "format": "date-time",
             "type": "string"
           },
@@ -1297,10 +1414,12 @@
         "required": [
           "id",
           "name",
+          "type",
           "avatar",
           "created_by",
           "permission_add_member",
           "created_at",
+          "last_message_at",
           "reaction_default",
           "end_to_end_encryption",
           "user",
@@ -1551,6 +1670,18 @@
               "type": "string"
             }
           },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagged_users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "privacy": {
             "type": "string",
             "enum": [
@@ -1588,6 +1719,8 @@
           "user_id",
           "content",
           "medias",
+          "hashtags",
+          "tagged_users",
           "privacy",
           "created_at",
           "user",
@@ -1611,6 +1744,9 @@
             "maxLength": 15
           },
           "avatar": {
+            "type": "string"
+          },
+          "cover_photo": {
             "type": "string"
           },
           "username": {
@@ -1762,6 +1898,7 @@
           "email",
           "password",
           "avatar",
+          "cover_photo",
           "username",
           "bio",
           "website",

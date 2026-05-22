@@ -110,9 +110,32 @@ export class UsersController {
   afterDelete(@User() user: IUser) {
     return this.usersService.afterDelete(user.id);
   }
+
+  @Post('/forgot-password')
+  @Public()
+  @ResponseMessage('Password reset request processed')
+  @ApiOperation({ summary: 'Request password reset (sends OTP code)' })
+  forgotPassword(@Body('email') email: string) {
+    return this.usersService.forgotPassword(email);
+  }
+
+  @Post('/reset-password')
+  @Public()
+  @ResponseMessage('Password reset successfully')
+  @ApiOperation({ summary: 'Reset password with OTP code' })
+  resetPassword(
+    @Body() body: { email: string; reset_code: string; new_password: string },
+  ) {
+    return this.usersService.resetPassword(
+      body.email,
+      body.reset_code,
+      body.new_password,
+    );
+  }
 }
 
 export interface LoginMetaData {
   deviceId: string;
   ipAddress: string;
 }
+

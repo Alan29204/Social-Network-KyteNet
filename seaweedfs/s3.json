@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "snet-admin",
+      "credentials": [
+        {
+          "accessKey": "snet-access-key",
+          "secretKey": "snet-secret-key"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

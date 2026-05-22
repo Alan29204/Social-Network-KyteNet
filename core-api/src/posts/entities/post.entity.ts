@@ -33,8 +33,19 @@ export class Post {
   @Column('text', { array: true, default: null })
   medias: string[];
 
+  @Index()
+  @Column('text', { array: true, default: '{}' })
+  hashtags: string[];
+
+  @Column('text', { array: true, default: '{}' })
+  tagged_users: string[];
+
   @Column({ default: PrivacyType.PUBLIC, enum: PrivacyType })
   privacy: PrivacyType;
+
+  @Index()
+  @Column({ nullable: true })
+  shared_post_id: string;
 
   @Column()
   created_at: Date;
@@ -42,6 +53,10 @@ export class Post {
   @ManyToOne(() => User, (user) => user.posts)
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @ManyToOne(() => Post, { nullable: true })
+  @JoinColumn({ name: 'shared_post_id' })
+  shared_post: Post;
 
   @OneToOne(() => SavePost, (savePost) => savePost.post)
   save_posts: SavePost;

@@ -28,6 +28,9 @@ import { PinChatsModule } from './pin-chats/pin-chats.module';
 import { CombineModule } from './modules/combine.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { FeedModule } from './feed/feed.module';
+import { MediaModule } from './media/media.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -90,6 +93,9 @@ import { join } from 'path';
     PinMessagesModule,
     PinChatsModule,
     CombineModule,
+    FeedModule,
+    MediaModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [

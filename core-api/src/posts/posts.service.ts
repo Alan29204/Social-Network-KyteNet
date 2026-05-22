@@ -10,10 +10,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
 import { Repository } from 'typeorm';
 import { RedisService } from 'src/redis/redis.service';
+import { MediaService } from 'src/media/media.service';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { FeedService } from 'src/feed/feed.service';
 
 @Injectable()
 export class PostsService {
@@ -21,6 +23,8 @@ export class PostsService {
     @InjectRepository(Post)
     private repository: Repository<Post>,
     private readonly redisService: RedisService,
+    private readonly mediaService: MediaService,
+    private readonly feedService: FeedService,
     @InjectQueue('create-posts')
     private mediasPostsQueue: Queue,
   ) {}
@@ -119,35 +123,43 @@ export class PostsService {
    */
   async create(user: IUser, dto: CreatePostDto, file: Express.Multer.File[]) {
     // Check if content and medias are empty
-    if (!dto.content && !file)
+    if (!dto.content && (!file || file.length === 0))
       throw new BadRequestException('Content and medias are required');
 
-    // Map path of file to string
-    const medias: string[] = file.map((f) => (f ? f.filename : ''));
-
     try {
+      // Upload files to SeaweedFS (S3)
+      const medias = await this.mediaService.uploadFiles(
+        file || [],
+        `posts/${user.id}`,
+      );
+
       // Create a new post
       const newPost = new Post();
       newPost.id = uuidv4();
       newPost.user_id = user.id;
       newPost.content = dto?.content;
       newPost.medias = medias;
+      newPost.hashtags = dto.hashtags || [];
+      newPost.tagged_users = dto.tagged_users || [];
       newPost.privacy = dto.privacy;
       newPost.created_at = new Date();
 
       await this.repository.save(newPost);
 
-      // Add job to queue
+      // Add feed fanout job to queue
       this.mediasPostsQueue.add(
         'create-posts',
         {
-          ...newPost,
+          post_id: newPost.id,
+          author_id: newPost.user_id,
+          created_at: newPost.created_at.toISOString(),
         },
         {
           removeOnComplete: true,
           removeOnFail: true,
         },
       );
+
       return {
         message: 'Create post successfully',
       };
@@ -155,6 +167,51 @@ export class PostsService {
       if (err instanceof BadRequestException) throw err;
 
       throw new InternalServerErrorException('Error when create post');
+    }
+  }
+
+  /**
+   * Share/Repost an existing post.
+   * Creates a new post that references the original via shared_post_id.
+   */
+  async sharePost(user: IUser, postId: string, content?: string, privacy?: string) {
+    const originalPost = await this.findPostByID(postId);
+    if (!originalPost) {
+      throw new NotFoundException(`Post id: ${postId} does not exist`);
+    }
+
+    try {
+      const sharedPost = new Post();
+      sharedPost.id = uuidv4();
+      sharedPost.user_id = user.id;
+      sharedPost.content = content || '';
+      sharedPost.medias = [];
+      sharedPost.hashtags = [];
+      sharedPost.tagged_users = [];
+      sharedPost.shared_post_id = postId;
+      sharedPost.privacy = (privacy as any) || originalPost.privacy;
+      sharedPost.created_at = new Date();
+
+      await this.repository.save(sharedPost);
+
+      // Fan out the shared post
+      this.mediasPostsQueue.add(
+        'create-posts',
+        {
+          post_id: sharedPost.id,
+          author_id: sharedPost.user_id,
+          created_at: sharedPost.created_at.toISOString(),
+        },
+        { removeOnComplete: true, removeOnFail: true },
+      );
+
+      return {
+        message: 'Post shared successfully',
+        post_id: sharedPost.id,
+      };
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      throw new InternalServerErrorException('Error when sharing post');
     }
   }
 
@@ -230,13 +287,28 @@ export class PostsService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, user: IUser) {
     try {
       const post = await this.findPostByID(id);
+
+      if (post.user_id !== user.id) {
+        throw new BadRequestException('You are not authorized to delete this post');
+      }
+
+      // Delete media files from SeaweedFS
+      if (post.medias && post.medias.length > 0) {
+        await this.mediaService.deleteFiles(post.medias);
+      }
+
       await this.repository.remove(post);
       await this.redisService.del(`post:${id}`);
+
+      // Remove from all followers' feeds (async)
+      await this.feedService.removePostFromFeeds(id, user.id);
+
       return { message: 'Delete post successfully' };
-    } catch {
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
       throw new InternalServerErrorException('Error when deleting post');
     }
   }

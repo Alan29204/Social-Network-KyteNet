@@ -405,6 +405,93 @@ export class RedisService {
     return await this.redis.zincrby(key, increment, member);
   }
 
+  /**
+   * Lấy danh sách thành viên theo thứ hạng giảm dần (điểm cao → thấp)
+   * @param key - Khóa của sorted set
+   * @param start - Thứ hạng bắt đầu
+   * @param stop - Thứ hạng kết thúc
+   * @returns Mảng các thành viên
+   */
+  async zRevRange(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<string[]> {
+    return await this.redis.zrevrange(key, start, stop);
+  }
+
+  /**
+   * Lấy danh sách thành viên theo điểm giảm dần với giới hạn
+   * Dùng cho cursor-based pagination trong feed
+   * @param key - Khóa của sorted set
+   * @param max - Điểm tối đa (cursor)
+   * @param min - Điểm tối thiểu
+   * @param offset - Vị trí bắt đầu
+   * @param count - Số lượng cần lấy
+   * @returns Mảng các thành viên
+   */
+  async zRevRangeByScore(
+    key: string,
+    max: number | string,
+    min: number | string,
+    offset: number = 0,
+    count: number = 10,
+  ): Promise<string[]> {
+    return await this.redis.zrevrangebyscore(
+      key,
+      max,
+      min,
+      'LIMIT',
+      offset,
+      count,
+    );
+  }
+
+  /**
+   * Xóa các thành viên theo thứ hạng (dùng để giới hạn kích thước feed)
+   * @param key - Khóa của sorted set
+   * @param start - Thứ hạng bắt đầu
+   * @param stop - Thứ hạng kết thúc
+   * @returns Số thành viên đã xóa
+   */
+  async zRemRangeByRank(
+    key: string,
+    start: number,
+    stop: number,
+  ): Promise<number> {
+    return await this.redis.zremrangebyrank(key, start, stop);
+  }
+
+  // ------ LIST OPERATIONS (Chat message caching) ------
+
+  /**
+   * Push value to the end of a list
+   */
+  async rPush(key: string, value: string): Promise<number> {
+    return await this.redis.rpush(key, value);
+  }
+
+  /**
+   * Get a range of elements from a list
+   */
+  async lRange(key: string, start: number, stop: number): Promise<string[]> {
+    return await this.redis.lrange(key, start, stop);
+  }
+
+  /**
+   * Get the length of a list
+   */
+  async lLen(key: string): Promise<number> {
+    return await this.redis.llen(key);
+  }
+
+  /**
+   * Trim a list to the specified range
+   */
+  async lTrim(key: string, start: number, stop: number): Promise<'OK'> {
+    return await this.redis.ltrim(key, start, stop);
+  }
+
   // ------ CÁC PHƯƠNG THỨC KHÁC ------
 
   /**

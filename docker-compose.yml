@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     container_name: postgres_datn
@@ -43,6 +41,29 @@ services:
       - app-network
     restart: always
 
+  # ── SeaweedFS: Distributed File Storage (all-in-one) ──
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.59
+    container_name: seaweedfs_datn
+    command: "server -master -volume -filer -s3 -s3.config=/etc/seaweedfs/s3.json"
+    ports:
+      - "9333:9333"
+      - "${SEAWEEDFS_VOLUME_PORT:-8080}:8080"
+      - "${SEAWEEDFS_FILER_PORT:-8888}:8888"
+      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9333/cluster/status >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - seaweed_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json
+    networks:
+      - app-network
+    restart: unless-stopped
+
   # backend-fastapi:
   #   build:
   #     context: ./fastapi-ai
@@ -63,22 +84,18 @@ services:
   #     context: .
   #     dockerfile: Dockerfile
   #   environment:
-  #     # Database
   #     DATABASE_HOST: ${DATABASE_HOST:-postgres}
   #     DATABASE_USERNAME: ${DATABASE_USERNAME}
   #     DATABASE_PASSWORD: ${DATABASE_PASSWORD}
   #     DATABASE_NAME: ${DATABASE_NAME}
-  #     # Redis
   #     REDIS_HOST: ${REDIS_HOST:-redis}
   #     REDIS_PORT: ${REDIS_PORT:-6379}
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
   #     REDIS_DB: ${REDIS_DB}
-  #     # BullMQ
   #     BULLMQ_HOST: ${BULLMQ_HOST:-redis}
   #     BULLMQ_PORT: ${BULLMQ_PORT:-6379}
   #     BULLMQ_PASSWORD: ${BULLMQ_PASSWORD}
   #     BULLMQ_DB: ${BULLMQ_DB}
-  #     # Other
   #     JWT_ACCESS_EXPIRE: ${JWT_ACCESS_EXPIRE}
   #     JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE}
   #     JWT_REFRESH_EXPIRE_DAY: ${JWT_REFRESH_EXPIRE_DAY}
@@ -92,12 +109,6 @@ services:
   #   depends_on:
   #     - postgres
   #     - redis
-  #   dns:
-  #     - 8.8.8.8
-  #     - 8.8.4.4
-  #   volumes:
-  #     - .:/usr/src/app:cached
-  #     - /usr/src/app/node_modules
   #   networks:
   #     - app-network
   #   restart: unless-stopped
@@ -105,12 +116,9 @@ services:
 networks:
   app-network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
 
 volumes:
   chromadb_data:
   postgres_data:
   redis_data:
+  seaweed_data:

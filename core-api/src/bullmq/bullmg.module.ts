@@ -10,12 +10,14 @@ import { User } from 'src/users/entities/user.entity';
 import { NotificationUser } from 'src/notification-users/entities/notification-user.entity';
 import { GatewayModule } from 'src/gateway/gateway.module';
 import { MediasPostsProcessor } from './medias-post.processor';
+import { FeedModule } from 'src/feed/feed.module';
 
 @Global()
 @Module({
   imports: [
     ConfigModule,
     RedisModule,
+    FeedModule,
     BullModule.registerQueue({ name: 'noti-birthday' }),
     BullModule.registerQueue({ name: 'noti-system' }),
     BullModule.registerQueue({ name: 'create-posts' }),

@@ -13,13 +13,14 @@ import { Server, Socket } from 'socket.io';
 import { RedisService } from 'src/redis/redis.service';
 import { WsAuthMiddleware } from './ws-auth.middleware';
 import { INotiUser } from 'src/notifications/notification.interface';
+import { ChatMessagesService } from 'src/modules/chats/chat-messages.service';
 
 /*
-    Client -->|Gửi tin| Redis;
-    Redis -->|Phản hồi nhanh| Client;
-    Redis -->|Lưu vào hàng đợi| BullMQ;
-    BullMQ -->|Ghi tin nhắn vào DB| PostgreSQL;
-    Client -->|Yêu cầu tin nhắn cũ| PostgreSQL;
+    Client --|Gửi tin| Redis;
+    Redis --|Phản hồi nhanh| Client;
+    Redis --|Lưu vào hàng đợi| BullMQ;
+    BullMQ --|Ghi tin nhắn vào DB| PostgreSQL;
+    Client --|Yêu cầu tin nhắn cũ| PostgreSQL;
 */
 
 @WebSocketGateway({
@@ -37,6 +38,7 @@ export class GatewayGateway
     private readonly redisService: RedisService,
     private readonly wsAuthMiddleware: WsAuthMiddleware,
     private readonly notificationUsersService: NotificationUsersService,
+    private readonly chatMessagesService: ChatMessagesService,
   ) {}
 
   // Initialize WebSocket
@@ -86,6 +88,10 @@ export class GatewayGateway
     );
   }
 
+  // ═══════════════════════════════════════════
+  //  CHAT: Real-time messaging
+  // ═══════════════════════════════════════════
+
   // Join a chat room
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
@@ -95,10 +101,10 @@ export class GatewayGateway
     socket.join(roomId);
     console.log(`User ${socket.data.user.id} joined room ${roomId}`);
 
-    // Get message history
+    // Get cached messages from Redis
     const messages = await this.redisService.lRange(`chat:${roomId}`, 0, -1);
 
-    // Send message history to client
+    // Send cached message history to client
     socket.emit(
       'messageHistory',
       messages.map((msg) => JSON.parse(msg)),
@@ -113,5 +119,50 @@ export class GatewayGateway
   ) {
     socket.leave(roomId);
     console.log(`User ${socket.data.user.id} left room ${roomId}`);
+  }
+
+  // Send a text message via WebSocket (real-time path)
+  @SubscribeMessage('sendMessage')
+  async handleSendMessage(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { chat_room_id: string; message: string },
+  ) {
+    try {
+      const user = socket.data.user;
+
+      // Save message to DB + Redis via service
+      const savedMessage = await this.chatMessagesService.createMessage(
+        { chat_room_id: body.chat_room_id, message: body.message, medias: '' },
+        user,
+      );
+
+      // Broadcast to all members in the room (including sender)
+      this.server.to(body.chat_room_id).emit('newMessage', savedMessage);
+    } catch (error) {
+      socket.emit('messageError', {
+        error: error.message || 'Failed to send message',
+      });
+    }
+  }
+
+  // Typing indicator
+  @SubscribeMessage('typing')
+  handleTyping(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { chat_room_id: string; is_typing: boolean },
+  ) {
+    // Broadcast typing status to other members (not sender)
+    socket.to(body.chat_room_id).emit('userTyping', {
+      user_id: socket.data.user.id,
+      is_typing: body.is_typing,
+    });
+  }
+
+  /**
+   * Emit a message to a specific chat room.
+   * Called externally by ChatMessagesService (via REST API path).
+   */
+  emitToRoom(roomId: string, event: string, data: any) {
+    this.server.to(roomId).emit(event, data);
   }
 }
