@@ -1356,7 +1356,6 @@ export const getRelationsControllerGetListRelationInfiniteQueryOptions = <
         Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
         QueryKey,
         RelationsControllerGetListRelationParams['page']
       >
@@ -1391,7 +1390,6 @@ export const getRelationsControllerGetListRelationInfiniteQueryOptions = <
     Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
     TError,
     TData,
-    Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
     QueryKey,
     RelationsControllerGetListRelationParams['page']
   > & { queryKey: QueryKey };
@@ -1420,7 +1418,6 @@ export const useRelationsControllerGetListRelationInfinite = <
         Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof relationsControllerGetListRelation>>,
         QueryKey,
         RelationsControllerGetListRelationParams['page']
       >
@@ -1887,7 +1884,6 @@ export const getPostsControllerFindAllInfiniteQueryOptions = <
         Awaited<ReturnType<typeof postsControllerFindAll>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof postsControllerFindAll>>,
         QueryKey,
         PostsControllerFindAllParams['page']
       >
@@ -1915,7 +1911,6 @@ export const getPostsControllerFindAllInfiniteQueryOptions = <
     Awaited<ReturnType<typeof postsControllerFindAll>>,
     TError,
     TData,
-    Awaited<ReturnType<typeof postsControllerFindAll>>,
     QueryKey,
     PostsControllerFindAllParams['page']
   > & { queryKey: QueryKey };
@@ -1943,7 +1938,6 @@ export const usePostsControllerFindAllInfinite = <
         Awaited<ReturnType<typeof postsControllerFindAll>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof postsControllerFindAll>>,
         QueryKey,
         PostsControllerFindAllParams['page']
       >
@@ -2826,7 +2820,6 @@ export const getChatRoomsControllerGetListChatRoomInfiniteQueryOptions = <
         Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
         QueryKey,
         ChatRoomsControllerGetListChatRoomParams['page']
       >
@@ -2855,7 +2848,6 @@ export const getChatRoomsControllerGetListChatRoomInfiniteQueryOptions = <
     Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
     TError,
     TData,
-    Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
     QueryKey,
     ChatRoomsControllerGetListChatRoomParams['page']
   > & { queryKey: QueryKey };
@@ -2883,7 +2875,6 @@ export const useChatRoomsControllerGetListChatRoomInfinite = <
         Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
         TError,
         TData,
-        Awaited<ReturnType<typeof chatRoomsControllerGetListChatRoom>>,
         QueryKey,
         ChatRoomsControllerGetListChatRoomParams['page']
       >

@@ -8,12 +8,12 @@ import { ChatMessage } from './entities/chat-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
-import { IUser } from 'src/users/users.interface';
-import { RedisService } from 'src/redis/redis.service';
-import { MediaService } from 'src/media/media.service';
+import { IUser } from 'src/modules/users/users.interface';
+import { RedisService } from 'src/infra/redis/redis.service';
+import { MediaService } from 'src/infra/media/media.service';
 import { ChatRoom } from './entities/chat-room.entity';
 import { ChatMember } from './entities/chat-member.entity';
-import { MessageStatusType } from 'src/helper/message-status.enum';
+import { MessageStatusType } from 'src/common/enums/message-status.enum';
 import { v4 as uuidv4 } from 'uuid';
 
 /** Max messages cached per room in Redis */

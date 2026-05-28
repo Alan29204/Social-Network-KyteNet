@@ -14,13 +14,13 @@ import {
 import { ChatRoomsService } from './chat-rooms.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import { IUser } from 'src/users/users.interface';
-import { ResponseMessage, User } from 'src/decorator/customize';
+import { IUser } from 'src/modules/users/users.interface';
+import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { UpdateChatRoomDto } from './dto/update-chat-room.dto';
 import { isUUID } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
-import IdDto from 'src/helper/id.dto';
-import { PaginationDto } from 'src/helper/pagination.dto';
+import IdDto from 'src/common/dto/id.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member.dto';
 
 @ApiTags('Chat Rooms')

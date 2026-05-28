@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
-import { User } from './users/entities/user.entity';
-import { Post } from './posts/entities/post.entity';
-import { Relation } from './relations/entities/relation.entity';
-import { RelationType } from './helper/relation.enum';
-import { PrivacyType } from './helper/privacy.enum';
+import { User } from './modules/users/entities/user.entity';
+import { Post } from './modules/posts/entities/post.entity';
+import { Relation } from './modules/users/relations/entities/relation.entity';
+import { RelationType } from './common/enums/relation.enum';
+import { PrivacyType } from './common/enums/privacy.enum';
 import * as bcrypt from 'bcrypt';
 
 async function bootstrap() {

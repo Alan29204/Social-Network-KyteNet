@@ -22,6 +22,12 @@ import { Following } from '@pages/following';
 import { ExploreDetail } from '@pages/explore-detail';
 import { Explore } from '@pages/explore';
 import { EditProfile } from '@pages/edit-profile';
+import AdminGuard from '@components/admin/AdminGuard';
+import AdminLayout from '@components/admin/AdminLayout';
+import DashboardPage from '@pages/admin/DashboardPage';
+import UserManagementPage from '@pages/admin/UserManagementPage';
+import PostManagementPage from '@pages/admin/PostManagementPage';
+import ReportManagementPage from '@pages/admin/ReportManagementPage';
 
 // ----------------------------------------------------------------------
 const router = createBrowserRouter(
@@ -29,6 +35,16 @@ const router = createBrowserRouter(
     <Route errorElement={<ErrorPage />}>
       <Route path={paths.login} element={<Login />} />
       <Route path={paths.register} element={<Register />} />
+
+      {/* Admin routes (protected by AdminGuard) */}
+      <Route path={paths.admin} element={<AdminGuard />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="users" element={<UserManagementPage />} />
+          <Route path="posts" element={<PostManagementPage />} />
+          <Route path="reports" element={<ReportManagementPage />} />
+        </Route>
+      </Route>
 
       <Route path={paths.home} element={<MainLayout />}>
         {/*Pages with right sidebar  */}

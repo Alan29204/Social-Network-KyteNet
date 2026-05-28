@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
-import { MemberType } from 'src/helper/member.enum';
+import { MemberType } from 'src/common/enums/member.enum';
 
 export class UpdatePermissionAddMemberDto {
   @IsUUID()

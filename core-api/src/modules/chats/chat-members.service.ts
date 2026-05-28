@@ -6,13 +6,13 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { IUser } from 'src/users/users.interface';
-import { RedisService } from 'src/redis/redis.service';
+import { IUser } from 'src/modules/users/users.interface';
+import { RedisService } from 'src/infra/redis/redis.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from 'src/modules/users/users.service';
 import { RequestJoinChatRoomDto } from './dto/request-join-chat-room.dto';
-import { MemberType } from 'src/helper/member.enum';
+import { MemberType } from 'src/common/enums/member.enum';
 import { ChatMember } from './entities/chat-member.entity';
 import { WaitingMembers } from './entities/waiting-members.entity';
 import { ChatRoomsService } from './chat-rooms.service';
@@ -127,5 +127,94 @@ export class ChatMembersService {
         JSON.stringify(memberDb),
       );
     return memberDb;
+  }
+
+  async addMembers(chat_room_id: string, user_ids: string[], user: IUser) {
+    const room = await this.chatRoomService.findChatRoomByID(chat_room_id);
+    if (!room) throw new NotFoundException('Chat room not found');
+
+    const currentUserMember = await this.findMemberInChatRoom(
+      chat_room_id,
+      user.id,
+    );
+    if (!currentUserMember)
+      throw new BadRequestException('You are not in this chat room');
+
+    if (
+      room.permission_add_member === MemberType.ADMIN &&
+      currentUserMember.member_type !== MemberType.ADMIN
+    ) {
+      throw new BadRequestException(
+        'You do not have permission to add members',
+      );
+    }
+
+    const membersToSave = [];
+    for (const userId of user_ids) {
+      const existing = await this.findMemberInChatRoom(chat_room_id, userId);
+      if (!existing) {
+        membersToSave.push({
+          chat_room_id: chat_room_id,
+          user_id: userId,
+          member_type: MemberType.MEMBER,
+        });
+      }
+    }
+
+    if (membersToSave.length > 0) {
+      await this.chatMembersRepository.save(membersToSave);
+      await this.redisService.del(`chat-members:${chat_room_id}`);
+    }
+    return { message: 'Members added successfully' };
+  }
+
+  async removeMember(
+    chat_room_id: string,
+    target_user_id: string,
+    user: IUser,
+  ) {
+    const room = await this.chatRoomService.findChatRoomByID(chat_room_id);
+    if (!room) throw new NotFoundException('Chat room not found');
+
+    const currentUserMember = await this.findMemberInChatRoom(
+      chat_room_id,
+      user.id,
+    );
+    if (
+      !currentUserMember ||
+      currentUserMember.member_type !== MemberType.ADMIN
+    ) {
+      throw new BadRequestException(
+        'You do not have permission to remove members',
+      );
+    }
+
+    if (user.id === target_user_id) {
+      throw new BadRequestException(
+        'You cannot remove yourself, use leave room instead',
+      );
+    }
+
+    await this.chatMembersRepository.delete({
+      chat_room_id,
+      user_id: target_user_id,
+    });
+    await this.redisService.del(`chat-members:${chat_room_id}`);
+
+    return { message: 'Member removed successfully' };
+  }
+
+  async leaveRoom(chat_room_id: string, user: IUser) {
+    const room = await this.chatRoomService.findChatRoomByID(chat_room_id);
+    if (!room) throw new NotFoundException('Chat room not found');
+
+    const member = await this.findMemberInChatRoom(chat_room_id, user.id);
+    if (!member)
+      throw new BadRequestException('You are not a member of this chat room');
+
+    await this.chatMembersRepository.delete({ chat_room_id, user_id: user.id });
+    await this.redisService.del(`chat-members:${chat_room_id}`);
+
+    return { message: 'Left chat room successfully' };
   }
 }

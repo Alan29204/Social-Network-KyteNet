@@ -11,9 +11,15 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ChatMessagesService } from './chat-messages.service';
-import { ResponseMessage, User } from 'src/decorator/customize';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { IUser } from 'src/users/users.interface';
+import { ResponseMessage, User } from 'src/common/decorators/customize';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import { IUser } from 'src/modules/users/users.interface';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
@@ -25,6 +31,23 @@ export class ChatMessagesController {
   @Post()
   @ResponseMessage('Create message to chat successfully')
   @ApiOperation({ summary: 'Send a message to a chat room' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        chat_room_id: { type: 'string' },
+        message: { type: 'string' },
+        'medias-messages': {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+    },
+  })
   @UseInterceptors(FilesInterceptor('medias-messages', 5))
   createMessage(
     @Body() dto: CreateChatMessageDto,
@@ -57,6 +80,14 @@ export class ChatMessagesController {
   @Patch(':id')
   @ResponseMessage('Edit message successfully')
   @ApiOperation({ summary: 'Edit a message' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
   editMessage(
     @Param('id') id: string,
     @User() user: IUser,

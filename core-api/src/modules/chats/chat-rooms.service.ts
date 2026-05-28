@@ -9,15 +9,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatRoom } from './entities/chat-room.entity';
-import { RedisService } from 'src/redis/redis.service';
-import { MediaService } from 'src/media/media.service';
+import { RedisService } from 'src/infra/redis/redis.service';
+import { MediaService } from 'src/infra/media/media.service';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import { IUser } from 'src/users/users.interface';
+import { IUser } from 'src/modules/users/users.interface';
 import { UpdateChatRoomDto } from './dto/update-chat-room.dto';
 import { ChatMember } from 'src/modules/chats/entities/chat-member.entity';
-import { MemberType } from 'src/helper/member.enum';
-import IdDto from 'src/helper/id.dto';
-import { PaginationDto } from 'src/helper/pagination.dto';
+import { MemberType } from 'src/common/enums/member.enum';
+import IdDto from 'src/common/dto/id.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member.dto';
 import { ChatMembersService } from './chat-members.service';
 
@@ -64,11 +64,25 @@ export class ChatRoomsService {
         type: 'group',
         created_by: user.id,
       });
-      await this.chatMembersRepository.save({
+      
+      const membersToSave = [{
         chat_room_id: room.id,
         user_id: user.id,
         member_type: MemberType.ADMIN,
-      });
+      }];
+
+      if (dto.members && dto.members.length > 0) {
+        const otherMembers = dto.members.filter(mId => mId !== user.id);
+        otherMembers.forEach(mId => {
+           membersToSave.push({
+             chat_room_id: room.id,
+             user_id: mId,
+             member_type: MemberType.MEMBER,
+           });
+        });
+      }
+
+      await this.chatMembersRepository.save(membersToSave);
 
       return { message: 'Chat room created', room_id: room.id };
     } catch {

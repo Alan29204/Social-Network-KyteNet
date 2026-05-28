@@ -1,7 +1,7 @@
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
-import { MessageStatusType } from 'src/helper/message-status.enum';
-import { PinMessage } from 'src/pin-messages/entities/pin-messages.entity';
-import { User } from 'src/users/entities/user.entity';
+import { MessageStatusType } from 'src/common/enums/message-status.enum';
+import { PinMessage } from 'src/modules/chats/pin-messages/entities/pin-messages.entity';
+import { User } from 'src/modules/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,

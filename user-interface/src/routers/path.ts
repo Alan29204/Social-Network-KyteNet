@@ -3,6 +3,7 @@
 const ROOTS = {
   HOME: '/',
   DASHBOARD: '/dashboard',
+  ADMIN: '/admin',
 };
 
 export const paths = {
@@ -29,4 +30,10 @@ export const paths = {
   following: `${ROOTS.HOME}/following`,
 
   exploreDetail: `${ROOTS.HOME}/explore/:id`,
+
+  // Admin routes
+  admin: ROOTS.ADMIN,
+  adminUsers: `${ROOTS.ADMIN}/users`,
+  adminPosts: `${ROOTS.ADMIN}/posts`,
+  adminReports: `${ROOTS.ADMIN}/reports`,
 };

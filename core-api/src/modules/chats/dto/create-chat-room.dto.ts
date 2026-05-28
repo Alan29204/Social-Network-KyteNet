@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateChatRoomDto {
   @IsString()
@@ -8,4 +8,10 @@ export class CreateChatRoomDto {
   @IsNotEmpty()
   @ApiProperty({ example: 'Group Chat' })
   name: string;
+
+  @IsArray()
+  @IsOptional()
+  @IsUUID('all', { each: true })
+  @ApiProperty({ example: ['uuid-1', 'uuid-2'], description: 'List of member IDs to add initially', required: false })
+  members?: string[];
 }

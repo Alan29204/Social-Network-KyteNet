@@ -1,16 +1,17 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Post } from 'src/posts/entities/post.entity';
-import { User } from 'src/users/entities/user.entity';
-import { Relation } from 'src/relations/entities/relation.entity';
-import { RelationType } from 'src/helper/relation.enum';
+import { In, Repository } from 'typeorm';
+import { Post } from 'src/modules/posts/entities/post.entity';
+import { User } from 'src/modules/users/entities/user.entity';
+import { Relation } from 'src/modules/users/relations/entities/relation.entity';
+import { RelationType } from 'src/common/enums/relation.enum';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Injectable()
 export class SearchService {
+  private readonly aiServiceUrl: string;
+
   constructor(
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
@@ -18,11 +19,15 @@ export class SearchService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Relation)
     private readonly relationRepository: Repository<Relation>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.aiServiceUrl = this.configService.get<string>(
+      'AI_SERVICE_URL',
+      'http://localhost:8000',
+    );
+  }
 
-  /**
-   * Search users by username/email using PostgreSQL ILIKE.
-   */
+  /** Search users by username/email using PostgreSQL ILIKE. */
   async searchUsers(query: string, page: number = 1, limit: number = 10) {
     try {
       const skip = (page - 1) * limit;
@@ -32,41 +37,23 @@ export class SearchService {
         .createQueryBuilder('user')
         .where('user.username ILIKE :q', { q: searchTerm })
         .orWhere('user.email ILIKE :q', { q: searchTerm })
-        .select([
-          'user.id',
-          'user.username',
-          'user.email',
-          'user.avatar',
-          'user.privacy',
-        ])
+        .select(['user.id', 'user.username', 'user.email', 'user.avatar', 'user.privacy'])
         .skip(skip)
         .take(limit)
         .getManyAndCount();
 
-      return {
-        data: users,
-        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
-      };
+      return { data: users, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
     } catch {
       throw new InternalServerErrorException('Error searching users');
     }
   }
 
-  /**
-   * Search posts by content using PostgreSQL ILIKE.
-   * Only returns PUBLIC posts to non-friends.
-   */
-  async searchPosts(
-    query: string,
-    userId: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  /** Search posts by content using PostgreSQL ILIKE. Only returns PUBLIC posts. */
+  async searchPosts(query: string, userId: string, page: number = 1, limit: number = 10) {
     try {
       const skip = (page - 1) * limit;
       const searchTerm = `%${query}%`;
 
-      // Get blocked users
       const blocks = await this.relationRepository.find({
         where: [
           { request_side_id: userId, relation_type: RelationType.BLOCK },
@@ -86,9 +73,7 @@ export class SearchService {
         .andWhere('post.privacy = :privacy', { privacy: 'public' });
 
       if (blockedIds.length > 0) {
-        qb.andWhere('post.user_id NOT IN (:...blocked)', {
-          blocked: blockedIds,
-        });
+        qb.andWhere('post.user_id NOT IN (:...blocked)', { blocked: blockedIds });
       }
 
       const [posts, total] = await qb
@@ -97,23 +82,14 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
-      return {
-        data: posts,
-        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
-      };
+      return { data: posts, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
     } catch {
       throw new InternalServerErrorException('Error searching posts');
     }
   }
 
-  /**
-   * Search posts by hashtag.
-   */
-  async searchByHashtag(
-    hashtag: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  /** Search posts by hashtag. */
+  async searchByHashtag(hashtag: string, page: number = 1, limit: number = 10) {
     try {
       const skip = (page - 1) * limit;
       const tag = hashtag.startsWith('#') ? hashtag : `#${hashtag}`;
@@ -128,27 +104,58 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
-      return {
-        data: posts,
-        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
-      };
+      return { data: posts, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
     } catch {
       throw new InternalServerErrorException('Error searching by hashtag');
     }
   }
 
   /**
-   * Combined search: returns both users and posts matching the query.
+   * Semantic search using AI service (ChromaDB vector similarity).
+   * Falls back to ILIKE keyword search if AI service is unavailable.
    */
+  async semanticSearchPosts(query: string, userId: string, page: number = 1, limit: number = 10) {
+    try {
+      const response = await axios.get(`${this.aiServiceUrl}/posts/semantic-search`, {
+        params: { q: query, page, page_size: limit },
+        timeout: 5000,
+      });
+
+      const postIds: string[] = response.data?.post_ids || [];
+
+      if (postIds.length === 0) {
+        return { data: [], meta: { page, limit, total: 0, total_pages: 0 }, source: 'semantic' };
+      }
+
+      const posts = await this.postRepository.find({
+        where: { id: In(postIds), privacy: 'public' as any },
+        relations: ['user'],
+        order: { created_at: 'DESC' },
+      });
+
+      return {
+        data: posts,
+        meta: {
+          page,
+          limit,
+          total: response.data?.pagination?.total_results || posts.length,
+          total_pages: response.data?.pagination?.total_pages || 1,
+        },
+        source: 'semantic',
+      };
+    } catch (error) {
+      console.warn('[Search] AI service unavailable, falling back to ILIKE:', error.message);
+      const fallback = await this.searchPosts(query, userId, page, limit);
+      return { ...fallback, source: 'keyword_fallback' };
+    }
+  }
+
+  /** Combined search: returns both users and posts matching the query. */
   async searchAll(query: string, userId: string) {
     const [users, posts] = await Promise.all([
       this.searchUsers(query, 1, 5),
       this.searchPosts(query, userId, 1, 5),
     ]);
-
-    return {
-      users: users.data,
-      posts: posts.data,
-    };
+    return { users: users.data, posts: posts.data };
   }
 }

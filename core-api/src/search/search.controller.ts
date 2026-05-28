@@ -1,8 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { ResponseMessage, User } from 'src/decorator/customize';
-import { IUser } from 'src/users/users.interface';
+import { ResponseMessage, User } from 'src/common/decorators/customize';
+import { IUser } from 'src/modules/users/users.interface';
 
 @ApiTags('Search')
 @Controller('search')
@@ -58,5 +58,20 @@ export class SearchController {
     @Query('limit') limit?: number,
   ) {
     return this.searchService.searchByHashtag(hashtag, page || 1, limit || 10);
+  }
+
+  @Get('semantic')
+  @ResponseMessage('Semantic search results')
+  @ApiOperation({ summary: 'AI Semantic search posts using ChromaDB (falls back to keyword search if unavailable)' })
+  @ApiQuery({ name: 'q', required: true, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  semanticSearch(
+    @Query('q') query: string,
+    @User() user: IUser,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.searchService.semanticSearchPosts(query, user.id, page || 1, limit || 10);
   }
 }

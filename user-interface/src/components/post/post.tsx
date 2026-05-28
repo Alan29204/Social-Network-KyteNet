@@ -32,7 +32,7 @@ export default function Post({ post }: any) {
   const handleLikeClick = () => {
     setIsLiked(!isLiked);
     toggleLike({
-      data: { post_id: post.id },
+      data: { post_comment_id: post.id },
     });
   };
 

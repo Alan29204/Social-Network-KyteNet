@@ -1,0 +1,79 @@
+import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
+import { PrivacyType } from 'src/common/enums/privacy.enum';
+import { SavePost } from 'src/modules/posts/bookmarks/save-posts/entities/save-post.entity';
+import { User } from 'src/modules/users/entities/user.entity';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
+
+import { Reaction } from 'src/modules/posts/reactions/entities/reaction.entity';
+
+@Entity()
+export class Post {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Index()
+  @Column()
+  user_id: string;
+
+  @Index()
+  @Column({ default: null })
+  content: string;
+
+  @Index()
+  @Column('text', { array: true, default: null })
+  medias: string[];
+
+  @Index()
+  @Column('text', { array: true, default: '{}' })
+  hashtags: string[];
+
+  @Column('text', { array: true, default: '{}' })
+  tagged_users: string[];
+
+  @Column({ default: PrivacyType.PUBLIC, enum: PrivacyType })
+  privacy: PrivacyType;
+
+  @Index()
+  @Column({ nullable: true })
+  shared_post_id: string;
+
+  @Column()
+  created_at: Date;
+
+  @ManyToOne(() => User, (user) => user.posts)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @ManyToOne(() => Post, { nullable: true })
+  @JoinColumn({ name: 'shared_post_id' })
+  shared_post: Post;
+
+  @OneToOne(() => SavePost, (savePost) => savePost.post)
+  save_posts: SavePost;
+
+  @OneToMany(() => Comment, (comment) => comment.post)
+  comments: Comment[];
+
+  @OneToMany(() => Reaction, (reaction) => reaction.post)
+  reactions: Reaction[];
+
+  @ApiProperty({
+    example: { likes: 10, comments: 5, reposts: 2 },
+    description: 'Interaction counts',
+  })
+  interactions: {
+    likes: number;
+    comments: number;
+    reposts: number;
+  };
+}

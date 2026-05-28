@@ -1,6 +1,6 @@
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
-import { MemberType } from 'src/helper/member.enum';
-import { User } from 'src/users/entities/user.entity';
+import { MemberType } from 'src/common/enums/member.enum';
+import { User } from 'src/modules/users/entities/user.entity';
 import {
   Entity,
   Column,

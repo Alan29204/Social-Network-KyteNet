@@ -1,12 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ChatMember } from './entities/chat-member.entity';
 import { WaitingMembers } from './entities/waiting-members.entity';
 
-import { RedisModule } from 'src/redis/redis.module';
-import { NotificationModule } from 'src/notifications/notifications.module';
-import { UsersModule } from 'src/users/users.module';
+import { RedisModule } from 'src/infra/redis/redis.module';
+import { UsersModule } from 'src/modules/users/users.module';
 import { ChatMembersService } from './chat-members.service';
 import { ChatRoom } from './entities/chat-room.entity';
 import { ChatMessage } from './entities/chat-message.entity';
@@ -25,8 +24,7 @@ import { ChatRoomsService } from './chat-rooms.service';
       ChatMessage,
     ]),
     RedisModule,
-    NotificationModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
   ],
   controllers: [
     ChatRoomsController,

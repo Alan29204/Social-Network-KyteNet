@@ -1,11 +1,11 @@
 import { ChatMember } from 'src/modules/chats/entities/chat-member.entity';
 import { WaitingMembers } from 'src/modules/chats/entities/waiting-members.entity';
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
-import { MemberType } from 'src/helper/member.enum';
-import { ReactionType } from 'src/helper/reaction.enum';
-import { PinChat } from 'src/pin-chats/entities/pin-chat.entity';
-import { PinMessage } from 'src/pin-messages/entities/pin-messages.entity';
-import { User } from 'src/users/entities/user.entity';
+import { MemberType } from 'src/common/enums/member.enum';
+import { ReactionType } from 'src/common/enums/reaction.enum';
+import { PinChat } from 'src/modules/chats/pin-chats/entities/pin-chat.entity';
+import { PinMessage } from 'src/modules/chats/pin-messages/entities/pin-messages.entity';
+import { User } from 'src/modules/users/entities/user.entity';
 
 import {
   Column,

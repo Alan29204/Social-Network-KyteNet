@@ -1,11 +1,11 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Post } from 'src/posts/entities/post.entity';
-import { Relation } from 'src/relations/entities/relation.entity';
-import { RedisService } from 'src/redis/redis.service';
-import { RelationType } from 'src/helper/relation.enum';
-import { PrivacyType } from 'src/helper/privacy.enum';
+import { Post } from 'src/modules/posts/entities/post.entity';
+import { Relation } from 'src/modules/users/relations/entities/relation.entity';
+import { RedisService } from 'src/infra/redis/redis.service';
+import { RelationType } from 'src/common/enums/relation.enum';
+import { PrivacyType } from 'src/common/enums/privacy.enum';
 
 /** Maximum number of posts stored in each user's Redis feed */
 const MAX_FEED_SIZE = 500;

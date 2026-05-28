@@ -206,6 +206,43 @@
         ]
       }
     },
+    "/users/forgot-password": {
+      "post": {
+        "operationId": "UsersController_forgotPassword",
+        "summary": "Request password reset (sends OTP code)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/reset-password": {
+      "post": {
+        "operationId": "UsersController_resetPassword",
+        "summary": "Reset password with OTP code",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/relations/friends/{user_id}": {
       "get": {
         "operationId": "RelationsController_getListRelation",
@@ -382,6 +419,557 @@
         ]
       }
     },
+    "/notification-users": {
+      "get": {
+        "operationId": "NotificationUsersController_getNotifications",
+        "summary": "Get notifications list (paginated)",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification Users"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationUsersController_deleteNoti",
+        "summary": "Delete notification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNotificationUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification Users"
+        ]
+      }
+    },
+    "/notification-users/unread-count": {
+      "get": {
+        "operationId": "NotificationUsersController_getUnreadCount",
+        "summary": "Get unread notification count",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification Users"
+        ]
+      }
+    },
+    "/notification-users/read-all": {
+      "patch": {
+        "operationId": "NotificationUsersController_readAllNoti",
+        "summary": "Mark all notifications as read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification Users"
+        ]
+      }
+    },
+    "/notification-users/all": {
+      "delete": {
+        "operationId": "NotificationUsersController_deleteAllNoti",
+        "summary": "Delete all notifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification Users"
+        ]
+      }
+    },
+    "/chat-rooms": {
+      "get": {
+        "operationId": "ChatRoomsController_getListChatRoom",
+        "summary": "Get list chat room",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      },
+      "post": {
+        "operationId": "ChatRoomsController_createChatRoom",
+        "summary": "Create group chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      },
+      "patch": {
+        "operationId": "ChatRoomsController_updateNameOrAvatar",
+        "summary": "Update name or avatar chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      },
+      "delete": {
+        "operationId": "ChatRoomsController_deleteChatRoom",
+        "summary": "Delete chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/{id}": {
+      "get": {
+        "operationId": "ChatRoomsController_findChatRoomById",
+        "summary": "Find chat room by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoom"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/direct/{targetUserId}": {
+      "post": {
+        "operationId": "ChatRoomsController_getOrCreateDirectChat",
+        "summary": "Get or create a direct (1-on-1) chat",
+        "parameters": [
+          {
+            "name": "targetUserId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/permission-add-member": {
+      "patch": {
+        "operationId": "ChatRoomsController_updatePermissionAddMember",
+        "summary": "Update permission add member",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePermissionAddMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-members": {
+      "post": {
+        "operationId": "ChatMembersController_requestJoinChatRoom",
+        "summary": "Request join chat room for user not exits in chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestJoinChatRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Members"
+        ]
+      }
+    },
+    "/chat-members/add-members": {
+      "post": {
+        "operationId": "ChatMembersController_addMembers",
+        "summary": "Add multiple members to a chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_room_id": {
+                    "type": "string"
+                  },
+                  "user_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Members"
+        ]
+      }
+    },
+    "/chat-members/remove-member": {
+      "delete": {
+        "operationId": "ChatMembersController_removeMember",
+        "summary": "Remove a member from a chat room (Admin only)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_room_id": {
+                    "type": "string"
+                  },
+                  "target_user_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Members"
+        ]
+      }
+    },
+    "/chat-members/leave-room/{chat_room_id}": {
+      "delete": {
+        "operationId": "ChatMembersController_leaveRoom",
+        "summary": "Leave a chat room",
+        "parameters": [
+          {
+            "name": "chat_room_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Members"
+        ]
+      }
+    },
+    "/chat-messages": {
+      "post": {
+        "operationId": "ChatMessagesController_createMessage",
+        "summary": "Send a message to a chat room",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_room_id": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "medias-messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMessage"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      }
+    },
+    "/chat-messages/{roomId}": {
+      "get": {
+        "operationId": "ChatMessagesController_getMessageHistory",
+        "summary": "Get message history for a chat room",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      }
+    },
+    "/chat-messages/{id}": {
+      "patch": {
+        "operationId": "ChatMessagesController_editMessage",
+        "summary": "Edit a message",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      },
+      "delete": {
+        "operationId": "ChatMessagesController_deleteMessage",
+        "summary": "Delete a message",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      }
+    },
     "/feed/following": {
       "get": {
         "operationId": "FeedController_getFollowingFeed",
@@ -521,6 +1109,18 @@
                       "private"
                     ]
                   },
+                  "hashtags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tagged_users": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
                   "medias-posts": {
                     "type": "array",
                     "items": {
@@ -633,35 +1233,38 @@
         ]
       }
     },
-    "/notification-users": {
-      "delete": {
-        "operationId": "NotificationUsersController_deleteNoti",
-        "summary": "Delete notification",
+    "/posts/share": {
+      "post": {
+        "operationId": "PostsController_sharePost",
+        "summary": "Share/Repost a post",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteNotificationUserDto"
-              }
-            }
-          }
-        },
         "responses": {
-          "200": {
+          "201": {
             "description": ""
           }
         },
         "tags": [
-          "Notification Users"
+          "Posts"
         ]
       }
     },
-    "/notification-users/all": {
+    "/save-posts": {
+      "post": {
+        "operationId": "SavePostsController_savePost",
+        "summary": "Save a post to a list",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Posts"
+        ]
+      },
       "delete": {
-        "operationId": "NotificationUsersController_deleteAllNoti",
-        "summary": "Delete all notification",
+        "operationId": "SavePostsController_unsavePost",
+        "summary": "Remove a saved post",
         "parameters": [],
         "responses": {
           "200": {
@@ -669,7 +1272,47 @@
           }
         },
         "tags": [
-          "Notification Users"
+          "Save Posts"
+        ]
+      }
+    },
+    "/save-posts/{saveListId}": {
+      "get": {
+        "operationId": "SavePostsController_getSavedPosts",
+        "summary": "Get saved posts in a list",
+        "parameters": [
+          {
+            "name": "saveListId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Posts"
         ]
       }
     },
@@ -747,7 +1390,7 @@
     "/reactions": {
       "post": {
         "operationId": "ReactionsController_create",
-        "summary": "Toggle reaction (Like/Unlike)",
+        "summary": "Toggle reaction (Like/Love/Haha/Wow/Sad/Angry)",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -761,6 +1404,30 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Reactions"
+        ]
+      }
+    },
+    "/reactions/summary/{postId}": {
+      "get": {
+        "operationId": "ReactionsController_getReactionSummary",
+        "summary": "Get reaction breakdown for a post",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -794,15 +1461,15 @@
         ]
       }
     },
-    "/chat-rooms/{id}": {
+    "/search": {
       "get": {
-        "operationId": "ChatRoomsController_findChatRoomById",
-        "summary": "Find chat room",
+        "operationId": "SearchController_searchAll",
+        "summary": "Search users and posts (combined)",
         "parameters": [
           {
-            "name": "id",
+            "name": "q",
             "required": true,
-            "in": "path",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -810,33 +1477,32 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatRoom"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "tags": [
-          "Chat Rooms"
+          "Search"
         ]
       }
     },
-    "/chat-rooms/list-chat-room": {
+    "/search/users": {
       "get": {
-        "operationId": "ChatRoomsController_getListChatRoom",
-        "summary": "Get list chat room",
+        "operationId": "SearchController_searchUsers",
+        "summary": "Search users by username/email",
         "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "page",
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 1,
-              "default": 1,
               "type": "number"
             }
           },
@@ -845,8 +1511,6 @@
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 1,
-              "default": 10,
               "type": "number"
             }
           }
@@ -857,153 +1521,87 @@
           }
         },
         "tags": [
-          "Chat Rooms"
+          "Search"
         ]
       }
     },
-    "/chat-rooms": {
-      "post": {
-        "operationId": "ChatRoomsController_createChatRoom",
-        "summary": "Create chat room",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateChatRoomDto"
-              }
+    "/search/posts": {
+      "get": {
+        "operationId": "SearchController_searchPosts",
+        "summary": "Search posts by content",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
             }
           }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Chat Rooms"
-        ]
-      },
-      "patch": {
-        "operationId": "ChatRoomsController_updateNameOrAvatar",
-        "summary": "Update name or avatar chat room",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateChatRoomDto"
-              }
-            }
-          }
-        },
+        ],
         "responses": {
           "200": {
             "description": ""
           }
         },
         "tags": [
-          "Chat Rooms"
+          "Search"
         ]
-      },
-      "delete": {
-        "operationId": "ChatRoomsController_deleteChatRoom",
-        "summary": "Delete chat room",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IdDto"
-              }
+      }
+    },
+    "/search/hashtags": {
+      "get": {
+        "operationId": "SearchController_searchByHashtag",
+        "summary": "Search posts by hashtag",
+        "parameters": [
+          {
+            "name": "tag",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": ""
           }
         },
         "tags": [
-          "Chat Rooms"
-        ]
-      }
-    },
-    "/chat-rooms/permission-add-member": {
-      "patch": {
-        "operationId": "ChatRoomsController_updatePermissionAddMember",
-        "summary": "Update permission add member",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePermissionAddMemberDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Chat Rooms"
-        ]
-      }
-    },
-    "/chat-members": {
-      "post": {
-        "operationId": "ChatMembersController_requestJoinChatRoom",
-        "summary": "Request join chat room for user not exits in chat room",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RequestJoinChatRoomDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Chat Members"
-        ]
-      }
-    },
-    "/chat-messages": {
-      "post": {
-        "operationId": "ChatMessagesController_createMessage",
-        "summary": "Create message to chat",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateChatMessageDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Chat Messages"
+          "Search"
         ]
       }
     }
@@ -1242,12 +1840,12 @@
             }
           },
           "message_status": {
-            "type": "string",
             "enum": [
               "normal",
               "edited",
               "deleted"
-            ]
+            ],
+            "type": "string"
           },
           "chat_room": {
             "$ref": "#/components/schemas/ChatRoom"
@@ -1690,12 +2288,18 @@
               "private"
             ]
           },
+          "shared_post_id": {
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
           },
           "user": {
             "$ref": "#/components/schemas/User"
+          },
+          "shared_post": {
+            "$ref": "#/components/schemas/Post"
           },
           "save_posts": {
             "$ref": "#/components/schemas/SavePost"
@@ -1722,8 +2326,10 @@
           "hashtags",
           "tagged_users",
           "privacy",
+          "shared_post_id",
           "created_at",
           "user",
+          "shared_post",
           "save_posts",
           "comments",
           "reactions"
@@ -2178,55 +2784,6 @@
           "message"
         ]
       },
-      "AppResponseSerialization": {
-        "type": "object",
-        "properties": {}
-      },
-      "UpdatePostDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "452a1e21-d4eb-4f14-a52f-fbfaf0bb7d99",
-            "description": "id"
-          },
-          "content": {
-            "type": "string",
-            "minLength": 0,
-            "maxLength": 256,
-            "example": "Hello world",
-            "description": "content"
-          },
-          "medias": {
-            "example": [
-              "img1.jpg",
-              "img2.jpg",
-              "img3.jpg"
-            ],
-            "description": "medias",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "privacy": {
-            "enum": [
-              "public",
-              "friend",
-              "private"
-            ],
-            "type": "string",
-            "example": "public",
-            "description": "privacy"
-          }
-        },
-        "required": [
-          "id",
-          "content",
-          "medias",
-          "privacy"
-        ]
-      },
       "DeleteNotificationUserDto": {
         "type": "object",
         "properties": {
@@ -2238,47 +2795,6 @@
           "noti_user_id"
         ]
       },
-      "CreateCommentDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "description": "Content of the comment"
-          },
-          "post_id": {
-            "type": "string",
-            "description": "ID of the post to comment on"
-          }
-        },
-        "required": [
-          "content",
-          "post_id"
-        ]
-      },
-      "CreateReactionDto": {
-        "type": "object",
-        "properties": {
-          "postId": {
-            "type": "string",
-            "description": "Post ID"
-          },
-          "commentId": {
-            "type": "string",
-            "description": "Comment ID"
-          }
-        }
-      },
-      "AddAdminDto": {
-        "type": "object",
-        "properties": {
-          "user_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "user_id"
-        ]
-      },
       "CreateChatRoomDto": {
         "type": "object",
         "properties": {
@@ -2287,6 +2803,17 @@
             "minLength": 3,
             "maxLength": 30,
             "example": "Group Chat"
+          },
+          "members": {
+            "example": [
+              "uuid-1",
+              "uuid-2"
+            ],
+            "description": "List of member IDs to add initially",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -2353,24 +2880,107 @@
           "chat_room_id"
         ]
       },
-      "CreateChatMessageDto": {
+      "AppResponseSerialization": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePostDto": {
         "type": "object",
         "properties": {
-          "chat_room_id": {
-            "type": "string"
-          },
-          "message": {
+          "id": {
             "type": "string",
-            "maxLength": 1000
+            "example": "452a1e21-d4eb-4f14-a52f-fbfaf0bb7d99",
+            "description": "id"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 256,
+            "example": "Hello world",
+            "description": "content"
           },
           "medias": {
+            "example": [
+              "img1.jpg",
+              "img2.jpg",
+              "img3.jpg"
+            ],
+            "description": "medias",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "privacy": {
+            "enum": [
+              "public",
+              "friend",
+              "private"
+            ],
+            "type": "string",
+            "example": "public",
+            "description": "privacy"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "medias",
+          "privacy"
+        ]
+      },
+      "CreateCommentDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Content of the comment"
+          },
+          "post_id": {
+            "type": "string",
+            "description": "ID of the post to comment on"
+          }
+        },
+        "required": [
+          "content",
+          "post_id"
+        ]
+      },
+      "CreateReactionDto": {
+        "type": "object",
+        "properties": {
+          "postId": {
+            "type": "string",
+            "description": "Post ID"
+          },
+          "commentId": {
+            "type": "string",
+            "description": "Comment ID"
+          },
+          "reaction": {
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ],
+            "type": "string",
+            "default": "like",
+            "description": "Reaction type (like, love, haha, wow, sad, angry)"
+          }
+        }
+      },
+      "AddAdminDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
             "type": "string"
           }
         },
         "required": [
-          "chat_room_id",
-          "message",
-          "medias"
+          "user_id"
         ]
       }
     }

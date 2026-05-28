@@ -1,5 +1,5 @@
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
-import { User } from 'src/users/entities/user.entity';
+import { User } from 'src/modules/users/entities/user.entity';
 import {
   Column,
   Entity,

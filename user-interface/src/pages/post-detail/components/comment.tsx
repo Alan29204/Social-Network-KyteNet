@@ -39,7 +39,7 @@ export default function Comment({ comment, isLast }: any) {
   const handleLikeClick = () => {
     setIsLiked(!isLiked);
     toggleLike({
-      data: { comment_id: comment.id },
+      data: { post_comment_id: comment.id },
     });
   };
 

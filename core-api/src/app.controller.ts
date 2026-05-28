@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
-import { Public, ResponseMessage } from './decorator/customize';
+import { Public, ResponseMessage } from './common/decorators/customize';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 @ApiTags('App')
 @Controller()

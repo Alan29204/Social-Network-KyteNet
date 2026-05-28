@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FeedService } from './feed.service';
-import { User } from 'src/decorator/customize';
-import { IUser } from 'src/users/users.interface';
+import { User } from 'src/common/decorators/customize';
+import { IUser } from 'src/modules/users/users.interface';
 
 @Controller('feed')
 @ApiTags('Feed')
@@ -34,7 +34,7 @@ export class FeedController {
 
   /**
    * Get the "For You" feed — public posts ranked by engagement score.
-   * Uses cursor-based pagination.
+   * Uses cursor-based pagination for infinite scroll.
    */
   @Get('foryou')
   @ApiOperation({ summary: 'Get For You Feed (ranked by engagement)' })

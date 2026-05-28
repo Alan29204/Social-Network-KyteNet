@@ -1,36 +1,36 @@
 import { Module } from '@nestjs/common';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
+import { UsersModule } from './modules/users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { DatabaseModule } from 'src/database/database.module';
-import { AuthModule } from './auth/auth.module';
-import { RedisModule } from './redis/redis.module';
-import { DeviceSessionsModule } from './device-sessions/device-sessions.module';
-import { PostsModule } from './posts/posts.module';
-import { NotificationModule } from './notifications/notifications.module';
+import { DatabaseModule } from 'src/infra/database/database.module';
+import { AuthModule } from './modules/users/auth/auth.module';
+import { RedisModule } from './infra/redis/redis.module';
+import { DeviceSessionsModule } from './modules/users/device-sessions/device-sessions.module';
+import { PostsModule } from './modules/posts/posts.module';
+import { NotificationModule } from './modules/notifications/notifications.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { BullMQModule } from './bullmq/bullmg.module';
+import { BullMQModule } from './infra/bullmq/bullmg.module';
 import { BullModule } from '@nestjs/bullmq';
 import { QueueOptions } from 'bullmq';
 import { AppController } from './app.controller';
-import { SavePostsModule } from './save-posts/save-posts.module';
-import { CommentsModule } from './comments/comments.module';
-import { RelationsModule } from './relations/relations.module';
-import { NotificationUsersModule } from './notification-users/notification-users.module';
-import { SaveListsModule } from './save-lists/save-lists.module';
-import { ReactionsModule } from './reactions/reactions.module';
-import { ParentChildCommentsModule } from './parent-child-comments/parent-child-comments.module';
-import { AdminsModule } from './admins/admins.module';
-import { GatewayModule } from './gateway/gateway.module';
-import { PinMessagesModule } from './pin-messages/pin-messages.module';
-import { PinChatsModule } from './pin-chats/pin-chats.module';
-import { CombineModule } from './modules/combine.module';
+import { SavePostsModule } from './modules/posts/bookmarks/save-posts/save-posts.module';
+import { CommentsModule } from './modules/posts/comments/comments.module';
+import { RelationsModule } from './modules/users/relations/relations.module';
+import { NotificationUsersModule } from './modules/notifications/notification-users/notification-users.module';
+import { SaveListsModule } from './modules/posts/bookmarks/save-lists/save-lists.module';
+import { ReactionsModule } from './modules/posts/reactions/reactions.module';
+import { ParentChildCommentsModule } from './modules/posts/comments/replies/parent-child-comments.module';
+import { AdminsModule } from './modules/admin/admins.module';
+import { GatewayModule } from './modules/chats/gateway/gateway.module';
+import { PinMessagesModule } from './modules/chats/pin-messages/pin-messages.module';
+import { PinChatsModule } from './modules/chats/pin-chats/pin-chats.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { FeedModule } from './feed/feed.module';
-import { MediaModule } from './media/media.module';
+import { MediaModule } from './infra/media/media.module';
 import { SearchModule } from './search/search.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -92,10 +92,10 @@ import { SearchModule } from './search/search.module';
     GatewayModule,
     PinMessagesModule,
     PinChatsModule,
-    CombineModule,
     FeedModule,
     MediaModule,
     SearchModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
