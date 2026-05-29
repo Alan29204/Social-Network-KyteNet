@@ -1,41 +1,15 @@
-import useBreakPoint from '@hooks/use-breakpoint';
-import BottomNavigationBar from '@layouts/components/bottom-navigation-bar';
-import Sidebar from '@layouts/components/sidebar';
-import eventBus from '@utils/event-emitter';
-import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { SidebarLeft } from './components/sidebar-left';
 
-//-------------------------------------------------------------------------
-
-type Props = {};
-
-const MainLayout = ({}: Props) => {
-  const { breakpoint } = useBreakPoint();
-  const [isPostShow, setIsPostShow] = React.useState(false);
-
-  React.useEffect(() => {
-    const handleToggle = (status: boolean) => {
-      setIsPostShow(status);
-    };
-
-    eventBus.on('isShowCreatePost', handleToggle);
-
-    return () => {
-      eventBus.off('isShowCreatePost', handleToggle);
-    };
-  }, []);
-
+export function MainLayout() {
   return (
-    <>
-      <div id="" className="h-fit block md:flex">
-        {breakpoint !== 'sm' && <Sidebar />}
-        <main className="flex-1 flex-grow w-full min-h-fit overflow-hidden">
-          <Outlet />
-        </main>
-        {breakpoint === 'sm' && !isPostShow && <BottomNavigationBar />}
-      </div>
-    </>
+    <div className="flex min-h-screen bg-background">
+      <SidebarLeft />
+      
+      {/* Main scrollable content area */}
+      <main className="flex-1 flex flex-col min-h-screen">
+        <Outlet />
+      </main>
+    </div>
   );
-};
-
-export default MainLayout;
+}

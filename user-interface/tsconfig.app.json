@@ -31,11 +31,12 @@
       "@routers/*": ["src/routers/*"],
       "@utils/*": ["src/utils/*"],
       "@types/*": ["src/types/*"],
-      "@_mocks/*": ["src/_mocks/*"],
       "@layouts/*": ["src/layouts/*"],
       "@styles/*": ["src/styles/*"],
       "@interfaces/*": ["src/interfaces/*"],
-      "@services/*": ["src/services/*"]
+      "@services/*": ["src/services/*"],
+      "@features/*": ["src/features/*"],
+      "@/*": ["src/*"]
     }
   },
   "include": ["src"]

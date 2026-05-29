@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 import { Reaction } from 'src/modules/posts/reactions/entities/reaction.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { CommentInteractions } from 'src/modules/posts/comments/dto/comment-interactions.dto';
 
 @Entity()
 export class Comment {
@@ -62,12 +63,8 @@ export class Comment {
   reactions: Reaction[];
 
   @ApiProperty({
-    example: { likes: 10, recomments: 5, comments: 2 },
+    type: () => CommentInteractions,
     description: 'Interaction counts',
   })
-  interactions: {
-    likes: number;
-    recomments: number;
-    comments: number;
-  };
+  interactions: CommentInteractions;
 }

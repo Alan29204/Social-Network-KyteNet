@@ -4,7 +4,7 @@ import * as path from 'path';
 
 const getInfiniteOverrides = () => {
   const operations: Record<string, any> = {};
-  const inputPath = path.resolve(__dirname, '../.open-api/open-api.json');
+  const inputPath = path.resolve(process.cwd(), '../.open-api/open-api.json');
 
   if (!fs.existsSync(inputPath)) {
     console.warn('OpenAPI file not found at:', inputPath);
@@ -48,13 +48,13 @@ export default defineConfig({
   api: {
     output: {
       target: 'src/services/apis/gen/queries.ts',
-      prettier: true,
       clean: true,
       client: 'react-query',
       override: {
         useTypeOverInterfaces: true,
         query: {
           useQuery: true,
+          useMutation: true,
         },
         mutator: {
           path: 'src/services/apis/axios-client.ts',
@@ -64,7 +64,6 @@ export default defineConfig({
       },
     },
     input: {
-      validation: false,
       target: '../.open-api/open-api.json',
     },
   },

@@ -1,58 +1,51 @@
-import Axios, { AxiosError, type AxiosRequestConfig } from 'axios';
-import * as Qs from 'qs';
+import axios, { AxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
 
-// Create the axios instance
-export const axiosInstance = Axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
-  paramsSerializer: (params) => Qs.stringify(params, { arrayFormat: 'repeat' }),
-  withCredentials: true,
+const AXIOS_INSTANCE = axios.create({
+  baseURL: 'http://localhost:3000', // core-api url
 });
 
-// Request interceptor
-axiosInstance.interceptors.request.use(
+AXIOS_INSTANCE.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
+    const token = useAuthStore.getState().accessToken;
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor
-axiosInstance.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
+AXIOS_INSTANCE.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // Handle 401 and refresh token logic here if needed
     if (error.response?.status === 401) {
-      // Optional: Handle unauthorized, e.g., redirect to login
-      // window.location.href = '/login';
+      const { logout } = useAuthStore.getState();
+      logout();
+      window.location.href = '/login';
     }
     return Promise.reject(error);
-  },
+  }
 );
 
-/**
- * Axios client implementation for Orval-generated API clients
- */
 export const orvalClient = <T>(
   config: AxiosRequestConfig,
-  options?: AxiosRequestConfig,
-): Promise<T> & { cancel: () => void } => {
-  const source = Axios.CancelToken.source();
-  const promise = axiosInstance<T>({
+  options?: AxiosRequestConfig
+): Promise<T> => {
+  const source = axios.CancelToken.source();
+  const promise = AXIOS_INSTANCE({
     ...config,
     ...options,
     cancelToken: source.token,
-  });
+  }).then(({ data }) => data);
 
-  const promiseWithCancel = promise as Promise<T> & { cancel: () => void };
-  promiseWithCancel.cancel = () => {
-    source.cancel('Request was cancelled');
+  // @ts-ignore
+  promise.cancel = () => {
+    source.cancel('Query was cancelled');
   };
 
-  return promiseWithCancel;
+  return promise;
 };
 
-export type HttpError<T = unknown> = AxiosError<T>;
-export type RequestBody<T = unknown> = T;
+export default AXIOS_INSTANCE;

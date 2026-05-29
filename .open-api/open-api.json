@@ -252,23 +252,15 @@
             "name": "user_id",
             "required": true,
             "in": "path",
-            "description": "user_id",
             "schema": {
-              "example": "123123123123",
               "type": "string"
             }
           },
           {
             "name": "relation",
             "required": true,
-            "in": "path",
+            "in": "query",
             "schema": {
-              "enum": [
-                "friend",
-                "following",
-                "block",
-                "none"
-              ],
               "type": "string"
             }
           },
@@ -308,23 +300,7 @@
             "name": "user_id",
             "required": true,
             "in": "path",
-            "description": "user_id",
             "schema": {
-              "example": "123123123123",
-              "type": "string"
-            }
-          },
-          {
-            "name": "relation",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "enum": [
-                "friend",
-                "following",
-                "block",
-                "none"
-              ],
               "type": "string"
             }
           }
@@ -1439,7 +1415,7 @@
     "/admins/add-admin": {
       "post": {
         "operationId": "AdminsController_addAdmin",
-        "summary": "Admin: Add Admin",
+        "summary": "Admin: Promote user to admin",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1458,6 +1434,305 @@
         },
         "tags": [
           "Admins"
+        ]
+      }
+    },
+    "/admins/stats": {
+      "get": {
+        "operationId": "AdminsController_getStats",
+        "summary": "Admin: Get system statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/users": {
+      "get": {
+        "operationId": "AdminsController_listUsers",
+        "summary": "Admin: List all users",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/users/{id}/ban": {
+      "patch": {
+        "operationId": "AdminsController_banUser",
+        "summary": "Admin: Ban a user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/users/{id}/unban": {
+      "patch": {
+        "operationId": "AdminsController_unbanUser",
+        "summary": "Admin: Unban a user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/users/{id}": {
+      "delete": {
+        "operationId": "AdminsController_deleteUser",
+        "summary": "Admin: Delete a user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/posts": {
+      "get": {
+        "operationId": "AdminsController_listPosts",
+        "summary": "Admin: List all posts",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/posts/{id}": {
+      "delete": {
+        "operationId": "AdminsController_deletePost",
+        "summary": "Admin: Force-delete a post",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/reports": {
+      "get": {
+        "operationId": "AdminsController_listReports",
+        "summary": "Admin: List all reports",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "resolved",
+                "rejected"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/reports/{id}/resolve": {
+      "patch": {
+        "operationId": "AdminsController_resolveReport",
+        "summary": "Admin: Resolve or reject a report",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "rejected"
+                    ]
+                  },
+                  "admin_note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/reports": {
+      "post": {
+        "operationId": "ReportsController_createReport",
+        "summary": "Report a post or user",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Reports"
         ]
       }
     },
@@ -1604,6 +1879,46 @@
           "Search"
         ]
       }
+    },
+    "/search/semantic": {
+      "get": {
+        "operationId": "SearchController_semanticSearch",
+        "summary": "AI Semantic search posts using ChromaDB (falls back to keyword search if unavailable)",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Search"
+        ]
+      }
     }
   },
   "info": {
@@ -1619,8 +1934,7 @@
       "token": {
         "scheme": "Bearer",
         "bearerFormat": "JWT",
-        "type": "http",
-        "in": "header"
+        "type": "http"
       }
     },
     "schemas": {
@@ -2028,6 +2342,25 @@
           "waiting_members"
         ]
       },
+      "PostInteractions": {
+        "type": "object",
+        "properties": {
+          "likes": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "number"
+          },
+          "reposts": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "likes",
+          "comments",
+          "reposts"
+        ]
+      },
       "SaveList": {
         "type": "object",
         "properties": {
@@ -2083,6 +2416,25 @@
           "post_id",
           "save_list",
           "post"
+        ]
+      },
+      "CommentInteractions": {
+        "type": "object",
+        "properties": {
+          "likes": {
+            "type": "number"
+          },
+          "recomments": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "likes",
+          "recomments",
+          "comments"
         ]
       },
       "ParentChildComment": {
@@ -2155,21 +2507,12 @@
         "type": "object",
         "properties": {
           "interactions": {
-            "type": "object",
-            "properties": {
-              "likes": {
-                "required": true,
-                "type": "number"
-              },
-              "recomments": {
-                "required": true,
-                "type": "number"
-              },
-              "comments": {
-                "required": true,
-                "type": "number"
+            "description": "Interaction counts",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommentInteractions"
               }
-            }
+            ]
           },
           "id": {
             "type": "string"
@@ -2237,21 +2580,12 @@
         "type": "object",
         "properties": {
           "interactions": {
-            "type": "object",
-            "properties": {
-              "likes": {
-                "required": true,
-                "type": "number"
-              },
-              "comments": {
-                "required": true,
-                "type": "number"
-              },
-              "reposts": {
-                "required": true,
-                "type": "number"
+            "description": "Interaction counts",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostInteractions"
               }
-            }
+            ]
           },
           "id": {
             "type": "string"
@@ -2981,6 +3315,48 @@
         },
         "required": [
           "user_id"
+        ]
+      },
+      "CreateReportDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "post",
+              "user"
+            ],
+            "type": "string",
+            "example": "post"
+          },
+          "reason": {
+            "enum": [
+              "spam",
+              "violence",
+              "adult_content",
+              "harassment",
+              "fake_info",
+              "other"
+            ],
+            "type": "string",
+            "example": "spam"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "This post contains spam."
+          },
+          "reported_post_id": {
+            "type": "string",
+            "description": "ID of the reported post"
+          },
+          "reported_user_id": {
+            "type": "string",
+            "description": "ID of the reported user"
+          }
+        },
+        "required": [
+          "type",
+          "reason"
         ]
       }
     }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="bg-[#444]">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -8,12 +8,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Rubik:ital,wght@0,300..900;1,300..900&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Rubik:ital,wght@0,300..900;1,300..900&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=Oleo+Script:wght@400;700&display=swap"
     rel="stylesheet">
-  <title>Social</title>
+  <title>SNet</title>
+  <script>
+    (function () {
+      const theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
 </head>
 
-<body class="overscroll-none after:fixed after:inset-0 after:z-99 after:shadow-wrapper after:pointer-events-none radius-[32px]">
+<body class="overscroll-none bg-background text-primary min-h-screen w-full transition-colors duration-200">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

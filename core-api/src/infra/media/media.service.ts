@@ -24,10 +24,7 @@ export class MediaService {
       forcePathStyle: true,
       credentials: {
         accessKeyId: this.configService.get<string>('S3_ACCESS_KEY', 'any'),
-        secretAccessKey: this.configService.get<string>(
-          'S3_SECRET_KEY',
-          'any',
-        ),
+        secretAccessKey: this.configService.get<string>('S3_SECRET_KEY', 'any'),
       },
     });
 
@@ -57,10 +54,7 @@ export class MediaService {
    * @param folder - The folder path (e.g. 'posts', 'avatars', 'chats')
    * @returns The public URL of the uploaded file
    */
-  async uploadFile(
-    file: Express.Multer.File,
-    folder: string,
-  ): Promise<string> {
+  async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
     const key = `${folder}/${Date.now()}-${file.originalname}`;
 
     try {
@@ -125,5 +119,35 @@ export class MediaService {
   async deleteFiles(fileUrls: string[]): Promise<void> {
     if (!fileUrls || fileUrls.length === 0) return;
     await Promise.all(fileUrls.map((url) => this.deleteFile(url)));
+  }
+
+  /**
+   * Gets a read stream for a file from S3.
+   * Useful for proxying authenticated requests.
+   * @param bucket - The S3 bucket name
+   * @param key - The file path/key
+   */
+  async getFileStream(bucket: string, key: string) {
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    try {
+      const response = await this.s3.send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+        }),
+      );
+
+      return {
+        Body: response.Body, // Readable stream
+        ContentType: response.ContentType,
+        ContentLength: response.ContentLength,
+      };
+    } catch (error: any) {
+      console.error(
+        `Error getting file stream for ${bucket}/${key}:`,
+        error.message,
+      );
+      throw error;
+    }
   }
 }

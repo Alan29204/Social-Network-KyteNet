@@ -1,97 +1,89 @@
-import React from 'react';
-import { AvtGroupExpand } from '@components/avatar';
-import ProfileCard from '@components/profile-card/profile-card';
-import ToggleGroup from '@components/toggle-group/toggle-group';
-import { TrendingTopicCard } from '@components/trending-topic-card';
-import { _avatarData as fakeAvatarData } from '@_mocks/_avatar';
-import { _trendingData as fakeTrending } from '@_mocks/_trending';
-import { useLocation } from 'react-router-dom';
-import { Typography } from '@components/typography';
-import { useUsersControllerFindAll } from '@services/apis/gen/queries';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-//-------------------------------------------------------------------------
-
-export default function SidebarRight() {
-  const [activeTab, setActiveTab] = React.useState('1');
-  const location = useLocation();
-
-  const { data: usersData } = useUsersControllerFindAll();
-  const users = (usersData as any)?.data || [];
-
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
+export function SidebarRight() {
+  const currentUser = {
+    username: 'alan29204',
+    name: 'Nguyễn Quang Huy',
+    avatar: 'https://github.com/shadcn.png',
   };
 
-  const isFollowingPage = location.pathname === '/following';
+  const suggestions = [
+    { id: 1, username: 'snet_user_1', info: 'Gợi ý cho bạn', avatar: '' },
+    { id: 2, username: 'snet_user_2', info: 'Gợi ý cho bạn', avatar: '' },
+    { id: 3, username: 'snet_user_3', info: 'Mới tham gia Instagram', avatar: '' },
+    { id: 4, username: 'snet_user_4', info: 'Gợi ý cho bạn', avatar: '' },
+    { id: 5, username: 'snet_user_5', info: 'Gợi ý cho bạn', avatar: '' },
+  ];
 
   return (
-    <section className="bg-background-secondary fixed top-0 right-0 min-h-full flex flex-col p-3 gap-3 w-85 2xl:w-120">
-      {!isFollowingPage && (
-        <ToggleGroup
-          className="w-full p-1 flex justify-between items-center bg-neutral3-60 rounded-[6.25rem]"
-          items={[
-            { key: '1', label: 'Who to follow' },
-            { key: '2', label: 'Trending topics' },
-          ]}
-          onChange={handleTabChange}
-        />
-      )}
+    <aside className="hidden lg:flex flex-col w-[320px] pt-8 px-4 h-full">
+      {/* Current User */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4 cursor-pointer">
+          <Avatar className="w-11 h-11">
+            <AvatarImage src={currentUser.avatar} />
+            <AvatarFallback>AL</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">{currentUser.username}</span>
+            <span className="text-sm text-muted-foreground">{currentUser.name}</span>
+          </div>
+        </div>
+        <button className="text-xs font-semibold text-primary hover:text-primary/80">
+          Chuyển
+        </button>
+      </div>
 
-      {isFollowingPage ? (
-        <>
-          <Typography
-            level="title"
-            className="text-tertiary opacity-80 px-3 py-[0.625rem]"
-          >
-            Trending topics
-          </Typography>
-          {fakeTrending.map((trending) => (
-            <TrendingTopicCard
-              key={trending.id}
-              thumbnail={trending.thumbnail}
-              trendingName={trending.trendingName}
-              time={trending.time}
-              isNew={trending.isNew}
-            />
-          ))}
-        </>
-      ) : (
-        <>
-          {activeTab === '1' ? (
-            <div className="flex flex-col gap-2">
-              {users.slice(0, 3).map((user: any) => (
-                <ProfileCard
-                  key={user.id}
-                  userName={user.username}
-                  src={user.avatar || '/img/avatar-default.png'}
-                  userHandle={`@${user.username}`}
-                  onClick={() => {
-                    window.location.href = `/users/${user.id}`;
-                  }}
-                />
-              ))}
+      {/* Suggestions Header */}
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-semibold text-muted-foreground">
+          Gợi ý cho bạn
+        </span>
+        <button className="text-xs font-semibold hover:text-muted-foreground">
+          Xem tất cả
+        </button>
+      </div>
+
+      {/* Suggestion List */}
+      <div className="flex flex-col gap-4">
+        {suggestions.map((user) => (
+          <div key={user.id} className="flex items-center justify-between">
+            <div className="flex items-center gap-3 cursor-pointer">
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={user.avatar} />
+                <AvatarFallback className="bg-secondary text-xs uppercase">
+                  {user.username.substring(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold">{user.username}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {user.info}
+                </span>
+              </div>
             </div>
-          ) : (
-            <>
-              {fakeTrending.map((trending) => (
-                <TrendingTopicCard
-                  thumbnail={trending.thumbnail}
-                  key={trending.id}
-                  trendingName={trending.trendingName}
-                  time={trending.time}
-                  isNew={trending.isNew}
-                />
-              ))}
-            </>
-          )}
-        </>
-      )}
+            <button className="text-xs font-semibold text-primary hover:text-primary/80">
+              Theo dõi
+            </button>
+          </div>
+        ))}
+      </div>
 
-      <AvtGroupExpand
-        avatars={fakeAvatarData}
-        count="1234"
-        className="size-[2rem] min-w-[2rem]"
-      />
-    </section>
+      {/* Footer Links */}
+      <div className="mt-8 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground/60">
+          <a href="#" className="hover:underline">Giới thiệu</a> • 
+          <a href="#" className="hover:underline">Trợ giúp</a> • 
+          <a href="#" className="hover:underline">Báo chí</a> • 
+          <a href="#" className="hover:underline">API</a> • 
+          <a href="#" className="hover:underline">Việc làm</a> • 
+          <a href="#" className="hover:underline">Quyền riêng tư</a> • 
+          <a href="#" className="hover:underline">Điều khoản</a>
+        </div>
+        <span className="text-[11px] text-muted-foreground/60 uppercase tracking-wider">
+          © 2026 SNET FROM ALAN29204
+        </span>
+      </div>
+    </aside>
   );
 }

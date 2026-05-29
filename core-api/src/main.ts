@@ -65,7 +65,6 @@ async function bootstrap() {
         type: 'http',
         scheme: 'Bearer',
         bearerFormat: 'JWT',
-        in: 'header',
       },
       'token',
     )

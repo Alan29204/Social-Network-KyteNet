@@ -12,7 +12,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User, ResponseMessage } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
-import { RelationDto } from './dto/relation.dto';
+import { RelationType } from 'src/common/enums/relation.enum';
 import { RelationsService } from './relations.service';
 import { UpdateRelationDto } from './dto/update-relation.dto';
 import { UsersService } from 'src/modules/users/users.service';
@@ -35,32 +35,33 @@ export class RelationsController {
   })
   async getListRelation(
     @User() user: IUser,
-    @Param() params: RelationDto,
+    @Param('user_id') user_id: string,
+    @Query('relation') relation: RelationType,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
     const privacy = await this.usersService.privacySeeProfile(
       user.id,
-      params.user_id,
+      user_id,
     );
     if (!privacy) {
       throw new BadRequestException('You are not allowed to see list friend');
     }
     return this.relationShipsService.getListRelation(
-      params.user_id,
+      user_id,
       page,
       limit,
-      params.relation,
+      relation,
     );
   }
 
   @Get(':user_id')
   @ResponseMessage('Get relation between 2 users successfully')
   @ApiOperation({ summary: 'Get relation between 2 users' })
-  async getRelation(@User() user: IUser, @Param() params: RelationDto) {
+  async getRelation(@User() user: IUser, @Param('user_id') user_id: string) {
     const relation = await this.relationShipsService.getRelation(
       user.id,
-      params.user_id,
+      user_id,
     );
 
     return relation;

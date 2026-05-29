@@ -1,6 +1,11 @@
 {
   "identities": [
     {
+      "name": "anonymous",
+      "credentials": [],
+      "actions": ["Read", "List"]
+    },
+    {
       "name": "snet-admin",
       "credentials": [
         {

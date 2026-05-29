@@ -4,6 +4,17 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      // Proxy SeaweedFS image requests to avoid CORS issues
+      '/media': {
+        target: 'http://localhost:8333',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/media/, ''),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@assets': resolve(__dirname, 'src/assets'),
@@ -19,7 +30,9 @@ export default defineConfig({
       '@styles': resolve(__dirname, 'src/styles'),
       '@interfaces': resolve(__dirname, 'src/interfaces'),
       '@services': resolve(__dirname, 'src/services'),
+      '@features': resolve(__dirname, 'src/features'),
       '@': resolve(__dirname, 'src'),
     },
   },
 });
+

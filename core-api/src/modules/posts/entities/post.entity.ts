@@ -15,6 +15,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Reaction } from 'src/modules/posts/reactions/entities/reaction.entity';
+import { PostInteractions } from 'src/modules/posts/dto/post-interactions.dto';
 
 @Entity()
 export class Post {
@@ -68,12 +69,8 @@ export class Post {
   reactions: Reaction[];
 
   @ApiProperty({
-    example: { likes: 10, comments: 5, reposts: 2 },
+    type: () => PostInteractions,
     description: 'Interaction counts',
   })
-  interactions: {
-    likes: number;
-    comments: number;
-    reposts: number;
-  };
+  interactions: PostInteractions;
 }
