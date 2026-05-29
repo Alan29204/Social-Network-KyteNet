@@ -37,11 +37,13 @@ export default function LoginPage() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const onSubmit = async (data: LoginFormValues) => {
-    loginMutation.mutate(data, {
+    const payload = { ...data, deviceId: 'web-client' };
+    loginMutation.mutate(payload, {
       onSuccess: (res) => {
-        // Assume API returns { tokens: { access_token: '...' }, user: { ... } }
-        const token = res.tokens?.access_token || res.access_token || res.accessToken;
-        const user = res.user;
+        // res is wrapped by NestJS TransformInterceptor: { statusCode, message, data: { accessToken, user } }
+        const payloadData = res.data || res;
+        const token = payloadData.accessToken || payloadData.access_token || res.accessToken;
+        const user = payloadData.user || res.user;
         setAuth(token, user);
         navigate('/');
       },

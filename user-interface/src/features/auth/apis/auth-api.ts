@@ -3,11 +3,11 @@ import { useMutation } from '@tanstack/react-query';
 
 export const authApi = {
   login: async (data: any) => {
-    const res = await AXIOS_INSTANCE.post('/auth/login', data);
+    const res = await AXIOS_INSTANCE.post('/users/login', data);
     return res.data;
   },
   register: async (data: any) => {
-    const res = await AXIOS_INSTANCE.post('/auth/register', data);
+    const res = await AXIOS_INSTANCE.post('/users/signup', data);
     return res.data;
   },
 };

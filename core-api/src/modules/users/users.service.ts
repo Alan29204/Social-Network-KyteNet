@@ -136,7 +136,7 @@ export class UsersService {
   }
 
   async login(user: User, dto: any) {
-    return await this.diviceSessionsService.handleLogin(
+    const session = await this.diviceSessionsService.handleLogin(
       user.id,
       {
         deviceId: dto.deviceId,
@@ -144,6 +144,16 @@ export class UsersService {
       },
       user.role,
     );
+    return {
+      ...session,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        role: user.role,
+      },
+    };
   }
 
   /**

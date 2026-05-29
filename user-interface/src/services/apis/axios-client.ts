@@ -20,7 +20,7 @@ AXIOS_INSTANCE.interceptors.response.use(
   (response) => response,
   async (error) => {
     // Handle 401 and refresh token logic here if needed
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/login')) {
       const { logout } = useAuthStore.getState();
       logout();
       window.location.href = '/login';
