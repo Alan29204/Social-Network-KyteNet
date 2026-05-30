@@ -1,4 +1,15 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { CreatePostModal } from '@/features/posts/components/create-post-modal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useTheme } from '@/components/theme-provider';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
 import {
   Home,
   Search,
@@ -8,6 +19,14 @@ import {
   PlusSquare,
   User,
   Menu,
+  Settings,
+  Activity,
+  Bookmark,
+  Sun,
+  Moon,
+  MessageSquareWarning,
+  RefreshCw,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +41,16 @@ const navItems = [
 ];
 
 export function SidebarLeft() {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <>
       {/* Spacer to prevent content from going under the fixed sidebar */}
@@ -40,49 +69,126 @@ export function SidebarLeft() {
 
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-2 px-3">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.label}
-              to={item.href}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',
-                  isActive ? 'font-bold' : 'font-medium'
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
+          {navItems.map((item) => {
+            if (item.label === 'Tạo') {
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none"
+                >
                   <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
-                    <item.icon
-                      strokeWidth={isActive ? 2.5 : 2}
-                      className={cn(
-                        'w-6 h-6',
-                        isActive ? 'text-foreground' : 'text-foreground/80'
-                      )}
-                    />
+                    <item.icon strokeWidth={2} className="w-6 h-6 text-foreground/80" />
                   </div>
                   <span className="hidden group-hover:block text-[15px] leading-snug whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
                     {item.label}
                   </span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                </button>
+              );
+            }
+
+            return (
+              <NavLink
+                key={item.label}
+                to={item.href}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',
+                    isActive ? 'font-bold' : 'font-medium'
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                      <item.icon
+                        strokeWidth={isActive ? 2.5 : 2}
+                        className={cn(
+                          'w-6 h-6',
+                          isActive ? 'text-foreground' : 'text-foreground/80'
+                        )}
+                      />
+                    </div>
+                    <span className="hidden group-hover:block text-[15px] leading-snug whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                      {item.label}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Footer actions (More) */}
         <div className="px-3 pb-6 mt-auto">
-          <button className="flex w-full items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium">
-            <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
-              <Menu strokeWidth={2} className="w-6 h-6 text-foreground/80" />
-            </div>
-            <span className="hidden group-hover:block text-[15px] leading-snug whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-              Xem thêm
-            </span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex w-full items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium outline-none">
+                <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                  <Menu strokeWidth={2} className="w-6 h-6 text-foreground/80" />
+                </div>
+                <span className="hidden group-hover:block text-[15px] leading-snug whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                  Xem thêm
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              sideOffset={8}
+              className="w-64 rounded-xl p-2 shadow-lg"
+            >
+              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+                <Settings className="mr-3 h-5 w-5" />
+                <span>Cài đặt</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+                <Activity className="mr-3 h-5 w-5" />
+                <span>Hoạt động của bạn</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+                <Bookmark className="mr-3 h-5 w-5" />
+                <span>Đã lưu</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="p-3 cursor-pointer rounded-lg text-[15px]"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="mr-3 h-5 w-5" />
+                ) : (
+                  <Moon className="mr-3 h-5 w-5" />
+                )}
+                <span>Chuyển chế độ</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+                <MessageSquareWarning className="mr-3 h-5 w-5" />
+                <span>Báo cáo sự cố</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator className="my-1" />
+              
+              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+                <RefreshCw className="mr-3 h-5 w-5" />
+                <span>Chuyển tài khoản</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator className="my-1" />
+              
+              <DropdownMenuItem 
+                className="p-3 cursor-pointer rounded-lg text-[15px] text-destructive focus:text-destructive"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-3 h-5 w-5" />
+                <span>Đăng xuất</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
+
+      {/* Modals */}
+      <CreatePostModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
     </>
   );
 }

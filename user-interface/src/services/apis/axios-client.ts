@@ -30,13 +30,34 @@ AXIOS_INSTANCE.interceptors.response.use(
 );
 
 export const orvalClient = <T>(
-  config: AxiosRequestConfig,
-  options?: AxiosRequestConfig
+  config: string | AxiosRequestConfig,
+  options?: any
 ): Promise<T> => {
   const source = axios.CancelToken.source();
+  
+  let axiosConfig: AxiosRequestConfig;
+  
+  if (typeof config === 'string') {
+    axiosConfig = {
+      url: config,
+      method: options?.method || 'GET',
+      data: options?.body || options?.data,
+      headers: options?.headers,
+      ...options,
+    };
+    // Clean up fetch specific properties if they exist
+    delete axiosConfig.body;
+  } else {
+    axiosConfig = {
+      ...config,
+      ...options,
+    };
+  }
+
+  console.log('AXIOS_REQUEST:', axiosConfig);
+
   const promise = AXIOS_INSTANCE({
-    ...config,
-    ...options,
+    ...axiosConfig,
     cancelToken: source.token,
   }).then(({ data }) => data);
 

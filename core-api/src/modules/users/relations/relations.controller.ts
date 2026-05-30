@@ -40,10 +40,7 @@ export class RelationsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    const privacy = await this.usersService.privacySeeProfile(
-      user.id,
-      user_id,
-    );
+    const privacy = await this.usersService.privacySeeProfile(user.id, user_id);
     if (!privacy) {
       throw new BadRequestException('You are not allowed to see list friend');
     }

@@ -272,10 +272,7 @@ export class UsersService {
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store in Redis with 15 minute TTL
-    await this.redisService.set(
-      `password_reset:${email}`,
-      resetCode,
-    );
+    await this.redisService.set(`password_reset:${email}`, resetCode);
     await this.redisService.getClient().expire(`password_reset:${email}`, 900); // 15 min
 
     // TODO: Send email with reset code in production

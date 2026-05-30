@@ -52,10 +52,6 @@ export default defineConfig({
       client: 'react-query',
       override: {
         useTypeOverInterfaces: true,
-        query: {
-          useQuery: true,
-          useMutation: true,
-        },
         mutator: {
           path: 'src/services/apis/axios-client.ts',
           name: 'orvalClient',
