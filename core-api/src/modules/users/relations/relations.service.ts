@@ -115,25 +115,6 @@ export class RelationsService {
 
     // Update relation requestUser -> acceptUser
     switch (true) {
-      // RequestUser -> acceptUser relation friend
-      case relationNew === RelationType.FRIEND &&
-        relationAcceptRequest?.relation_type === RelationType.FOLLOWING &&
-        !relationRequestAccept:
-        // Update relation acceptUser -> requestUser
-        await this.relationRepository.save({
-          request_side_id: dto.user_id,
-          accept_side_id: user.id,
-          relation: RelationType.FRIEND,
-        });
-
-        // Create relation requestUser -> acceptUser
-        await this.relationRepository.save({
-          request_side_id: user.id,
-          accept_side_id: dto.user_id,
-          relation: RelationType.FRIEND,
-        });
-        break;
-
       // RequestUser -> acceptUser relation following
       case relationNew === RelationType.FOLLOWING &&
         !relationRequestAccept &&
@@ -163,9 +144,7 @@ export class RelationsService {
 
       // RequestUser -> acceptUser does not exits relation
       case relationNew === RelationType.NONE &&
-        (relationRequestAccept?.relation_type === RelationType.FRIEND ||
-          relationRequestAccept?.relation_type === RelationType.FOLLOWING ||
-          relationAcceptRequest?.relation_type === RelationType.FRIEND ||
+        (relationRequestAccept?.relation_type === RelationType.FOLLOWING ||
           relationAcceptRequest?.relation_type === RelationType.FOLLOWING):
         await this.relationRepository.delete({
           request_side_id: user.id,

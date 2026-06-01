@@ -1,10 +1,15 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { Link } from 'react-router-dom';
 
 export function SidebarRight() {
+  const { user: authUser } = useAuthStore();
+  
   const currentUser = {
-    username: 'alan29204',
-    name: 'Nguyễn Quang Huy',
-    avatar: 'https://github.com/shadcn.png',
+    id: authUser?.id || '',
+    username: authUser?.username || 'user',
+    name: authUser?.email || '',
+    avatar: authUser?.avatar || '/default-avatar.png',
   };
 
   const suggestions = [
@@ -19,16 +24,16 @@ export function SidebarRight() {
     <aside className="hidden lg:flex flex-col w-[320px] pt-8 px-4 h-full">
       {/* Current User */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4 cursor-pointer">
+        <Link to={`/profile/${currentUser.id}`} className="flex items-center gap-4 cursor-pointer">
           <Avatar className="w-11 h-11">
             <AvatarImage src={currentUser.avatar} />
-            <AvatarFallback>AL</AvatarFallback>
+            <AvatarFallback>{currentUser.username[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">{currentUser.username}</span>
             <span className="text-sm text-muted-foreground">{currentUser.name}</span>
           </div>
-        </div>
+        </Link>
         <button className="text-xs font-semibold text-primary hover:text-primary/80">
           Chuyển
         </button>
@@ -48,9 +53,9 @@ export function SidebarRight() {
       <div className="flex flex-col gap-4">
         {suggestions.map((user) => (
           <div key={user.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3 cursor-pointer">
+            <Link to={`/profile/${user.id}`} className="flex items-center gap-3 cursor-pointer">
               <Avatar className="w-8 h-8">
-                <AvatarImage src={user.avatar} />
+                <AvatarImage src={user.avatar || '/default-avatar.png'} />
                 <AvatarFallback className="bg-secondary text-xs uppercase">
                   {user.username.substring(0, 2)}
                 </AvatarFallback>
@@ -61,7 +66,7 @@ export function SidebarRight() {
                   {user.info}
                 </span>
               </div>
-            </div>
+            </Link>
             <button className="text-xs font-semibold text-primary hover:text-primary/80">
               Theo dõi
             </button>

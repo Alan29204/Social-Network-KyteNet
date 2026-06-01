@@ -6,6 +6,8 @@ import { AuthGuard, GuestGuard } from '@/layouts/auth-guard';
 import HomePage from '@/features/home/pages/home-page';
 import LoginPage from '@/features/auth/pages/login-page';
 import RegisterPage from '@/features/auth/pages/register-page';
+import ProfilePage from '@/features/profile/pages/profile-page';
+import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 
 function App() {
   return (
@@ -22,7 +24,9 @@ function App() {
           <Route element={<AuthGuard />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
-              {/* Add other routes like /profile, /explore here later */}
+              <Route path="/profile/:id" element={<ProfilePage />} />
+              <Route path="/profile/edit" element={<EditProfilePage />} />
+              {/* Add other routes like /explore here later */}
             </Route>
           </Route>
         </Routes>

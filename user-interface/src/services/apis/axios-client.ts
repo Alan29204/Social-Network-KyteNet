@@ -38,15 +38,14 @@ export const orvalClient = <T>(
   let axiosConfig: AxiosRequestConfig;
   
   if (typeof config === 'string') {
+    const { body, ...restOptions } = options || {};
     axiosConfig = {
       url: config,
-      method: options?.method || 'GET',
-      data: options?.body || options?.data,
-      headers: options?.headers,
-      ...options,
+      method: restOptions.method || 'GET',
+      data: body || restOptions.data,
+      headers: restOptions.headers,
+      ...restOptions,
     };
-    // Clean up fetch specific properties if they exist
-    delete axiosConfig.body;
   } else {
     axiosConfig = {
       ...config,

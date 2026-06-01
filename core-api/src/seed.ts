@@ -32,30 +32,29 @@ async function bootstrap() {
   const savedUsers = await userRepository.save(users);
   console.log(`Created ${savedUsers.length} users.`);
 
-  // Create relationships: first 5 users are friends with each other
-  // So user 1 is friend with 2, 3, 4, 5. User 2 with 3, 4, 5, etc.
-  // Friend relation usually requires two records (or one depending on logic, but relation.entity.ts implies one record per direction or just one mutual record. Let's create both ways or just one as a friend type).
-  // Actually, friend relation in social networks can be represented by 1 row if undirected, or 2 rows if directed.
-  // We'll create one row for each pair to avoid unique constraint if it exists. Wait, 'request_side_id' and 'accept_side_id' are unique together.
+  // Create relationships: first 5 users follow each other
+  // So user 1 follows 2, 3, 4, 5. User 2 follows 1, 3, 4, 5, etc.
   const relations = [];
   for (let i = 0; i < 5; i++) {
     for (let j = i + 1; j < 5; j++) {
       const relation1 = new Relation();
       relation1.request_side_id = savedUsers[i].id;
       relation1.accept_side_id = savedUsers[j].id;
-      relation1.relation_type = RelationType.FRIEND;
+      relation1.relation_type = RelationType.FOLLOWING;
       relations.push(relation1);
 
       const relation2 = new Relation();
       relation2.request_side_id = savedUsers[j].id;
       relation2.accept_side_id = savedUsers[i].id;
-      relation2.relation_type = RelationType.FRIEND;
+      relation2.relation_type = RelationType.FOLLOWING;
       relations.push(relation2);
     }
   }
 
   await relationRepository.save(relations);
-  console.log(`Created ${relations.length} relations (5 users are friends).`);
+  console.log(
+    `Created ${relations.length} relations (5 users are following each other).`,
+  );
 
   // Create 1 post for each user
   const posts = [];

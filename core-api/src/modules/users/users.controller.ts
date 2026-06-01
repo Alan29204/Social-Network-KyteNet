@@ -67,6 +67,8 @@ export class UsersController {
       user.id,
       user_id,
     );
+    
+    const stats = await this.usersService.getProfileStats(user_id);
 
     if (!privacySeeProfile) {
       const { id, email, avatar, username, privacy } = userResult;
@@ -76,9 +78,10 @@ export class UsersController {
         avatar,
         username,
         privacy,
+        ...stats,
       };
     }
-    return result;
+    return { ...result, ...stats };
   }
 
   @Patch('/profile')

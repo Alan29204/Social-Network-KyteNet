@@ -27,11 +27,11 @@ export class RelationsController {
   ) {}
 
   @ResponseMessage(
-    `Get list relation ['friend', 'following', 'block'] of user successfully`,
+    `Get list relation ['following', 'block'] of user successfully`,
   )
   @Get('friends/:user_id')
   @ApiOperation({
-    summary: `Get list relation ['friend', 'following', 'block'] of user`,
+    summary: `Get list relation ['following', 'block'] of user`,
   })
   async getListRelation(
     @User() user: IUser,
@@ -42,7 +42,7 @@ export class RelationsController {
   ) {
     const privacy = await this.usersService.privacySeeProfile(user.id, user_id);
     if (!privacy) {
-      throw new BadRequestException('You are not allowed to see list friend');
+      throw new BadRequestException('You are not allowed to see this list');
     }
     return this.relationShipsService.getListRelation(
       user_id,

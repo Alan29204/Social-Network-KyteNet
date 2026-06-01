@@ -67,12 +67,12 @@ export class FeedService {
 
       // 4. Apply privacy + block filters
       const blockedUserIds = await this.getBlockedUserIds(userId);
-      const friendIds = await this.getFriendIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
       const filteredPosts = this.applyPrivacyFilter(
         posts,
         userId,
         blockedUserIds,
-        friendIds,
+        followingIds,
       );
 
       // 5. Sort by created_at DESC and take limit
@@ -187,23 +187,12 @@ export class FeedService {
     const followers = await this.relationRepository.find({
       where: [
         { accept_side_id: authorId, relation_type: RelationType.FOLLOWING },
-        { accept_side_id: authorId, relation_type: RelationType.FRIEND },
       ],
       select: ['request_side_id'],
     });
-    // Also add reverse-direction friends
-    const reverseFollowers = await this.relationRepository.find({
-      where: [
-        { request_side_id: authorId, relation_type: RelationType.FRIEND },
-      ],
-      select: ['accept_side_id'],
-    });
 
     const followerIds = [
-      ...new Set([
-        ...followers.map((f) => f.request_side_id),
-        ...reverseFollowers.map((f) => f.accept_side_id),
-      ]),
+      ...new Set([...followers.map((f) => f.request_side_id)]),
     ];
 
     if (followerIds.length < CELEBRITY_THRESHOLD) {
@@ -252,19 +241,11 @@ export class FeedService {
     const followers = await this.relationRepository.find({
       where: [
         { accept_side_id: authorId, relation_type: RelationType.FOLLOWING },
-        { accept_side_id: authorId, relation_type: RelationType.FRIEND },
-        { request_side_id: authorId, relation_type: RelationType.FRIEND },
       ],
-      select: ['request_side_id', 'accept_side_id'],
+      select: ['request_side_id'],
     });
 
-    const followerIds = [
-      ...new Set(
-        followers.map((f) =>
-          f.request_side_id === authorId ? f.accept_side_id : f.request_side_id,
-        ),
-      ),
-    ];
+    const followerIds = [...new Set(followers.map((f) => f.request_side_id))];
 
     const pipeline = this.redisService.getClient().pipeline();
     for (const followerId of followerIds) {
@@ -355,43 +336,16 @@ export class FeedService {
     }
   }
 
-  /** Get IDs of users that the given user follows or is friends with */
+  /** Get IDs of users that the given user follows */
   private async getFollowingIds(userId: string): Promise<string[]> {
     const relations = await this.relationRepository.find({
       where: [
         { request_side_id: userId, relation_type: RelationType.FOLLOWING },
-        { request_side_id: userId, relation_type: RelationType.FRIEND },
-        { accept_side_id: userId, relation_type: RelationType.FRIEND },
       ],
-      select: ['request_side_id', 'accept_side_id'],
+      select: ['accept_side_id'],
     });
 
-    return [
-      ...new Set(
-        relations.map((r) =>
-          r.request_side_id === userId ? r.accept_side_id : r.request_side_id,
-        ),
-      ),
-    ];
-  }
-
-  /** Get IDs of users that are friends with the given user */
-  private async getFriendIds(userId: string): Promise<string[]> {
-    const relations = await this.relationRepository.find({
-      where: [
-        { request_side_id: userId, relation_type: RelationType.FRIEND },
-        { accept_side_id: userId, relation_type: RelationType.FRIEND },
-      ],
-      select: ['request_side_id', 'accept_side_id'],
-    });
-
-    return [
-      ...new Set(
-        relations.map((r) =>
-          r.request_side_id === userId ? r.accept_side_id : r.request_side_id,
-        ),
-      ),
-    ];
+    return [...new Set(relations.map((r) => r.accept_side_id))];
   }
 
   /** Get IDs of users blocked by or blocking the given user */
@@ -457,7 +411,7 @@ export class FeedService {
     posts: Post[],
     userId: string,
     blockedUserIds: string[],
-    friendIds: string[],
+    followingIds: string[],
   ): Post[] {
     return posts.filter((post) => {
       // Skip blocked users
@@ -470,8 +424,8 @@ export class FeedService {
       switch (post.privacy) {
         case PrivacyType.PUBLIC:
           return true;
-        case PrivacyType.FRIEND:
-          return friendIds.includes(post.user_id);
+        case PrivacyType.FOLLOWER:
+          return followingIds.includes(post.user_id);
         case PrivacyType.PRIVATE:
           return false;
         default:

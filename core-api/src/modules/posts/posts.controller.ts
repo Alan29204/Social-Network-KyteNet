@@ -17,7 +17,7 @@ import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { IUser } from 'src/modules/users/users.interface';
-import { Public, ResponseMessage, User } from 'src/common/decorators/customize';
+import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
@@ -59,7 +59,7 @@ export class PostsController {
       type: 'object',
       properties: {
         content: { type: 'string' },
-        privacy: { type: 'string', enum: ['public', 'friend', 'private'] },
+        privacy: { type: 'string', enum: ['public', 'follower', 'private'] },
         hashtags: {
           type: 'array',
           items: { type: 'string' },

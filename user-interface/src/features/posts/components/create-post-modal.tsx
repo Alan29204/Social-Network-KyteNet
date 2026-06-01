@@ -134,7 +134,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
           {/* User Info & Privacy */}
           <div className="flex items-center gap-3 p-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user?.profilePicture} />
+              <AvatarImage src={user?.avatar || '/default-avatar.png'} className="object-cover" />
               <AvatarFallback>{user?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-1">

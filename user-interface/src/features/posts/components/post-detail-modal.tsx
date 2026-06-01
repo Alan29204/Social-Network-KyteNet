@@ -5,10 +5,12 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Smile } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 
 interface PostResponse {
   id: string;
   user: {
+    id: string;
     username: string;
     avatarUrl?: string;
   };
@@ -65,14 +67,18 @@ export function PostDetailModal({ post, open, onOpenChange }: PostDetailModalPro
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-3">
-              <Avatar className="w-8 h-8 cursor-pointer ring-1 ring-border">
-                <AvatarImage src={post.user.avatarUrl} alt={post.user.username} />
-                <AvatarFallback>{post.user.username[0]?.toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <Link to={`/profile/${post.user.id}`} onClick={() => onOpenChange(false)}>
+                <Avatar className="w-8 h-8 cursor-pointer ring-1 ring-border">
+                  <AvatarImage src={post.user.avatarUrl || '/default-avatar.png'} alt={post.user.username} className="object-cover" />
+                  <AvatarFallback>{post.user.username[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </Link>
               <div className="flex flex-col">
-                <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
-                  {post.user.username}
-                </span>
+                <Link to={`/profile/${post.user.id}`} onClick={() => onOpenChange(false)}>
+                  <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
+                    {post.user.username}
+                  </span>
+                </Link>
               </div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -85,13 +91,17 @@ export function PostDetailModal({ post, open, onOpenChange }: PostDetailModalPro
             {/* Caption */}
             {post.caption && (
               <div className="flex gap-3 mb-6">
-                <Avatar className="w-8 h-8 shrink-0">
-                  <AvatarImage src={post.user.avatarUrl} alt={post.user.username} />
-                  <AvatarFallback>{post.user.username[0]?.toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <Link to={`/profile/${post.user.id}`} onClick={() => onOpenChange(false)}>
+                  <Avatar className="w-8 h-8 shrink-0">
+                    <AvatarImage src={post.user.avatarUrl || '/default-avatar.png'} alt={post.user.username} className="object-cover" />
+                    <AvatarFallback>{post.user.username[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </Link>
                 <div className="flex flex-col gap-1">
                   <div>
-                    <span className="font-semibold text-sm mr-2">{post.user.username}</span>
+                    <Link to={`/profile/${post.user.id}`} onClick={() => onOpenChange(false)}>
+                      <span className="font-semibold text-sm mr-2">{post.user.username}</span>
+                    </Link>
                     <span className="text-sm whitespace-pre-wrap">{post.caption}</span>
                   </div>
                   <span className="text-xs text-muted-foreground mt-1">
@@ -105,7 +115,7 @@ export function PostDetailModal({ post, open, onOpenChange }: PostDetailModalPro
             <div className="flex flex-col gap-5">
               <div className="flex gap-3">
                 <Avatar className="w-8 h-8 shrink-0">
-                  <AvatarImage src="https://github.com/shadcn.png" />
+                  <AvatarImage src="/default-avatar.png" className="object-cover" />
                   <AvatarFallback>U</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1 flex-1">

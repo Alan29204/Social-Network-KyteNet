@@ -43,7 +43,7 @@ const navItems = [
 export function SidebarLeft() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const logout = useAuthStore((state) => state.logout);
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -87,10 +87,15 @@ export function SidebarLeft() {
               );
             }
 
+            let href = item.href;
+            if (item.label === 'Trang cá nhân' && user?.id) {
+              href = `/profile/${user.id}`;
+            }
+
             return (
               <NavLink
                 key={item.label}
-                to={item.href}
+                to={href}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',

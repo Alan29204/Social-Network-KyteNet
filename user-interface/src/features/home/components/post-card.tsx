@@ -11,12 +11,14 @@ import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-rea
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 
 interface PostCardProps {
   post: {
     id: string;
     user: {
+      id: string;
       username: string;
       avatarUrl?: string;
     };
@@ -38,14 +40,18 @@ export function PostCard({ post }: PostCardProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-3 pb-3 sm:px-4">
         <div className="flex items-center gap-3">
-          <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-background ring-offset-2 ring-offset-primary">
-            <AvatarImage src={post.user.avatarUrl} alt={post.user.username} />
-            <AvatarFallback>{post.user.username[0].toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <Link to={`/profile/${post.user.id}`}>
+            <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-background ring-offset-2 ring-offset-primary">
+              <AvatarImage src={post.user.avatarUrl || '/default-avatar.png'} alt={post.user.username} className="object-cover" />
+              <AvatarFallback>{post.user.username[0].toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm cursor-pointer hover:text-foreground/80">
-              {post.user.username}
-            </span>
+            <Link to={`/profile/${post.user.id}`}>
+              <span className="font-semibold text-sm cursor-pointer hover:text-foreground/80">
+                {post.user.username}
+              </span>
+            </Link>
             <span className="text-muted-foreground text-xs">•</span>
             <span className="text-muted-foreground text-xs">
               {formatDistanceToNow(new Date(post.createdAt), {
@@ -125,9 +131,11 @@ export function PostCard({ post }: PostCardProps) {
         </span>
 
         <div className="text-sm">
-          <span className="font-semibold cursor-pointer hover:text-foreground/80 mr-2">
-            {post.user.username}
-          </span>
+          <Link to={`/profile/${post.user.id}`}>
+            <span className="font-semibold cursor-pointer hover:text-foreground/80 mr-2">
+              {post.user.username}
+            </span>
+          </Link>
           <span className="whitespace-pre-wrap break-words">{post.caption}</span>
         </div>
 

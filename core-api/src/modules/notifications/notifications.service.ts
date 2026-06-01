@@ -74,7 +74,7 @@ export class NotificationService {
   }
 
   /**
-   * Send notification when someone follows/friends a user.
+   * Send notification when someone follows a user.
    */
   async notifyFollow(
     actorId: string,
@@ -84,13 +84,10 @@ export class NotificationService {
   ) {
     if (actorId === targetUserId) return;
 
-    const message =
-      relationType === 'friend'
-        ? `${actorName} đã chấp nhận lời mời kết bạn`
-        : `${actorName} đã bắt đầu theo dõi bạn`;
+    const message = `${actorName} đã bắt đầu theo dõi bạn`;
 
     const noti = await this.createAndSave(
-      `${actorName} ${relationType === 'friend' ? 'is now your friend' : 'started following you'}`,
+      `${actorName} started following you`,
       message,
       NotificationType.FOLLOW,
       targetUserId,

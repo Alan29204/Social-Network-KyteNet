@@ -175,7 +175,12 @@ export class PostsService {
    * Share/Repost an existing post.
    * Creates a new post that references the original via shared_post_id.
    */
-  async sharePost(user: IUser, postId: string, content?: string, privacy?: string) {
+  async sharePost(
+    user: IUser,
+    postId: string,
+    content?: string,
+    privacy?: string,
+  ) {
     const originalPost = await this.findPostByID(postId);
     if (!originalPost) {
       throw new NotFoundException(`Post id: ${postId} does not exist`);
@@ -293,7 +298,9 @@ export class PostsService {
       const post = await this.findPostByID(id);
 
       if (post.user_id !== user.id) {
-        throw new BadRequestException('You are not authorized to delete this post');
+        throw new BadRequestException(
+          'You are not authorized to delete this post',
+        );
       }
 
       // Delete media files from SeaweedFS

@@ -46,4 +46,8 @@ export class UpdateUserDto {
   @ApiProperty({ example: PrivacyType.PUBLIC, description: 'privacy' })
   @IsOptional()
   privacy: PrivacyType;
+
+  @ApiProperty({ example: 'true', description: 'Cờ để xóa avatar hiện tại' })
+  @IsOptional()
+  removeAvatar?: string;
 }

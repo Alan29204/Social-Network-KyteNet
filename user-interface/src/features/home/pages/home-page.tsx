@@ -10,26 +10,21 @@ import { Loader2 } from 'lucide-react';
 export default function HomePage() {
   const { ref, inView } = useInView();
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    status,
-  } = useInfiniteQuery({
-    queryKey: ['postsControllerFindAll'],
-    queryFn: ({ pageParam = 1 }) =>
-      postsControllerFindAll({ page: pageParam, limit: 10 }),
-    getNextPageParam: (lastPage) => {
-      // Assuming meta exists, fallback to undefined
-      const meta = (lastPage as any).meta || (lastPage as any).data?.meta;
-      if (meta && meta.hasNextPage) {
-        return meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
+    useInfiniteQuery({
+      queryKey: ['postsControllerFindAll'],
+      queryFn: ({ pageParam = 1 }) =>
+        postsControllerFindAll({ page: pageParam, limit: 10 }),
+      getNextPageParam: (lastPage) => {
+        // Assuming meta exists, fallback to undefined
+        const meta = (lastPage as any).meta || (lastPage as any).data?.meta;
+        if (meta && meta.hasNextPage) {
+          return meta.page + 1;
+        }
+        return undefined;
+      },
+      initialPageParam: 1,
+    });
 
   useEffect(() => {
     if (inView && hasNextPage) {
@@ -54,8 +49,8 @@ export default function HomePage() {
           ) : (
             <>
               {data.pages.map((page: any, i) => {
-                const posts = Array.isArray(page) 
-                  ? page 
+                const posts = Array.isArray(page)
+                  ? page
                   : Array.isArray(page.data)
                     ? page.data
                     : Array.isArray(page.data?.data)
@@ -69,10 +64,14 @@ export default function HomePage() {
                         post={{
                           id: post.id,
                           user: {
+                            id: post.user?.id || '',
                             username: post.user?.username || 'User',
                             avatarUrl: post.user?.profilePicture || '',
                           },
-                          createdAt: post.created_at || post.createdAt || new Date().toISOString(),
+                          createdAt:
+                            post.created_at ||
+                            post.createdAt ||
+                            new Date().toISOString(),
                           images: post.medias || post.mediaUrls || [],
                           caption: post.content || '',
                           likesCount: post.likesCount || 0,
@@ -85,12 +84,16 @@ export default function HomePage() {
                   </div>
                 );
               })}
-              
+
               {/* Load more spinner */}
               <div ref={ref} className="py-6 flex justify-center">
-                {isFetchingNextPage && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
-                {!hasNextPage && data.pages[0].data.length > 0 && (
-                  <span className="text-muted-foreground text-sm">Bạn đã xem hết tin</span>
+                {isFetchingNextPage && (
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                )}
+                {!hasNextPage && (data?.pages?.[0] as any)?.data?.length > 0 && (
+                  <span className="text-muted-foreground text-sm">
+                    Bạn đã xem hết tin
+                  </span>
                 )}
               </div>
             </>

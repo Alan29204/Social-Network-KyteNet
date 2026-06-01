@@ -78,12 +78,12 @@ export class UsersService {
         return false;
       case privacy === PrivacyType.PUBLIC:
         return true;
-      case privacy === PrivacyType.FRIEND:
+      case privacy === PrivacyType.FOLLOWER:
         const relation = await this.relationsService.getRelation(
           user_id_see,
           user_id,
         );
-        if (relation === RelationType.FRIEND) {
+        if (relation === RelationType.FOLLOWING) {
           return true;
         } else {
           return false;
@@ -207,15 +207,67 @@ export class UsersService {
     }
   }
 
+  async getProfileStats(id: string) {
+    const stats = await this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.id = :id', { id })
+      .loadRelationCountAndMap('user.postsCount', 'user.posts')
+      .loadRelationCountAndMap(
+        'user.followersCount',
+        'user.received_relations',
+        'relation',
+        (qb) => qb.where('relation.relation_type = :type', { type: RelationType.FOLLOWING })
+      )
+      .loadRelationCountAndMap(
+        'user.followingCount',
+        'user.sent_relations',
+        'relation',
+        (qb) => qb.where('relation.relation_type = :type', { type: RelationType.FOLLOWING })
+      )
+      .getOne();
+
+    return {
+      postsCount: (stats as any)?.postsCount || 0,
+      followersCount: (stats as any)?.followersCount || 0,
+      followingCount: (stats as any)?.followingCount || 0,
+    };
+  }
+
   async updateUser(dto: UpdateUserDto, user: IUser, file: Express.Multer.File) {
     try {
+      // Remove removeAvatar from dto before updating DB
+      const { removeAvatar, ...updateData } = dto;
+
       if (!file) {
-        await this.usersRepository.update(
-          { id: user.id },
-          {
-            ...dto,
-          },
-        );
+        if (removeAvatar === 'true') {
+          const userDb = await this.findUserById(user.id);
+          const avatar = userDb.avatar;
+
+          if (avatar) {
+            try {
+              if (fs.existsSync(avatar)) {
+                fs.unlinkSync(avatar);
+              }
+            } catch {
+              console.error('Error deleting old avatar');
+            }
+          }
+
+          await this.usersRepository.update(
+            { id: user.id },
+            {
+              ...updateData,
+              avatar: null,
+            },
+          );
+        } else {
+          await this.usersRepository.update(
+            { id: user.id },
+            {
+              ...updateData,
+            },
+          );
+        }
       } else {
         const userDb = await this.findUserById(user.id);
 
@@ -234,7 +286,7 @@ export class UsersService {
         await this.usersRepository.update(
           { id: user.id },
           {
-            ...dto,
+            ...updateData,
             avatar: file.path,
           },
         );

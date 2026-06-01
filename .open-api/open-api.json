@@ -246,7 +246,7 @@
     "/relations/friends/{user_id}": {
       "get": {
         "operationId": "RelationsController_getListRelation",
-        "summary": "Get list relation ['friend', 'following', 'block'] of user",
+        "summary": "Get list relation ['following', 'block'] of user",
         "parameters": [
           {
             "name": "user_id",
@@ -1081,7 +1081,7 @@
                     "type": "string",
                     "enum": [
                       "public",
-                      "friend",
+                      "follower",
                       "private"
                     ]
                   },
@@ -1360,6 +1360,117 @@
         },
         "tags": [
           "Comments"
+        ]
+      }
+    },
+    "/save-lists": {
+      "post": {
+        "operationId": "SaveListsController_create",
+        "summary": "Tạo bộ sưu tập mới",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSaveListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Lists (Bộ sưu tập)"
+        ]
+      },
+      "get": {
+        "operationId": "SaveListsController_findAll",
+        "summary": "Lấy danh sách bộ sưu tập của người dùng hiện tại",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Lists (Bộ sưu tập)"
+        ]
+      }
+    },
+    "/save-lists/{id}": {
+      "put": {
+        "operationId": "SaveListsController_update",
+        "summary": "Đổi tên bộ sưu tập",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSaveListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Lists (Bộ sưu tập)"
+        ]
+      },
+      "delete": {
+        "operationId": "SaveListsController_remove",
+        "summary": "Xóa bộ sưu tập",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Lists (Bộ sưu tập)"
         ]
       }
     },
@@ -1959,7 +2070,6 @@
           "relation_type": {
             "type": "string",
             "enum": [
-              "friend",
               "following",
               "block",
               "none"
@@ -2618,7 +2728,7 @@
             "type": "string",
             "enum": [
               "public",
-              "friend",
+              "follower",
               "private"
             ]
           },
@@ -2717,7 +2827,7 @@
             "type": "string",
             "enum": [
               "public",
-              "friend",
+              "follower",
               "private"
             ]
           },
@@ -2990,12 +3100,17 @@
           "privacy": {
             "enum": [
               "public",
-              "friend",
+              "follower",
               "private"
             ],
             "type": "string",
             "example": "public",
             "description": "privacy"
+          },
+          "removeAvatar": {
+            "type": "string",
+            "example": "true",
+            "description": "Cờ để xóa avatar hiện tại"
           }
         },
         "required": [
@@ -3248,7 +3363,7 @@
           "privacy": {
             "enum": [
               "public",
-              "friend",
+              "follower",
               "private"
             ],
             "type": "string",
@@ -3279,6 +3394,31 @@
           "content",
           "post_id"
         ]
+      },
+      "CreateSaveListDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Tên bộ sưu tập",
+            "example": "Món ngon mỗi ngày"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateSaveListDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Tên bộ sưu tập",
+            "example": "Món ngon mỗi ngày"
+          }
+        }
       },
       "CreateReactionDto": {
         "type": "object",
