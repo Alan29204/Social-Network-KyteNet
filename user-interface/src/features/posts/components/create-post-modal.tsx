@@ -80,15 +80,19 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   const { mutate: createPost, isPending } = usePostsControllerCreate({
     mutation: {
-      onSuccess: () => {
+      onSuccess: async () => {
+        // Đợi tải lại dữ liệu ngầm xong
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['infinite'] }),
+          queryClient.invalidateQueries({ queryKey: ['profile'] })
+        ]);
+
         // Reset state after success
         setImages([]);
         setMediaPreviews([]);
         setCaption('');
         setPrivacy('public');
         onOpenChange(false);
-        // Refresh feed
-        queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       },
       onError: (error: any) => {
         console.error('Lỗi khi tạo bài viết:', error);

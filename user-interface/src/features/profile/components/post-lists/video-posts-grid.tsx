@@ -1,11 +1,13 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2, Play } from 'lucide-react';
+import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 
 export function VideoPostsGrid({ userId }: { userId: string }) {
   const { ref, inView } = useInView();
+  const [selectedPost, setSelectedPost] = useState<any>(null);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
@@ -51,19 +53,31 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
         {posts.map((post: any) => {
           const firstVideo = post.medias?.find((m: string) => /\.(mp4|mov|webm)($|\?)/i.test(m)) || post.medias?.[0];
           return (
-            <div key={post.id} className="aspect-[9/16] bg-black flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity">
-              {firstVideo ? (
-                <>
-                  <video src={firstVideo} className="w-full h-full object-cover opacity-80" muted playsInline />
-                  <Play className="absolute w-8 h-8 text-white opacity-80" />
-                </>
-              ) : (
-                <span className="text-muted-foreground text-sm">Trống</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              <div 
+                key={post.id} 
+                className="aspect-[9/16] bg-black flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setSelectedPost({ ...post, images: post.medias || post.mediaUrls || [] })}
+              >
+                {firstVideo ? (
+                  <>
+                    <video src={firstVideo} className="w-full h-full object-cover opacity-80" muted playsInline />
+                    <Play className="absolute w-8 h-8 text-white opacity-80" />
+                  </>
+                ) : (
+                  <span className="text-muted-foreground text-sm">Trống</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {selectedPost && (
+          <PostDetailModal
+            post={selectedPost}
+            open={!!selectedPost}
+            onOpenChange={(open) => !open && setSelectedPost(null)}
+          />
+        )}
       <div ref={ref} className="py-2 flex justify-center">
         {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
       </div>

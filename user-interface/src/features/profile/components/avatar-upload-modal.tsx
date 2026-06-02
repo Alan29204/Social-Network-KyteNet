@@ -105,21 +105,22 @@ export function AvatarUploadModal({
       const newAvatarUrl = res.data?.avatar;
       updateUser({ avatar: newAvatarUrl });
 
-      queryClient.invalidateQueries({
-        queryKey: ['usersControllerGetProfile', user?.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
-      queryClient.invalidateQueries({ queryKey: ['postDetail'] });
+      // Đợi tải lại dữ liệu ngầm xong
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['infinite'] }),
+        queryClient.invalidateQueries({ queryKey: ['usersControllerGetProfile'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['postDetail'] })
+      ]);
+
+      handleClose();
 
       toast({
         title: 'Thành công',
         description: 'Đã cập nhật ảnh đại diện thành công!',
       });
 
-      handleClose();
+
     } catch (error) {
       console.error('Lỗi khi tải ảnh lên:', error);
       toast({
@@ -146,21 +147,22 @@ export function AvatarUploadModal({
 
       updateUser({ avatar: null });
 
-      queryClient.invalidateQueries({
-        queryKey: ['usersControllerGetProfile', user?.id],
-      });
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
-      queryClient.invalidateQueries({ queryKey: ['postDetail'] });
+      // Đợi tải lại dữ liệu ngầm xong
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['infinite'] }),
+        queryClient.invalidateQueries({ queryKey: ['usersControllerGetProfile'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['postDetail'] })
+      ]);
+
+      handleClose();
 
       toast({
         title: 'Thành công',
         description: 'Đã gỡ ảnh đại diện thành công!',
       });
 
-      handleClose();
+
     } catch (error) {
       console.error('Lỗi khi gỡ ảnh:', error);
       toast({

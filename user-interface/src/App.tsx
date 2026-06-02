@@ -10,11 +10,13 @@ import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 import ExplorePage from '@/features/explore/pages/explore-page';
 import { Toaster } from '@/components/ui/toaster';
+import { ScrollToTop } from '@/components/scroll-to-top';
 
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route element={<GuestGuard />}>
             <Route element={<AuthLayout />}>

@@ -164,7 +164,9 @@ export class FeedService {
       }
 
       if (followingIds.length > 0) {
-        query.andWhere('post.user_id NOT IN (:...followingIds)', { followingIds });
+        query.andWhere('post.user_id NOT IN (:...followingIds)', {
+          followingIds,
+        });
         query.andWhere(
           '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...followingIds))',
           { followingIds },

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
 import {
   DropdownMenu,
@@ -45,6 +46,8 @@ export function SidebarLeft() {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logout();
@@ -96,6 +99,16 @@ export function SidebarLeft() {
               <NavLink
                 key={item.label}
                 to={href}
+                onClick={(e) => {
+                  if (location.pathname === href) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    // Determine which queries to invalidate based on route
+                    if (href === '/') queryClient.invalidateQueries({ queryKey: ['feed'] });
+                    if (href === '/explore') queryClient.invalidateQueries({ queryKey: ['feed', 'foryou'] });
+                    if (href.startsWith('/profile')) queryClient.invalidateQueries({ queryKey: ['profile'] });
+                  }
+                }}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',

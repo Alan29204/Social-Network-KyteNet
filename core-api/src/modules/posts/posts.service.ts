@@ -315,6 +315,7 @@ export class PostsService {
       }
 
       const [posts, total] = await this.repository.findAndCount(queryOptions);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const postIds = posts.map((p) => p.id);
       const actualPostIds = [
         ...new Set(posts.map((p) => p.shared_post_id || p.id)),

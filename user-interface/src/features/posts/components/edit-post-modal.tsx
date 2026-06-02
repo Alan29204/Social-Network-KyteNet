@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 interface EditPostModalProps {
   post: any;
@@ -24,9 +24,14 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
       method: 'PATCH',
       data: { id: post.id, content, privacy: post.privacy || 'public' }
     }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-      queryClient.invalidateQueries({ queryKey: ['postDetail', post.id] });
+    onSuccess: async () => {
+      // Đợi tải lại dữ liệu ngầm xong
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['infinite'] }),
+        queryClient.invalidateQueries({ queryKey: ['postDetail'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile'] })
+      ]);
+
       onOpenChange(false);
       setShowConfirm(false);
     }
@@ -113,6 +118,7 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
             onClick={handleSave}
             disabled={content === (post.content || post.caption || '') || updatePostMutation.isPending}
           >
+            {updatePostMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Xong
           </Button>
         </div>
@@ -125,13 +131,20 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
             placeholder="Viết nội dung..."
           />
           
-          {post.medias && post.medias.length > 0 && (
+          {(post.medias?.length > 0 || post.images?.length > 0) && (
             <div className="mt-4 grid grid-cols-2 gap-2 opacity-70 pointer-events-none">
-              {post.medias.map((img: string, i: number) => (
-                <div key={i} className="aspect-square rounded-lg overflow-hidden border">
-                  <img src={img} alt="media" className="w-full h-full object-cover" />
-                </div>
-              ))}
+              {(post.medias || post.images).map((mediaUrl: string, i: number) => {
+                const isVideo = /\.(mp4|webm|ogg)($|\?)/i.test(mediaUrl);
+                return (
+                  <div key={i} className="aspect-square bg-muted rounded-lg overflow-hidden border">
+                    {isVideo ? (
+                      <video src={mediaUrl} className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={mediaUrl} alt="media" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
