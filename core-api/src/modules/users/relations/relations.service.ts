@@ -33,6 +33,7 @@ export class RelationsService {
     page: number,
     limit: number,
     relationType: RelationType,
+    mode?: 'followers' | 'following',
   ) {
     const offset = (page - 1) * limit;
 
@@ -46,18 +47,24 @@ export class RelationsService {
     }
 
     // Truy vấn danh sách quan hệ
-    const relations = await this.relationRepository
+    const query = this.relationRepository
       .createQueryBuilder('relation')
       .leftJoinAndSelect('relation.request_side', 'requestUser')
       .leftJoinAndSelect('relation.accept_side', 'acceptUser')
-      .where(
-        'relation.request_side_id = :userId OR relation.accept_side_id = :userId',
+      .andWhere('relation.relation_type = :relationType', { relationType });
+
+    if (mode === 'followers') {
+      query.andWhere('relation.accept_side_id = :userId', { userId });
+    } else if (mode === 'following') {
+      query.andWhere('relation.request_side_id = :userId', { userId });
+    } else {
+      query.andWhere(
+        '(relation.request_side_id = :userId OR relation.accept_side_id = :userId)',
         { userId },
-      )
-      .andWhere('relation.relation_type = :relationType', { relationType })
-      .skip(offset)
-      .take(limit)
-      .getMany();
+      );
+    }
+
+    const relations = await query.skip(offset).take(limit).getMany();
 
     return {
       page,
@@ -72,6 +79,23 @@ export class RelationsService {
             : relation.request_side,
       })),
     };
+  }
+
+  async removeFollower(userId: string, followerId: string) {
+    const relation = await this.relationRepository.findOne({
+      where: {
+        request_side_id: followerId,
+        accept_side_id: userId,
+        relation_type: RelationType.FOLLOWING,
+      },
+    });
+
+    if (!relation) {
+      throw new NotFoundException('Follower not found');
+    }
+
+    await this.relationRepository.remove(relation);
+    return { message: 'Follower removed successfully' };
   }
 
   async getRelation(id: string, id_other: string): Promise<RelationType> {
@@ -117,12 +141,11 @@ export class RelationsService {
     switch (true) {
       // RequestUser -> acceptUser relation following
       case relationNew === RelationType.FOLLOWING &&
-        !relationRequestAccept &&
-        !relationAcceptRequest:
+        !relationRequestAccept:
         await this.relationRepository.save({
           request_side_id: user.id,
           accept_side_id: dto.user_id,
-          relation: RelationType.FOLLOWING,
+          relation_type: RelationType.FOLLOWING,
         });
 
         // Backfill feed with followed user's recent posts
@@ -142,22 +165,26 @@ export class RelationsService {
         }
         break;
 
-      // RequestUser -> acceptUser does not exits relation
+      case relationNew === RelationType.FOLLOWING &&
+        !!relationRequestAccept:
+        // Already following, do nothing to be idempotent
+        break;
+
+      // RequestUser -> acceptUser unfollow
       case relationNew === RelationType.NONE &&
-        (relationRequestAccept?.relation_type === RelationType.FOLLOWING ||
-          relationAcceptRequest?.relation_type === RelationType.FOLLOWING):
+        relationRequestAccept?.relation_type === RelationType.FOLLOWING:
         await this.relationRepository.delete({
           request_side_id: user.id,
           accept_side_id: dto.user_id,
         });
-        await this.relationRepository.delete({
-          request_side_id: dto.user_id,
-          accept_side_id: user.id,
-        });
 
         // Cleanup feed: remove unfollowed user's posts
         await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
-        await this.feedService.cleanupFeedOnUnfollow(dto.user_id, user.id);
+        break;
+
+      case relationNew === RelationType.NONE &&
+        !relationRequestAccept:
+        // Already unfollowed, do nothing
         break;
 
       // RequestUser -> acceptUser relation block

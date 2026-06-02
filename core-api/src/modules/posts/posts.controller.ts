@@ -38,6 +38,8 @@ export class PostsController {
         { name: 'page', description: 'Page number', required: false },
         { name: 'limit', description: 'Limit per page', required: false },
         { name: 'user_id', description: 'User ID', required: false },
+        { name: 'is_repost', description: 'Filter by repost status', required: false, type: 'boolean' },
+        { name: 'media_type', description: 'Filter by media type (image/video)', required: false },
       ],
     },
   })
@@ -45,9 +47,18 @@ export class PostsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('user_id') user_id?: string,
+    @Query('is_repost') is_repost?: string,
+    @Query('media_type') media_type?: 'image' | 'video',
     @User() user?: IUser,
   ) {
-    return this.postsService.findAll(page || 1, limit || 10, user_id, user);
+    return this.postsService.findAll(
+      page,
+      limit,
+      user_id,
+      is_repost === 'true' ? true : is_repost === 'false' ? false : undefined,
+      media_type,
+      user,
+    );
   }
 
   @Post()

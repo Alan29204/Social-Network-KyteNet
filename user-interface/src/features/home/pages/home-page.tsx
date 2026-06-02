@@ -14,7 +14,11 @@ export default function HomePage() {
     useInfiniteQuery({
       queryKey: ['postsControllerFindAll'],
       queryFn: ({ pageParam = 1 }) =>
-        postsControllerFindAll({ page: pageParam, limit: 10 }),
+        postsControllerFindAll({
+          page: pageParam,
+          limit: 10,
+          is_repost: false,
+        } as any),
       getNextPageParam: (lastPage) => {
         // Assuming meta exists, fallback to undefined
         const meta = (lastPage as any).meta || (lastPage as any).data?.meta;
@@ -66,7 +70,7 @@ export default function HomePage() {
                           user: {
                             id: post.user?.id || '',
                             username: post.user?.username || 'User',
-                            avatarUrl: post.user?.profilePicture || '',
+                            avatarUrl: post.user?.avatar || post.user?.profilePicture || '',
                           },
                           createdAt:
                             post.created_at ||
@@ -74,10 +78,40 @@ export default function HomePage() {
                             new Date().toISOString(),
                           images: post.medias || post.mediaUrls || [],
                           caption: post.content || '',
-                          likesCount: post.likesCount || 0,
-                          commentsCount: post.commentsCount || 0,
-                          isLiked: post.isLiked || false,
+                          likesCount:
+                            post.likesCount || post.interactions?.likes || 0,
+                          commentsCount:
+                            post.commentsCount ||
+                            post.interactions?.comments ||
+                            0,
+                          repostsCount: post.interactions?.reposts || 0,
+                          isLiked:
+                            post.isLiked ||
+                            post.interactions?.is_liked ||
+                            false,
                           isSaved: post.isSaved || false,
+                          isReposted: post.interactions?.is_reposted || false,
+                          shared_post: post.shared_post
+                            ? {
+                                id: post.shared_post.id,
+                                user: {
+                                  id: post.shared_post.user?.id || '',
+                                  username:
+                                    post.shared_post.user?.username || 'User',
+                                  avatarUrl:
+                                    post.shared_post.user?.avatar || post.shared_post.user?.profilePicture || '',
+                                },
+                                createdAt:
+                                  post.shared_post.created_at ||
+                                  post.shared_post.createdAt ||
+                                  new Date().toISOString(),
+                                images:
+                                  post.shared_post.medias ||
+                                  post.shared_post.mediaUrls ||
+                                  [],
+                                caption: post.shared_post.content || '',
+                              }
+                            : undefined,
                         }}
                       />
                     ))}
@@ -90,11 +124,12 @@ export default function HomePage() {
                 {isFetchingNextPage && (
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 )}
-                {!hasNextPage && (data?.pages?.[0] as any)?.data?.length > 0 && (
-                  <span className="text-muted-foreground text-sm">
-                    Bạn đã xem hết tin
-                  </span>
-                )}
+                {!hasNextPage &&
+                  (data?.pages?.[0] as any)?.data?.length > 0 && (
+                    <span className="text-muted-foreground text-sm">
+                      Bạn đã xem hết tin
+                    </span>
+                  )}
               </div>
             </>
           )}

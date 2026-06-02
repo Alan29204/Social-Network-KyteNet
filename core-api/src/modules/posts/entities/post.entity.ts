@@ -4,6 +4,7 @@ import { SavePost } from 'src/modules/posts/bookmarks/save-posts/entities/save-p
 import { User } from 'src/modules/users/entities/user.entity';
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -48,7 +49,7 @@ export class Post {
   @Column({ nullable: true })
   shared_post_id: string;
 
-  @Column()
+  @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
   @ManyToOne(() => User, (user) => user.posts)

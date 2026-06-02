@@ -8,6 +8,7 @@ import {
   Query,
   forwardRef,
   Inject,
+  Delete,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User, ResponseMessage } from 'src/common/decorators/customize';
@@ -37,6 +38,7 @@ export class RelationsController {
     @User() user: IUser,
     @Param('user_id') user_id: string,
     @Query('relation') relation: RelationType,
+    @Query('mode') mode?: 'followers' | 'following',
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
@@ -49,7 +51,15 @@ export class RelationsController {
       page,
       limit,
       relation,
+      mode,
     );
+  }
+
+  @Delete('follower/:id')
+  @ResponseMessage('Remove follower successfully')
+  @ApiOperation({ summary: 'Remove a user from your followers list' })
+  async removeFollower(@User() user: IUser, @Param('id') followerId: string) {
+    return this.relationShipsService.removeFollower(user.id, followerId);
   }
 
   @Get(':user_id')

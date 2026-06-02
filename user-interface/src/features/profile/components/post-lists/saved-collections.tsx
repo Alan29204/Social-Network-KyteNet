@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 
-export function SavedCollections({ userId }: { userId: string }) {
+export function SavedCollections({ userId: _userId }: { userId: string }) {
   // TODO: Fetch collections from API: GET /save-lists
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 py-4">

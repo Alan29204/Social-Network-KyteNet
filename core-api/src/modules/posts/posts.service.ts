@@ -72,7 +72,9 @@ export class PostsService {
               postDb.reactions?.filter((r) => r.reaction === 'like').length ||
               0,
             comments: postDb.comments?.length || 0,
-            reposts: 0,
+            reposts: await this.repository.count({
+              where: { shared_post_id: id },
+            }),
           },
         };
 
@@ -85,18 +87,27 @@ export class PostsService {
 
       // Calculate is_liked runtime (after cache retrieval)
       if (currentUser) {
+        postData.interactions = postData.interactions || {};
         postData.interactions.is_liked =
           postData.reactions?.some(
-            (r) => r.user_id === currentUser.id && r.reaction === 'like',
+            (r: any) => r.user_id === currentUser.id && r.reaction === 'like',
           ) || false;
 
-        postData.comments = postData.comments.map((comment) => ({
+        postData.interactions.is_reposted = !!(await this.repository.findOne({
+          where: { user_id: currentUser.id, shared_post_id: id },
+        }));
+
+        postData.comments = (postData.comments || []).map((comment: any) => ({
           ...comment,
           interactions: {
             ...comment.interactions,
+            likes:
+              comment.reactions?.filter((r: any) => r.reaction === 'like')
+                .length || 0,
             is_liked:
               comment.reactions?.some(
-                (r) => r.user_id === currentUser.id && r.reaction === 'like',
+                (r: any) =>
+                  r.user_id === currentUser.id && r.reaction === 'like',
               ) || false,
           },
         }));
@@ -186,7 +197,28 @@ export class PostsService {
       throw new NotFoundException(`Post id: ${postId} does not exist`);
     }
 
+    if (originalPost.user?.id === user.id) {
+      throw new BadRequestException('You cannot repost your own post');
+    }
+
     try {
+      // Prevent chained reposts: always link to the TRUE original post
+      const actualOriginalPostId =
+        originalPost.shared_post_id || originalPost.id;
+
+      const existingRepost = await this.repository.findOne({
+        where: { user_id: user.id, shared_post_id: actualOriginalPostId },
+      });
+
+      if (existingRepost) {
+        await this.repository.remove(existingRepost);
+        return {
+          message: 'Un-reposted successfully',
+          post_id: actualOriginalPostId,
+          is_reposted: false,
+        };
+      }
+
       const sharedPost = new Post();
       sharedPost.id = uuidv4();
       sharedPost.user_id = user.id;
@@ -194,7 +226,7 @@ export class PostsService {
       sharedPost.medias = [];
       sharedPost.hashtags = [];
       sharedPost.tagged_users = [];
-      sharedPost.shared_post_id = postId;
+      sharedPost.shared_post_id = actualOriginalPostId; // Only store ID to avoid TypeORM relation mapping issues
       sharedPost.privacy = (privacy as any) || originalPost.privacy;
       sharedPost.created_at = new Date();
 
@@ -214,6 +246,7 @@ export class PostsService {
       return {
         message: 'Post shared successfully',
         post_id: sharedPost.id,
+        is_reposted: true,
       };
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
@@ -225,11 +258,19 @@ export class PostsService {
     page: number = 1,
     limit: number = 10,
     user_id?: string,
+    is_repost?: boolean,
+    media_type?: 'image' | 'video',
     currentUser?: IUser,
   ) {
     try {
       const queryOptions: any = {
-        relations: ['user', 'reactions', 'comments'],
+        relations: [
+          'user',
+          'reactions',
+          'comments',
+          'shared_post',
+          'shared_post.user',
+        ],
         order: { created_at: 'DESC' },
         skip: (page - 1) * limit,
         take: limit,
@@ -239,7 +280,66 @@ export class PostsService {
         queryOptions.where = { user_id };
       }
 
+      if (is_repost !== undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+        const { IsNull, Not } = require('typeorm');
+        if (!queryOptions.where) queryOptions.where = {};
+        if (is_repost) {
+          queryOptions.where.shared_post_id = Not(IsNull());
+        } else {
+          queryOptions.where.shared_post_id = IsNull();
+        }
+      }
+
+      if (media_type) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+        const { Raw } = require('typeorm');
+        if (!queryOptions.where) queryOptions.where = {};
+        if (media_type === 'video') {
+          queryOptions.where.medias = Raw(
+            (alias) =>
+              `array_to_string(${alias}, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`,
+          );
+        } else if (media_type === 'image') {
+          queryOptions.where.medias = Raw(
+            (alias) =>
+              `array_to_string(${alias}, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`,
+          );
+        }
+      }
+
       const [posts, total] = await this.repository.findAndCount(queryOptions);
+      const postIds = posts.map((p) => p.id);
+      const repostCountsMap: Record<string, number> = {};
+      const userRepostsMap: Record<string, boolean> = {};
+
+      if (postIds.length > 0) {
+        const repostsQuery = await this.repository
+          .createQueryBuilder('post')
+          .select('post.shared_post_id', 'shared_post_id')
+          .addSelect('COUNT(*)', 'count')
+          .where('post.shared_post_id IN (:...postIds)', { postIds })
+          .groupBy('post.shared_post_id')
+          .getRawMany();
+
+        repostsQuery.forEach((r) => {
+          repostCountsMap[r.shared_post_id] = parseInt(r.count, 10);
+        });
+
+        if (currentUser) {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+          const { In } = require('typeorm');
+          const userReposts = await this.repository.find({
+            where: { user_id: currentUser.id, shared_post_id: In(postIds) },
+            select: ['shared_post_id'],
+          });
+          userReposts.forEach((r) => {
+            if (r.shared_post_id) {
+              userRepostsMap[r.shared_post_id] = true;
+            }
+          });
+        }
+      }
 
       const data = posts.map((post) => ({
         ...post,
@@ -247,12 +347,12 @@ export class PostsService {
           likes:
             post.reactions?.filter((r) => r.reaction === 'like').length || 0,
           comments: post.comments?.length || 0,
-          reposts: 0,
-          is_liked: currentUser
-            ? post.reactions?.some(
-                (r) => r.user_id === currentUser.id && r.reaction === 'like',
-              ) || false
-            : false,
+          reposts: repostCountsMap[post.id] || 0,
+          is_liked:
+            post.reactions?.some(
+              (r) => r.user_id === currentUser?.id && r.reaction === 'like',
+            ) || false,
+          is_reposted: userRepostsMap[post.shared_post_id || post.id] || false,
         },
       }));
 
@@ -308,7 +408,33 @@ export class PostsService {
         await this.mediaService.deleteFiles(post.medias);
       }
 
-      await this.repository.remove(post);
+      // Fetch raw entity to remove to avoid TypeORM errors with mapped properties
+      const postToRemove = await this.repository.findOne({ where: { id } });
+      if (postToRemove) {
+        // Delete dependent records manually to avoid foreign key constraint errors
+        const deleteQueries = [
+          { q: `DELETE FROM reaction WHERE post_id = $1`, params: [id] },
+          { q: `DELETE FROM comment WHERE post_id = $1`, params: [id] },
+          { q: `DELETE FROM save_post WHERE post_id = $1`, params: [id] },
+          { q: `DELETE FROM report WHERE reported_post_id = $1`, params: [id] },
+        ];
+
+        for (const query of deleteQueries) {
+          try {
+            await this.repository.manager.query(query.q, query.params);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (e) {
+            // Ignore if table/column does not exist
+          }
+        }
+        // Set shared_post_id to NULL for any reposts of this post
+        await this.repository.manager.query(
+          `UPDATE post SET shared_post_id = NULL WHERE shared_post_id = $1`,
+          [id],
+        );
+
+        await this.repository.remove(postToRemove);
+      }
       await this.redisService.del(`post:${id}`);
 
       // Remove from all followers' feeds (async)
@@ -316,6 +442,7 @@ export class PostsService {
 
       return { message: 'Delete post successfully' };
     } catch (err) {
+      console.error('DELETE POST ERROR:', err);
       if (err instanceof BadRequestException) throw err;
       throw new InternalServerErrorException('Error when deleting post');
     }

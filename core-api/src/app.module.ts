@@ -20,7 +20,7 @@ import { RelationsModule } from './modules/users/relations/relations.module';
 import { NotificationUsersModule } from './modules/notifications/notification-users/notification-users.module';
 import { SaveListsModule } from './modules/posts/bookmarks/save-lists/save-lists.module';
 import { ReactionsModule } from './modules/posts/reactions/reactions.module';
-import { ParentChildCommentsModule } from './modules/posts/comments/replies/parent-child-comments.module';
+
 import { AdminsModule } from './modules/admin/admins.module';
 import { GatewayModule } from './modules/chats/gateway/gateway.module';
 import { PinMessagesModule } from './modules/chats/pin-messages/pin-messages.module';
@@ -87,7 +87,6 @@ import { ReportsModule } from './modules/reports/reports.module';
     NotificationUsersModule,
     SaveListsModule,
     ReactionsModule,
-    ParentChildCommentsModule,
     AdminsModule,
     GatewayModule,
     PinMessagesModule,

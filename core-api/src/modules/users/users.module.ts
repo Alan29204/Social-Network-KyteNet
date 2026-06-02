@@ -9,11 +9,11 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BirthdayJob } from './birthday.job';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
 import { BullModule } from '@nestjs/bullmq';
-import { MulterModule } from '@nestjs/platform-express';
-import { MulterConfigService } from 'src/infra/media/multer.config';
+import { MediaModule } from 'src/infra/media/media.module';
 import { RelationsModule } from 'src/modules/users/relations/relations.module';
 import { NestjsFingerprintModule } from 'nestjs-fingerprint';
 import { AuthModule } from 'src/modules/users/auth/auth.module';
+import { AvatarProcessor } from './avatar.processor';
 
 @Module({
   imports: [
@@ -25,19 +25,20 @@ import { AuthModule } from 'src/modules/users/auth/auth.module';
       },
     }),
     TypeOrmModule.forFeature([User]),
-    MulterModule.registerAsync({
-      useClass: MulterConfigService,
-    }),
+    MediaModule,
     RedisModule,
     forwardRef(() => AuthModule),
     forwardRef(() => RelationsModule),
     forwardRef(() => DeviceSessionsModule),
-    BullModule.registerQueue({ name: 'noti-birthday' }),
+    BullModule.registerQueue(
+      { name: 'noti-birthday' },
+      { name: 'avatar-updates' }
+    ),
     ScheduleModule.forRoot(),
     NotificationModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService, BirthdayJob],
+  providers: [UsersService, BirthdayJob, AvatarProcessor],
   exports: [UsersService],
 })
 export class UsersModule {}

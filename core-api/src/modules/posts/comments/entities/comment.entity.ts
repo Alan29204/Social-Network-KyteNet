@@ -1,4 +1,3 @@
-import { ParentChildComment } from 'src/modules/posts/comments/replies/entities/parent-child-comment.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import {
@@ -36,8 +35,15 @@ export class Comment {
   @Column('text', { array: true, default: null })
   medias: string[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
+
+  @Column({ nullable: true })
+  @Index()
+  parent_id: string;
+
+  @Column('text', { array: true, nullable: true })
+  tagged_users: string[];
 
   @ManyToOne(() => User, (user) => user.comments)
   @JoinColumn({ name: 'user_id' })
@@ -47,17 +53,12 @@ export class Comment {
   @JoinColumn({ name: 'post_id' })
   post: Post;
 
-  @OneToMany(
-    () => ParentChildComment,
-    (parentChildComment) => parentChildComment.parentComment,
-  )
-  childComments: ParentChildComment[];
+  @ManyToOne(() => Comment, (comment) => comment.childComments, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'parent_id' })
+  parentComment: Comment;
 
-  @OneToMany(
-    () => ParentChildComment,
-    (parentChildComment) => parentChildComment.childComment,
-  )
-  parentComments: ParentChildComment[];
+  @OneToMany(() => Comment, (comment) => comment.parentComment)
+  childComments: Comment[];
 
   @OneToMany(() => Reaction, (reaction) => reaction.comment)
   reactions: Reaction[];

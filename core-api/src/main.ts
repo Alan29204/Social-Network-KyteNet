@@ -35,6 +35,7 @@ async function bootstrap() {
         },
       },
       hsts: false, // Tắt HSTS để chạy HTTP
+      crossOriginResourcePolicy: false,
     }),
   );
 

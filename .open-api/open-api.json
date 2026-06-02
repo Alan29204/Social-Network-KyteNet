@@ -158,7 +158,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -265,6 +272,14 @@
             }
           },
           {
+            "name": "mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "page",
             "required": true,
             "in": "query",
@@ -278,6 +293,30 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
+    "/relations/follower/{id}": {
+      "delete": {
+        "operationId": "RelationsController_removeFollower",
+        "summary": "Remove a user from your followers list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1038,6 +1077,24 @@
             "required": false,
             "in": "query",
             "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_repost",
+            "required": false,
+            "in": "query",
+            "description": "Filter by repost status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "media_type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by media type (image/video)",
             "schema": {
               "type": "string"
             }
@@ -2547,29 +2604,6 @@
           "comments"
         ]
       },
-      "ParentChildComment": {
-        "type": "object",
-        "properties": {
-          "parent_comment": {
-            "type": "string"
-          },
-          "child_comment": {
-            "type": "string"
-          },
-          "parentComment": {
-            "$ref": "#/components/schemas/Comment"
-          },
-          "childComment": {
-            "$ref": "#/components/schemas/Comment"
-          }
-        },
-        "required": [
-          "parent_comment",
-          "child_comment",
-          "parentComment",
-          "childComment"
-        ]
-      },
       "Reaction": {
         "type": "object",
         "properties": {
@@ -2646,22 +2680,28 @@
             "format": "date-time",
             "type": "string"
           },
+          "parent_id": {
+            "type": "string"
+          },
+          "tagged_users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "user": {
             "$ref": "#/components/schemas/User"
           },
           "post": {
             "$ref": "#/components/schemas/Post"
           },
+          "parentComment": {
+            "$ref": "#/components/schemas/Comment"
+          },
           "childComments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ParentChildComment"
-            }
-          },
-          "parentComments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ParentChildComment"
+              "$ref": "#/components/schemas/Comment"
             }
           },
           "reactions": {
@@ -2679,10 +2719,12 @@
           "content",
           "medias",
           "created_at",
+          "parent_id",
+          "tagged_users",
           "user",
           "post",
+          "parentComment",
           "childComments",
-          "parentComments",
           "reactions"
         ]
       },
@@ -3388,6 +3430,21 @@
           "post_id": {
             "type": "string",
             "description": "ID of the post to comment on"
+          },
+          "parent_id": {
+            "type": "string",
+            "description": "ID of the parent comment if this is a reply"
+          },
+          "tagged_users": {
+            "example": [
+              "user-id-1",
+              "user-id-2"
+            ],
+            "description": "tagged user IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

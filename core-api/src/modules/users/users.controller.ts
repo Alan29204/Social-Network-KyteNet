@@ -69,6 +69,8 @@ export class UsersController {
     );
     
     const stats = await this.usersService.getProfileStats(user_id);
+    const relationStatus = await (this.usersService as any).relationsService.getRelation(user.id, user_id);
+    const isFollowing = relationStatus === 'following';
 
     if (!privacySeeProfile) {
       const { id, email, avatar, username, privacy } = userResult;
@@ -78,10 +80,11 @@ export class UsersController {
         avatar,
         username,
         privacy,
+        isFollowing,
         ...stats,
       };
     }
-    return { ...result, ...stats };
+    return { ...result, isFollowing, ...stats };
   }
 
   @Patch('/profile')

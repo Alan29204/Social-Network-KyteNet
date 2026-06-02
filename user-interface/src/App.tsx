@@ -8,6 +8,7 @@ import LoginPage from '@/features/auth/pages/login-page';
 import RegisterPage from '@/features/auth/pages/register-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
+import { Toaster } from '@/components/ui/toaster';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </ThemeProvider>
   );
 }

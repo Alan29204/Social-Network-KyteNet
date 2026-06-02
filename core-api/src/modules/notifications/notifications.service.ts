@@ -74,6 +74,50 @@ export class NotificationService {
   }
 
   /**
+   * Send notification when someone replies to a comment.
+   */
+  async notifyReplyComment(
+    actorId: string,
+    actorName: string,
+    parentCommentOwnerId: string,
+    postId: string,
+  ) {
+    if (actorId === parentCommentOwnerId) return;
+
+    const noti = await this.createAndSave(
+      `${actorName} replied to your comment`,
+      `${actorName} đã trả lời bình luận của bạn`,
+      NotificationType.COMMENT,
+      parentCommentOwnerId,
+      { actor_id: actorId, post_id: postId },
+    );
+
+    this.gateway.server.to(parentCommentOwnerId).emit('notification', noti);
+  }
+
+  /**
+   * Send notification when someone is tagged in a comment.
+   */
+  async notifyTagInComment(
+    actorId: string,
+    actorName: string,
+    taggedUserId: string,
+    postId: string,
+  ) {
+    if (actorId === taggedUserId) return;
+
+    const noti = await this.createAndSave(
+      `${actorName} mentioned you in a comment`,
+      `${actorName} đã nhắc đến bạn trong một bình luận`,
+      NotificationType.COMMENT,
+      taggedUserId,
+      { actor_id: actorId, post_id: postId },
+    );
+
+    this.gateway.server.to(taggedUserId).emit('notification', noti);
+  }
+
+  /**
    * Send notification when someone follows a user.
    */
   async notifyFollow(

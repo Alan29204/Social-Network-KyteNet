@@ -39,6 +39,8 @@ export class CommentsService {
       comment.post_id = dto.post_id;
       comment.content = dto.content;
       comment.medias = [];
+      comment.parent_id = dto.parent_id || null;
+      comment.tagged_users = dto.tagged_users || [];
 
       await this.commentRepository.save(comment);
 
@@ -49,13 +51,40 @@ export class CommentsService {
       try {
         const post = await this.postRepository.findOne({ where: { id: dto.post_id } });
         const actor = await this.userRepository.findOne({ where: { id: user.id } });
+        
         if (post && actor) {
-          await this.notificationService.notifyComment(
-            user.id,
-            actor.username,
-            post.user_id,
-            dto.post_id,
-          );
+          if (!dto.parent_id) {
+            // It's a root comment on the post
+            await this.notificationService.notifyComment(
+              user.id,
+              actor.username,
+              post.user_id,
+              dto.post_id,
+            );
+          } else {
+            // It's a reply to a parent comment
+            const parentComment = await this.commentRepository.findOne({ where: { id: dto.parent_id } });
+            if (parentComment) {
+              await this.notificationService.notifyReplyComment(
+                user.id,
+                actor.username,
+                parentComment.user_id,
+                dto.post_id,
+              );
+            }
+          }
+
+          // Notify tagged users
+          if (dto.tagged_users && dto.tagged_users.length > 0) {
+            for (const taggedUserId of dto.tagged_users) {
+              await this.notificationService.notifyTagInComment(
+                user.id,
+                actor.username,
+                taggedUserId,
+                dto.post_id,
+              );
+            }
+          }
         }
       } catch (e) {
         console.error('Error sending comment notification:', e);

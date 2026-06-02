@@ -6,14 +6,15 @@ import { MediaPostsGrid } from './post-lists/media-posts-grid';
 import { VideoPostsGrid } from './post-lists/video-posts-grid';
 import { SavedCollections } from './post-lists/saved-collections';
 import { RepostedPostsGrid } from './post-lists/reposted-posts-grid';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
 
 interface ProfileTabsProps {
   userId: string;
 }
 
 export function ProfileTabs({ userId }: ProfileTabsProps) {
-  // Temporary logic to check if it's the current user
-  const isMe = true; // TODO: Compare with auth user state
+  const { user: currentUser } = useAuthStore();
+  const isMe = currentUser?.id === userId;
 
   const tabs = [
     { value: 'all', icon: <Grid3X3 className="w-5 h-5" />, label: 'BÀI VIẾT', content: <AllPostsList userId={userId} /> },

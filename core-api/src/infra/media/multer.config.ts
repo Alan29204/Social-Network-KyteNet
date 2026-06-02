@@ -13,13 +13,9 @@ export class MulterConfigService implements MulterOptionsFactory {
     return process.cwd();
   };
   ensureExists(targetDirectory: string) {
-    fs.mkdir(targetDirectory, { recursive: true }, (error) => {
-      if (!error) {
-        console.log('Directory successfully created, or it already exists.');
-        return;
-      } else {
-      }
-    });
+    if (!fs.existsSync(targetDirectory)) {
+      fs.mkdirSync(targetDirectory, { recursive: true });
+    }
   }
 
   createMulterOptions(): MulterModuleOptions {
@@ -27,8 +23,9 @@ export class MulterConfigService implements MulterOptionsFactory {
       storage: diskStorage({
         destination: (req, file, cb) => {
           const folder = req?.headers?.folder_type ?? 'default';
-          this.ensureExists(`public/${folder}`);
-          cb(null, path.join(this.getRootPath(), `public/${folder}`));
+          const targetPath = path.join(this.getRootPath(), `public/${folder}`);
+          this.ensureExists(targetPath);
+          cb(null, targetPath);
         },
         filename: (req, file, cb) => {
           //get image extension

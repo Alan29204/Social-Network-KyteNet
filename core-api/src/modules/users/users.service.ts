@@ -17,10 +17,12 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { AfterSignUpDto } from './dto/after-signup.dto';
 import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { RelationType } from 'src/common/enums/relation.enum';
+import { MediaService } from 'src/infra/media/media.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class UsersService {
@@ -32,6 +34,9 @@ export class UsersService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
+    private readonly mediaService: MediaService,
+    @InjectQueue('avatar-updates')
+    private avatarUpdatesQueue: Queue,
   ) {}
 
   async getAccount(user: IUser) {
@@ -216,13 +221,19 @@ export class UsersService {
         'user.followersCount',
         'user.received_relations',
         'relation',
-        (qb) => qb.where('relation.relation_type = :type', { type: RelationType.FOLLOWING })
+        (qb) =>
+          qb.where('relation.relation_type = :type', {
+            type: RelationType.FOLLOWING,
+          }),
       )
       .loadRelationCountAndMap(
         'user.followingCount',
         'user.sent_relations',
         'relation',
-        (qb) => qb.where('relation.relation_type = :type', { type: RelationType.FOLLOWING })
+        (qb) =>
+          qb.where('relation.relation_type = :type', {
+            type: RelationType.FOLLOWING,
+          }),
       )
       .getOne();
 
@@ -245,11 +256,11 @@ export class UsersService {
 
           if (avatar) {
             try {
-              if (fs.existsSync(avatar)) {
-                fs.unlinkSync(avatar);
+              if (avatar.startsWith('http')) {
+                await this.mediaService.deleteFile(avatar);
               }
-            } catch {
-              console.error('Error deleting old avatar');
+            } catch (error) {
+              console.error('Error deleting old avatar:', error);
             }
           }
 
@@ -260,6 +271,19 @@ export class UsersService {
               avatar: null,
             },
           );
+
+          // Queue background cache invalidation
+          this.avatarUpdatesQueue.add(
+            'avatar-updated',
+            { user_id: user.id },
+            { removeOnComplete: true, removeOnFail: true },
+          );
+
+          await this.redisService.del(`user:${user.id}`);
+          return {
+            message: 'Update successful',
+            avatar: null,
+          };
         } else {
           await this.usersRepository.update(
             { id: user.id },
@@ -275,21 +299,36 @@ export class UsersService {
 
         if (avatar) {
           try {
-            if (fs.existsSync(avatar)) {
-              fs.unlinkSync(avatar);
+            if (avatar.startsWith('http')) {
+              await this.mediaService.deleteFile(avatar);
             }
           } catch {
-            throw new BadRequestException('Error when delete file');
+            console.error('Error when delete old file');
           }
         }
+
+        const avatarUrl = await this.mediaService.uploadFile(file, 'avatars');
 
         await this.usersRepository.update(
           { id: user.id },
           {
             ...updateData,
-            avatar: file.path,
+            avatar: avatarUrl,
           },
         );
+
+        // Queue background cache invalidation
+        this.avatarUpdatesQueue.add(
+          'avatar-updated',
+          { user_id: user.id },
+          { removeOnComplete: true, removeOnFail: true },
+        );
+
+        await this.redisService.del(`user:${user.id}`);
+        return {
+          message: 'Update successful',
+          avatar: avatarUrl,
+        };
       }
 
       await this.redisService.del(`user:${user.id}`);
