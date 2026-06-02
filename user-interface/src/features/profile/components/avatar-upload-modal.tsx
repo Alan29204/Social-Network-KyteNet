@@ -93,7 +93,7 @@ export function AvatarUploadModal({
       const formData = new FormData();
       formData.append('avatar-user', file);
 
-      const res = await orvalClient({
+      const res = await orvalClient<any>({
         url: '/users/profile',
         method: 'PATCH',
         data: formData,
@@ -138,7 +138,7 @@ export function AvatarUploadModal({
       const formData = new FormData();
       formData.append('removeAvatar', 'true');
 
-      const res = await orvalClient({
+      await orvalClient({
         url: '/users/profile',
         method: 'PATCH',
         data: formData,

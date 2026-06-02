@@ -1,8 +1,23 @@
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Smile, X, Repeat } from 'lucide-react';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+  MoreHorizontal,
+  Smile,
+  X,
+  Repeat,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -25,8 +40,10 @@ interface PostResponse {
   caption: string;
   likesCount: number;
   commentsCount: number;
+  repostsCount?: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  isReposted?: boolean;
 }
 
 interface PostDetailModalProps {
@@ -35,22 +52,34 @@ interface PostDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostDetailModalProps) {
+export function PostDetailModal({
+  post: initialPost,
+  open,
+  onOpenChange,
+}: PostDetailModalProps) {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
   const [showEmoji, setShowEmoji] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [replyingTo, setReplyingTo] = useState<{ id: string; username: string; parentId?: string } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{
+    id: string;
+    username: string;
+    parentId?: string;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [commentAction, setCommentAction] = useState<{ id: string; userId: string } | null>(null);
+  const [commentAction, setCommentAction] = useState<{
+    id: string;
+    userId: string;
+  } | null>(null);
 
   // Lấy chi tiết bài viết (bao gồm comments mới nhất)
   const { data: queryData, isLoading } = useQuery({
     queryKey: ['postDetail', initialPost.id],
-    queryFn: () => orvalClient<any>({ url: `/posts/${initialPost.id}`, method: 'GET' }),
+    queryFn: () =>
+      orvalClient<any>({ url: `/posts/${initialPost.id}`, method: 'GET' }),
     enabled: open,
   });
 
@@ -59,20 +88,27 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
   const displayPost = post?.shared_post || post;
   const isRepost = !!post?.shared_post;
   const isMyPost = currentUser?.id === (post?.user?.id || initialPost.user.id);
-  
+
   // Xây dựng cây bình luận
   const rootComments = comments.filter((c: any) => !c.parent_id);
-  const getChildComments = (parentId: string) => comments.filter((c: any) => c.parent_id === parentId);
+  const getChildComments = (parentId: string) =>
+    comments.filter((c: any) => c.parent_id === parentId);
 
   // Mutation Đăng bình luận
   const commentMutation = useMutation({
-    mutationFn: (data: { content: string; post_id: string; parent_id?: string; tagged_users?: string[] }) =>
-      orvalClient({ url: '/comments', method: 'POST', data }),
+    mutationFn: (data: {
+      content: string;
+      post_id: string;
+      parent_id?: string;
+      tagged_users?: string[];
+    }) => orvalClient({ url: '/comments', method: 'POST', data }),
     onSuccess: () => {
       setCommentText('');
       setReplyingTo(null);
       setShowEmoji(false);
-      queryClient.invalidateQueries({ queryKey: ['postDetail', initialPost.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['postDetail', initialPost.id],
+      });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
@@ -81,10 +117,15 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
 
   // Mutation Tương tác bình luận (Thích)
   const reactionMutation = useMutation({
-    mutationFn: (data: { commentId?: string; postId?: string; reaction: string }) =>
-      orvalClient({ url: '/reactions', method: 'POST', data }),
+    mutationFn: (data: {
+      commentId?: string;
+      postId?: string;
+      reaction: string;
+    }) => orvalClient({ url: '/reactions', method: 'POST', data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postDetail', initialPost.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['postDetail', initialPost.id],
+      });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
@@ -92,22 +133,25 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
   });
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (id: string) => orvalClient({ url: `/comments/${id}`, method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      orvalClient({ url: `/comments/${id}`, method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postDetail', initialPost.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['postDetail', initialPost.id],
+      });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
       setCommentAction(null);
-    }
+    },
   });
 
   const handlePostComment = () => {
     if (!commentText.trim()) return;
-    
+
     // Tìm tag user từ nội dung text (đơn giản hóa)
-    const taggedUserIds: string[] = []; 
-    
+    const taggedUserIds: string[] = [];
+
     commentMutation.mutate({
       content: commentText,
       post_id: post?.id || initialPost.id,
@@ -123,7 +167,10 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
   };
 
   const handleLikePost = () => {
-    reactionMutation.mutate({ postId: post?.id || initialPost.id, reaction: 'like' });
+    reactionMutation.mutate({
+      postId: post?.id || initialPost.id,
+      reaction: 'like',
+    });
   };
 
   const handleLikeComment = (commentId: string) => {
@@ -132,9 +179,15 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
 
   const repostMutation = useMutation({
     mutationFn: () =>
-      orvalClient({ url: '/posts/share', method: 'POST', data: { post_id: displayPost?.id || initialPost.id } }),
+      orvalClient({
+        url: '/posts/share',
+        method: 'POST',
+        data: { post_id: displayPost?.id || initialPost.id },
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postDetail', initialPost.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['postDetail', initialPost.id],
+      });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
@@ -154,43 +207,61 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
       <div key={c.id} className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''}`}>
         <Link to={`/profile/${c.user.id}`} onClick={() => onOpenChange(false)}>
           <Avatar className="w-8 h-8 shrink-0 ring-1 ring-border">
-            <AvatarImage src={c.user.avatar || '/default-avatar.png'} className="object-cover" />
+            <AvatarImage
+              src={c.user.avatar || '/default-avatar.png'}
+              className="object-cover"
+            />
             <AvatarFallback>{c.user.username[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
         </Link>
         <div className="flex flex-col gap-1 flex-1">
           <div>
-            <Link to={`/profile/${c.user.id}`} onClick={() => onOpenChange(false)}>
-              <span className="font-semibold text-sm mr-2 hover:text-muted-foreground">{c.user.username}</span>
+            <Link
+              to={`/profile/${c.user.id}`}
+              onClick={() => onOpenChange(false)}
+            >
+              <span className="font-semibold text-sm mr-2 hover:text-muted-foreground">
+                {c.user.username}
+              </span>
             </Link>
             <span className="text-sm whitespace-pre-wrap">{c.content}</span>
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground font-semibold">
             <span>{formatTimeAgo(c.created_at)}</span>
             {likesCount > 0 && <span>{likesCount} lượt thích</span>}
-            <button 
-              className="hover:text-foreground transition-colors" 
-              onClick={() => handleReplyClick(c.parent_id ? c.parent_id : c.id, c.user.username)}
+            <button
+              className="hover:text-foreground transition-colors"
+              onClick={() =>
+                handleReplyClick(
+                  c.parent_id ? c.parent_id : c.id,
+                  c.user.username,
+                )
+              }
             >
               Trả lời
             </button>
-            {(currentUser?.id === c.user.id || currentUser?.id === post?.user?.id) && (
-              <button 
+            {(currentUser?.id === c.user.id ||
+              currentUser?.id === post?.user?.id) && (
+              <button
                 className="hover:text-foreground transition-colors ml-1"
-                onClick={() => setCommentAction({ id: c.id, userId: c.user.id })}
+                onClick={() =>
+                  setCommentAction({ id: c.id, userId: c.user.id })
+                }
               >
                 <MoreHorizontal className="w-3 h-3 inline-block" />
               </button>
             )}
           </div>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-6 w-6 mt-1 text-muted-foreground self-start hover:bg-transparent"
           onClick={() => handleLikeComment(c.id)}
         >
-          <Heart className={`w-3 h-3 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+          <Heart
+            className={`w-3 h-3 ${isLiked ? 'fill-red-500 text-red-500' : ''}`}
+          />
         </Button>
       </div>
     );
@@ -200,34 +271,61 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0">
         <DialogTitle className="sr-only">Chi tiết bài viết</DialogTitle>
-        
+
         {/* Header (Cố định ở trên) */}
         {isRepost && (
           <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
             <Repeat className="w-4 h-4" />
-            <span className="text-xs font-semibold">{post.user?.username || initialPost.user.username} đã đăng lại</span>
+            <span className="text-xs font-semibold">
+              {post.user?.username || initialPost.user.username} đã đăng lại
+            </span>
           </div>
         )}
         <div className="flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
           <div className="flex items-center gap-3">
-            <Link to={`/profile/${displayPost?.user?.id}`} onClick={() => onOpenChange(false)}>
+            <Link
+              to={`/profile/${displayPost?.user?.id}`}
+              onClick={() => onOpenChange(false)}
+            >
               <Avatar className="w-8 h-8 cursor-pointer">
-                <AvatarImage src={displayPost?.user?.avatarUrl || displayPost?.user?.avatar || displayPost?.user?.profilePicture || '/default-avatar.png'} alt="Avatar" className="object-cover" />
-                <AvatarFallback>{displayPost?.user?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                <AvatarImage
+                  src={
+                    displayPost?.user?.avatarUrl ||
+                    displayPost?.user?.avatar ||
+                    displayPost?.user?.profilePicture ||
+                    '/default-avatar.png'
+                  }
+                  alt="Avatar"
+                  className="object-cover"
+                />
+                <AvatarFallback>
+                  {displayPost?.user?.username?.[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
             </Link>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setActionOpen(true)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActionOpen(true)}
+              >
                 <MoreHorizontal className="w-5 h-5" />
               </Button>
-              <Link to={`/profile/${displayPost?.user?.id}`} onClick={() => onOpenChange(false)}>
+              <Link
+                to={`/profile/${displayPost?.user?.id}`}
+                onClick={() => onOpenChange(false)}
+              >
                 <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
                   {displayPost?.user?.username}
                 </span>
               </Link>
               <span className="text-muted-foreground text-xs">•</span>
               <span className="text-muted-foreground text-xs">
-                {formatTimeAgo(displayPost?.createdAt || displayPost?.created_at || new Date().toISOString())}
+                {formatTimeAgo(
+                  displayPost?.createdAt ||
+                    displayPost?.created_at ||
+                    new Date().toISOString(),
+                )}
               </span>
             </div>
           </div>
@@ -235,7 +333,6 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
 
         {/* Nội dung bài viết + Hình ảnh + Bình luận (Scrollable) */}
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
-          
           {/* Nội dung Text bài viết */}
           {(displayPost?.caption || displayPost?.content) && (
             <div className="px-4 pt-3 pb-2 text-sm whitespace-pre-wrap break-words">
@@ -249,15 +346,20 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
               {(displayPost?.images || displayPost?.medias || []).length > 1 ? (
                 <Carousel className="w-full">
                   <CarouselContent>
-                    {(displayPost?.images || displayPost?.medias || []).map((img: string, index: number) => (
-                      <CarouselItem key={index} className="flex items-center justify-center">
-                        <img
-                          src={img}
-                          alt={`Post image ${index + 1}`}
-                          className="w-full h-auto object-contain"
-                        />
-                      </CarouselItem>
-                    ))}
+                    {(displayPost?.images || displayPost?.medias || []).map(
+                      (img: string, index: number) => (
+                        <CarouselItem
+                          key={index}
+                          className="flex items-center justify-center"
+                        >
+                          <img
+                            src={img}
+                            alt={`Post image ${index + 1}`}
+                            className="w-full h-auto object-contain"
+                          />
+                        </CarouselItem>
+                      ),
+                    )}
                   </CarouselContent>
                   <CarouselPrevious className="left-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
                   <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
@@ -276,32 +378,54 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
-                <button 
+                <button
                   className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
                   onClick={handleLikePost}
                 >
-                  <Heart className={`w-6 h-6 ${post?.interactions?.is_liked || initialPost.isLiked ? 'fill-red-500 text-red-500' : ''}`} />
-                  {((post?.interactions?.likes ?? initialPost.likesCount) || 0) > 0 && (
-                    <span className="text-sm font-semibold">{(post?.interactions?.likes ?? initialPost.likesCount) || 0}</span>
+                  <Heart
+                    className={`w-6 h-6 ${post?.interactions?.is_liked || initialPost.isLiked ? 'fill-red-500 text-red-500' : ''}`}
+                  />
+                  {((post?.interactions?.likes ?? initialPost.likesCount) ||
+                    0) > 0 && (
+                    <span className="text-sm font-semibold">
+                      {(post?.interactions?.likes ?? initialPost.likesCount) ||
+                        0}
+                    </span>
                   )}
                 </button>
-                <button className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors" onClick={() => inputRef.current?.focus()}>
+                <button
+                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
+                  onClick={() => inputRef.current?.focus()}
+                >
                   <MessageCircle className="w-6 h-6" />
-                  {((post?.interactions?.comments ?? initialPost.commentsCount) || 0) > 0 && (
-                    <span className="text-sm font-semibold">{(post?.interactions?.comments ?? initialPost.commentsCount) || 0}</span>
+                  {((post?.interactions?.comments ??
+                    initialPost.commentsCount) ||
+                    0) > 0 && (
+                    <span className="text-sm font-semibold">
+                      {(post?.interactions?.comments ??
+                        initialPost.commentsCount) ||
+                        0}
+                    </span>
                   )}
                 </button>
-                <button 
-                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50" 
+                <button
+                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50"
                   disabled={repostMutation.isPending || isMyPost}
                   onClick={handleRepost}
                 >
                   <div className="relative inline-flex items-center justify-center">
-                    <Repeat className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`} />
+                    <Repeat
+                      className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                    />
                   </div>
-                  {((post?.interactions?.reposts ?? initialPost.repostsCount) || 0) > 0 && (
-                    <span className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}>
-                      {(post?.interactions?.reposts ?? initialPost.repostsCount) || 0}
+                  {((post?.interactions?.reposts ?? initialPost.repostsCount) ||
+                    0) > 0 && (
+                    <span
+                      className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                    >
+                      {(post?.interactions?.reposts ??
+                        initialPost.repostsCount) ||
+                        0}
                     </span>
                   )}
                 </button>
@@ -310,7 +434,9 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
                 </button>
               </div>
               <button className="hover:text-muted-foreground transition-colors">
-                <Bookmark className={`w-6 h-6 ${post?.isSaved || initialPost.isSaved ? 'fill-current' : ''}`} />
+                <Bookmark
+                  className={`w-6 h-6 ${post?.isSaved || initialPost.isSaved ? 'fill-current' : ''}`}
+                />
               </button>
             </div>
           </div>
@@ -320,17 +446,21 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
           {/* Danh sách Comments */}
           <div className="p-4 pt-0">
             {isLoading ? (
-              <div className="text-center text-sm text-muted-foreground py-4">Đang tải bình luận...</div>
+              <div className="text-center text-sm text-muted-foreground py-4">
+                Đang tải bình luận...
+              </div>
             ) : rootComments.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-4">Chưa có bình luận nào. Hãy là người đầu tiên!</div>
+              <div className="text-center text-sm text-muted-foreground py-4">
+                Chưa có bình luận nào. Hãy là người đầu tiên!
+              </div>
             ) : (
               rootComments.map((rootComment: any) => (
                 <div key={rootComment.id}>
                   {renderComment(rootComment)}
                   {/* Hiển thị các comment con của root comment */}
-                  {getChildComments(rootComment.id).map((childComment: any) => (
-                    renderComment(childComment, true)
-                  ))}
+                  {getChildComments(rootComment.id).map((childComment: any) =>
+                    renderComment(childComment, true),
+                  )}
                 </div>
               ))
             )}
@@ -339,11 +469,21 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
 
         {/* Thanh nhập Bình luận (Cố định ở dưới cùng) */}
         <div className="border-t border-border bg-card shrink-0 p-3 relative">
-          
           {replyingTo && (
             <div className="flex items-center justify-between bg-muted p-2 px-3 rounded-t-lg text-xs mb-[-4px]">
-              <span className="text-muted-foreground font-medium">Đang trả lời <span className="font-bold text-foreground">@{replyingTo.username}</span></span>
-              <button onClick={() => { setReplyingTo(null); setCommentText(''); }} className="hover:text-foreground">
+              <span className="text-muted-foreground font-medium">
+                Đang trả lời{' '}
+                <span className="font-bold text-foreground">
+                  @{replyingTo.username}
+                </span>
+              </span>
+              <button
+                onClick={() => {
+                  setReplyingTo(null);
+                  setCommentText('');
+                }}
+                className="hover:text-foreground"
+              >
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -351,30 +491,37 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
 
           {showEmoji && (
             <div className="absolute bottom-[60px] left-2 z-50 shadow-xl">
-              <EmojiPicker 
-                onEmojiClick={(emoji) => setCommentText(prev => prev + emoji.emoji)}
+              <EmojiPicker
+                onEmojiClick={(emoji) =>
+                  setCommentText((prev) => prev + emoji.emoji)
+                }
                 autoFocusSearch={false}
               />
             </div>
           )}
-          
-          <div className={`flex items-center gap-3 bg-transparent border border-border rounded-full px-4 py-2 ${replyingTo ? 'rounded-tl-none rounded-tr-none border-t-0' : ''}`}>
-            <button className="text-muted-foreground hover:text-foreground transition-colors shrink-0" onClick={() => setShowEmoji(!showEmoji)}>
+
+          <div
+            className={`flex items-center gap-3 bg-transparent border border-border rounded-full px-4 py-2 ${replyingTo ? 'rounded-tl-none rounded-tr-none border-t-0' : ''}`}
+          >
+            <button
+              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              onClick={() => setShowEmoji(!showEmoji)}
+            >
               <Smile className="w-5 h-5" />
             </button>
-            <input 
+            <input
               ref={inputRef}
-              type="text" 
+              type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Thêm bình luận..." 
+              placeholder="Thêm bình luận..."
               className="flex-1 bg-transparent border-none focus:outline-none text-sm placeholder:text-muted-foreground"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handlePostComment();
               }}
             />
-            <button 
-              className="text-primary font-semibold text-sm disabled:opacity-50 shrink-0" 
+            <button
+              className="text-primary font-semibold text-sm disabled:opacity-50 shrink-0"
               disabled={!commentText.trim() || commentMutation.isPending}
               onClick={handlePostComment}
             >
@@ -405,17 +552,22 @@ export function PostDetailModal({ post: initialPost, open, onOpenChange }: PostD
       )}
 
       {commentAction && (
-        <Dialog open={!!commentAction} onOpenChange={(open) => !open && setCommentAction(null)}>
+        <Dialog
+          open={!!commentAction}
+          onOpenChange={(open) => !open && setCommentAction(null)}
+        >
           <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden rounded-xl border-none">
             <DialogTitle className="sr-only">Xóa bình luận</DialogTitle>
-            <button 
+            <button
               className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
-              onClick={() => commentAction && deleteCommentMutation.mutate(commentAction.id)}
+              onClick={() =>
+                commentAction && deleteCommentMutation.mutate(commentAction.id)
+              }
             >
               Xóa
             </button>
             <div className="h-[1px] w-full bg-border"></div>
-            <button 
+            <button
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
               onClick={() => setCommentAction(null)}
             >
