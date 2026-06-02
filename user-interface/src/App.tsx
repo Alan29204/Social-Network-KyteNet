@@ -8,6 +8,7 @@ import LoginPage from '@/features/auth/pages/login-page';
 import RegisterPage from '@/features/auth/pages/register-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
+import ExplorePage from '@/features/explore/pages/explore-page';
 import { Toaster } from '@/components/ui/toaster';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
               <Route path="/profile/:id" element={<ProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
               {/* Add other routes like /explore here later */}
+              <Route path="explore" element={<ExplorePage />} />
             </Route>
           </Route>
         </Routes>

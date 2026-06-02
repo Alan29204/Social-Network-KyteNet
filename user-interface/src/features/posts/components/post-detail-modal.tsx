@@ -110,6 +110,8 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -127,6 +129,8 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -140,6 +144,8 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
       setCommentAction(null);
@@ -189,6 +195,8 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -352,11 +360,24 @@ export function PostDetailModal({
                           key={index}
                           className="flex items-center justify-center"
                         >
-                          <img
-                            src={img}
-                            alt={`Post image ${index + 1}`}
-                            className="w-full h-auto object-contain"
-                          />
+                          {(() => {
+                            const isVideo =
+                              img.match(/\.(mp4|webm|mov|mkv)$/i) ||
+                              img.includes('video');
+                            return isVideo ? (
+                              <video
+                                src={img}
+                                controls
+                                className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                              />
+                            ) : (
+                              <img
+                                src={img}
+                                alt={`Media ${index + 1}`}
+                                className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                              />
+                            );
+                          })()}
                         </CarouselItem>
                       ),
                     )}
@@ -365,11 +386,23 @@ export function PostDetailModal({
                   <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
                 </Carousel>
               ) : (
-                <img
-                  src={(displayPost?.images || displayPost?.medias || [])[0]}
-                  alt="Post image"
-                  className="w-full h-auto object-contain"
-                />
+                (() => {
+                  const url = (displayPost?.images || displayPost?.medias || [])[0];
+                  const isVideo = url.match(/\.(mp4|webm|mov|mkv)$/i) || url.includes('video');
+                  return isVideo ? (
+                    <video
+                      src={url}
+                      controls
+                      className="w-full h-auto object-contain rounded-lg max-h-[85vh]"
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt="Post media"
+                      className="w-full h-auto object-contain"
+                    />
+                  );
+                })()
               )}
             </div>
           )}

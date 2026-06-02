@@ -45,6 +45,10 @@ export class PostsService {
             'comments',
             'comments.user',
             'comments.reactions',
+            'shared_post',
+            'shared_post.user',
+            'shared_post.reactions',
+            'shared_post.comments',
           ],
           order: {
             comments: {
@@ -270,6 +274,8 @@ export class PostsService {
           'comments',
           'shared_post',
           'shared_post.user',
+          'shared_post.reactions',
+          'shared_post.comments',
         ],
         order: { created_at: 'DESC' },
         skip: (page - 1) * limit,
@@ -310,15 +316,20 @@ export class PostsService {
 
       const [posts, total] = await this.repository.findAndCount(queryOptions);
       const postIds = posts.map((p) => p.id);
+      const actualPostIds = [
+        ...new Set(posts.map((p) => p.shared_post_id || p.id)),
+      ];
       const repostCountsMap: Record<string, number> = {};
       const userRepostsMap: Record<string, boolean> = {};
 
-      if (postIds.length > 0) {
+      if (actualPostIds.length > 0) {
         const repostsQuery = await this.repository
           .createQueryBuilder('post')
           .select('post.shared_post_id', 'shared_post_id')
           .addSelect('COUNT(*)', 'count')
-          .where('post.shared_post_id IN (:...postIds)', { postIds })
+          .where('post.shared_post_id IN (:...actualPostIds)', {
+            actualPostIds,
+          })
           .groupBy('post.shared_post_id')
           .getRawMany();
 
@@ -330,7 +341,10 @@ export class PostsService {
           // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
           const { In } = require('typeorm');
           const userReposts = await this.repository.find({
-            where: { user_id: currentUser.id, shared_post_id: In(postIds) },
+            where: {
+              user_id: currentUser.id,
+              shared_post_id: In(actualPostIds),
+            },
             select: ['shared_post_id'],
           });
           userReposts.forEach((r) => {
@@ -347,7 +361,7 @@ export class PostsService {
           likes:
             post.reactions?.filter((r) => r.reaction === 'like').length || 0,
           comments: post.comments?.length || 0,
-          reposts: repostCountsMap[post.id] || 0,
+          reposts: repostCountsMap[post.shared_post_id || post.id] || 0,
           is_liked:
             post.reactions?.some(
               (r) => r.user_id === currentUser?.id && r.reaction === 'like',

@@ -68,12 +68,39 @@ export class FeedService {
       // 4. Apply privacy + block filters
       const blockedUserIds = await this.getBlockedUserIds(userId);
       const followingIds = await this.getFollowingIds(userId);
-      const filteredPosts = this.applyPrivacyFilter(
+      let filteredPosts = this.applyPrivacyFilter(
         posts,
         userId,
         blockedUserIds,
         followingIds,
       );
+
+      // 4.5 Deduplicate original posts and aggregate reposters
+      const seenOriginals = new Map<string, any>();
+      filteredPosts.forEach((p: any) => {
+        const originalId = p.shared_post_id || p.id;
+
+        if (!seenOriginals.has(originalId)) {
+          if (p.shared_post_id) {
+            // Khởi tạo mảng người đăng lại nếu bài này là Repost
+            p.reposted_by = [{ id: p.user.id, username: p.user.username }];
+          }
+          seenOriginals.set(originalId, p);
+        } else {
+          // Trùng lặp -> lấy bản ghi cũ ra và thêm user vào mảng
+          const keptPost = seenOriginals.get(originalId);
+          if (p.shared_post_id && keptPost.shared_post_id) {
+            // Đảm bảo chưa có trong mảng thì mới push vào (tránh trùng)
+            if (!keptPost.reposted_by.some((u: any) => u.id === p.user.id)) {
+              keptPost.reposted_by.push({
+                id: p.user.id,
+                username: p.user.username,
+              });
+            }
+          }
+        }
+      });
+      filteredPosts = Array.from(seenOriginals.values());
 
       // 5. Sort by created_at DESC and take limit
       filteredPosts.sort(
@@ -83,7 +110,7 @@ export class FeedService {
       const result = filteredPosts.slice(0, limit);
 
       // 6. Enrich with interaction data
-      const enriched = this.enrichInteractions(result, userId);
+      const enriched = await this.enrichInteractions(result, userId);
 
       // 7. Build cursor
       const lastPost = enriched[enriched.length - 1];
@@ -116,10 +143,13 @@ export class FeedService {
   async getForYouFeed(userId: string, cursor?: number, limit: number = 10) {
     try {
       const blockedUserIds = await this.getBlockedUserIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
 
       const query = this.postRepository
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
+        .leftJoinAndSelect('post.shared_post', 'shared_post')
+        .leftJoinAndSelect('shared_post.user', 'shared_post_user')
         .leftJoin('post.reactions', 'reaction')
         .leftJoin('post.comments', 'comment')
         .addSelect('COUNT(DISTINCT reaction.id)', 'like_count')
@@ -133,25 +163,59 @@ export class FeedService {
         });
       }
 
+      if (followingIds.length > 0) {
+        query.andWhere('post.user_id NOT IN (:...followingIds)', { followingIds });
+        query.andWhere(
+          '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...followingIds))',
+          { followingIds },
+        );
+      }
+
       if (cursor) {
         query.andWhere('post.created_at < :cursor', {
           cursor: new Date(cursor),
         });
       }
 
-      const rawPosts = await query
+      let rawPosts = await query
         .addSelect(
           `(COUNT(DISTINCT reaction.id) * 2 + COUNT(DISTINCT comment.id) * 3) - (EXTRACT(EPOCH FROM (NOW() - post.created_at)) / 3600 * 0.5)`,
           'engagement_score',
         )
         .groupBy('post.id')
         .addGroupBy('user.id')
+        .addGroupBy('shared_post.id')
+        .addGroupBy('shared_post_user.id')
         .orderBy('engagement_score', 'DESC')
         .take(limit)
         .getMany();
 
+      // Deduplicate original posts and aggregate reposters
+      const seenOriginalsForYou = new Map<string, any>();
+      rawPosts.forEach((p: any) => {
+        const originalId = p.shared_post_id || p.id;
+
+        if (!seenOriginalsForYou.has(originalId)) {
+          if (p.shared_post_id) {
+            p.reposted_by = [{ id: p.user.id, username: p.user.username }];
+          }
+          seenOriginalsForYou.set(originalId, p);
+        } else {
+          const keptPost = seenOriginalsForYou.get(originalId);
+          if (p.shared_post_id && keptPost.shared_post_id) {
+            if (!keptPost.reposted_by.some((u: any) => u.id === p.user.id)) {
+              keptPost.reposted_by.push({
+                id: p.user.id,
+                username: p.user.username,
+              });
+            }
+          }
+        }
+      });
+      rawPosts = Array.from(seenOriginalsForYou.values());
+
       // Enrich with interactions
-      const enriched = this.enrichInteractions(rawPosts, userId);
+      const enriched = await this.enrichInteractions(rawPosts, userId);
 
       const lastPost = enriched[enriched.length - 1];
       const nextCursor = lastPost
@@ -401,7 +465,15 @@ export class FeedService {
 
     return this.postRepository.find({
       where: { id: In(postIds) },
-      relations: ['user', 'reactions', 'comments'],
+      relations: [
+        'user',
+        'reactions',
+        'comments',
+        'shared_post',
+        'shared_post.user',
+        'shared_post.reactions',
+        'shared_post.comments',
+      ],
       order: { created_at: 'DESC' },
     });
   }
@@ -435,18 +507,44 @@ export class FeedService {
   }
 
   /** Enrich posts with interaction counts*/
-  private enrichInteractions(posts: Post[], userId: string): any[] {
-    return posts.map((post) => ({
-      ...post,
-      interactions: {
-        likes: post.reactions?.filter((r) => r.reaction === 'like').length || 0,
-        comments: post.comments?.length || 0,
-        reposts: 0,
-        is_liked:
-          post.reactions?.some(
-            (r) => r.user_id === userId && r.reaction === 'like',
-          ) || false,
-      },
-    }));
+  private async enrichInteractions(
+    posts: Post[],
+    userId: string,
+  ): Promise<any[]> {
+    return Promise.all(
+      posts.map(async (post) => {
+        const actualPostId = post.shared_post ? post.shared_post.id : post.id;
+        const is_reposted = !!(await this.postRepository.findOne({
+          where: { user_id: userId, shared_post_id: actualPostId },
+        }));
+        const repostsCount = await this.postRepository.count({
+          where: { shared_post_id: actualPostId },
+        });
+
+        return {
+          ...post,
+          reposted_by: (post as any).reposted_by,
+          interactions: {
+            likes:
+              (post.shared_post
+                ? post.shared_post.reactions
+                : post.reactions
+              )?.filter((r: any) => r.reaction === 'like').length || 0,
+            comments:
+              (post.shared_post ? post.shared_post.comments : post.comments)
+                ?.length || 0,
+            reposts: repostsCount,
+            is_liked:
+              (post.shared_post
+                ? post.shared_post.reactions
+                : post.reactions
+              )?.some(
+                (r: any) => r.user_id === userId && r.reaction === 'like',
+              ) || false,
+            is_reposted: is_reposted,
+          },
+        };
+      }),
+    );
   }
 }

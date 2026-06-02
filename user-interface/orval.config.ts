@@ -28,12 +28,20 @@ const getInfiniteOverrides = () => {
         ];
 
         const hasPageParam = allParams.some((p: any) => p.name === 'page');
+        const hasCursorParam = allParams.some((p: any) => p.name === 'cursor');
 
         if (hasPageParam) {
           operations[operationId] = {
             query: {
               useInfinite: true,
               useInfiniteQueryParam: 'page',
+            },
+          };
+        } else if (hasCursorParam) {
+          operations[operationId] = {
+            query: {
+              useInfinite: true,
+              useInfiniteQueryParam: 'cursor',
             },
           };
         }

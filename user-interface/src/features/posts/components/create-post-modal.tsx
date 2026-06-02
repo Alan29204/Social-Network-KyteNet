@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ImagePlus, X, Globe, Users, Lock, Loader2, Smile } from 'lucide-react';
+import { Paperclip, X, Globe, Users, Lock, Loader2, Smile } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -34,7 +34,7 @@ interface CreatePostModalProps {
 
 export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const [images, setImages] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: string}[]>([]);
   const [caption, setCaption] = useState('');
   const [privacy, setPrivacy] = useState('public');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,17 +48,20 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   // Clean up object URLs to avoid memory leaks
   useEffect(() => {
     return () => {
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      mediaPreviews.forEach((m) => URL.revokeObjectURL(m.url));
     };
-  }, [imagePreviews]);
+  }, [mediaPreviews]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       setImages((prev) => [...prev, ...newFiles]);
       
-      const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
-      setImagePreviews((prev) => [...prev, ...newPreviews]);
+      const newPreviews = newFiles.map((file) => ({
+        url: URL.createObjectURL(file),
+        type: file.type
+      }));
+      setMediaPreviews((prev) => [...prev, ...newPreviews]);
     }
     // Reset input so the same file can be selected again if needed
     if (fileInputRef.current) {
@@ -68,9 +71,9 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   const removeImage = (indexToRemove: number) => {
     setImages((prev) => prev.filter((_, index) => index !== indexToRemove));
-    setImagePreviews((prev) => {
-      const urlToRemove = prev[indexToRemove];
-      URL.revokeObjectURL(urlToRemove); // Clean up
+    setMediaPreviews((prev) => {
+      const itemToRemove = prev[indexToRemove];
+      if (itemToRemove) URL.revokeObjectURL(itemToRemove.url); // Clean up
       return prev.filter((_, index) => index !== indexToRemove);
     });
   };
@@ -80,7 +83,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
       onSuccess: () => {
         // Reset state after success
         setImages([]);
-        setImagePreviews([]);
+        setMediaPreviews([]);
         setCaption('');
         setPrivacy('public');
         onOpenChange(false);
@@ -102,11 +105,14 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const handleCreatePost = () => {
     if (!caption.trim() && images.length === 0) return;
 
+    const hashtags = caption.match(/#[\p{L}0-9_]+/gu)?.map(tag => tag.slice(1)) || [];
+
     createPost({
       data: {
         content: caption,
         privacy: privacy as any,
         'medias-posts': images,
+        hashtags,
       }
     });
   };
@@ -174,17 +180,25 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
             />
           </div>
 
-          {/* Image Previews & Upload Box */}
+          {/* Image/Video Previews & Upload Box */}
           <div className="p-4 pt-0">
-            {imagePreviews.length > 0 && (
+            {mediaPreviews.length > 0 && (
               <div className="grid grid-cols-2 gap-2 mb-4">
-                {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative aspect-square rounded-md overflow-hidden group border border-border">
-                    <img
-                      src={preview}
-                      alt={`Preview ${index}`}
-                      className="w-full h-full object-cover"
-                    />
+                {mediaPreviews.map((preview, index) => (
+                  <div key={index} className="relative aspect-square rounded-md overflow-hidden group border border-border bg-black/5">
+                    {preview.type.startsWith('video/') ? (
+                      <video
+                        src={preview.url}
+                        controls
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={preview.url}
+                        alt={`Preview ${index}`}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                     <button
                       onClick={() => removeImage(index)}
                       className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
@@ -220,7 +234,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 className="h-8 w-8 rounded-full hover:bg-muted text-green-500 hover:text-green-600"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <ImagePlus className="w-5 h-5" />
+                <Paperclip className="w-5 h-5" />
               </Button>
             </div>
             <input
@@ -228,7 +242,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
               ref={fileInputRef}
               className="hidden"
               multiple
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
               onChange={handleImageChange}
             />
           </div>

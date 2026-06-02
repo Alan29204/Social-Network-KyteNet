@@ -32,7 +32,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function EditProfilePage() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -100,6 +100,11 @@ export default function EditProfilePage() {
 
       queryClient.invalidateQueries({ queryKey: ['usersControllerGetProfile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      
+      updateUser({
+        username: data.username,
+        bio: data.bio || undefined,
+      });
       
       navigate(`/profile/${user?.id}`);
     } catch (error) {

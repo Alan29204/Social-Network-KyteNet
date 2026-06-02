@@ -41,6 +41,7 @@ export function AllPostsList({ userId }: { userId: string }) {
               isLiked: post.isLiked || post.interactions?.is_liked || false,
               isSaved: post.isSaved || false,
               isReposted: post.interactions?.is_reposted || false,
+              repostedBy: post.reposted_by || (post.shared_post ? [{ id: post.user?.id, username: post.user?.username }] : undefined),
               shared_post: post.shared_post ? {
                 id: post.shared_post.id,
                 user: {

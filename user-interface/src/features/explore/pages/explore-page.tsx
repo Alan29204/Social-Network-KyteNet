@@ -1,17 +1,16 @@
 import { SidebarRight } from '@/layouts/components/sidebar-right';
 
-
-import { useFeedControllerGetFollowingFeedInfinite } from '@/services/apis/gen/queries';
+import { useFeedControllerGetForYouFeedInfinite } from '@/services/apis/gen/queries';
 import { PostCard } from '@/features/home/components/post-card';
 import { useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2 } from 'lucide-react';
 
-export default function HomePage() {
+export default function ExplorePage() {
   const { ref, inView } = useInView();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useFeedControllerGetFollowingFeedInfinite({
+    useFeedControllerGetForYouFeedInfinite({
       limit: 10,
     }, {
       query: {
@@ -44,11 +43,11 @@ export default function HomePage() {
             </div>
           ) : status === 'error' ? (
             <div className="text-center text-destructive p-4">
-              Đã xảy ra lỗi khi tải bảng tin.
+              Đã xảy ra lỗi khi tải bảng tin khám phá.
             </div>
           ) : (
             <>
-              {data.pages.map((page: any, i) => {
+              {data?.pages?.map((page: any, i) => {
                 const posts = Array.isArray(page)
                   ? page
                   : Array.isArray(page.data)
@@ -61,6 +60,7 @@ export default function HomePage() {
                     {posts.map((post: any) => (
                       <PostCard
                         key={post.id}
+                        showFollowButton={true}
                         post={{
                           id: post.id,
                           user: {

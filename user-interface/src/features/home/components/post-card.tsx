@@ -17,6 +17,7 @@ import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { useFollowStore } from '@/features/profile/stores/follow-store';
 
 interface PostCardProps {
   post: {
@@ -35,11 +36,13 @@ interface PostCardProps {
     isLiked?: boolean;
     isSaved?: boolean;
     isReposted?: boolean;
+    repostedBy?: { id: string; username: string }[];
     shared_post?: any;
   };
+  showFollowButton?: boolean;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const { user: currentUser } = useAuthStore();
   const isMyPost = currentUser?.id === post.user.id;
 
@@ -51,6 +54,7 @@ export function PostCard({ post }: PostCardProps) {
   const [localReposted, setLocalReposted] = useState(post.isReposted);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount);
   const repostTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const followTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const [localLiked, setLocalLiked] = useState(post.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(post.likesCount);
@@ -68,10 +72,9 @@ export function PostCard({ post }: PostCardProps) {
     mutationFn: (data: { postId: string; reaction: string }) =>
       orvalClient({ url: '/reactions', method: 'POST', data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
-      queryClient.invalidateQueries({ queryKey: ['postDetail', post.id] });
+      queryClient.invalidateQueries({ queryKey: ['postDetail', displayPost.id] });
     },
   });
 
@@ -79,14 +82,13 @@ export function PostCard({ post }: PostCardProps) {
     const newStatus = !localLiked;
     setLocalLiked(newStatus);
     setLocalLikesCount((prev) => (newStatus ? (prev || 0) + 1 : Math.max(0, (prev || 1) - 1)));
-    reactionMutation.mutate({ postId: post.id, reaction: 'like' });
+    reactionMutation.mutate({ postId: displayPost.id, reaction: 'like' });
   };
 
   const repostMutation = useMutation({
     mutationFn: () =>
-      orvalClient({ url: '/posts/share', method: 'POST', data: { post_id: post.shared_post?.id || post.id } }),
+      orvalClient({ url: '/posts/share', method: 'POST', data: { post_id: displayPost.id } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -109,13 +111,50 @@ export function PostCard({ post }: PostCardProps) {
   const displayPost = post.shared_post || post;
   const isRepost = !!post.shared_post;
 
+  const { optimisticFollows, setOptimisticFollow } = useFollowStore();
+  const isFollowing = optimisticFollows[displayPost.user.id] ?? false;
+
+  const toggleFollowMutation = useMutation({
+    mutationFn: (action: 'following' | 'none') =>
+      orvalClient({ 
+        url: '/relations/update', 
+        method: 'POST', 
+        data: { user_id: displayPost.user.id, relation: action } 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', displayPost.user.id] });
+      queryClient.invalidateQueries({ queryKey: ['following'] });
+    }
+  });
+
+  const handleFollow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const newStatus = !isFollowing;
+    setOptimisticFollow(displayPost.user.id, newStatus);
+    
+    if (followTimerRef.current) clearTimeout(followTimerRef.current);
+    followTimerRef.current = setTimeout(() => {
+      toggleFollowMutation.mutate(newStatus ? 'following' : 'none');
+    }, 500);
+  };
+
+  const renderRepostedBy = () => {
+    const reposters = post.repostedBy;
+    if (!reposters || reposters.length === 0) return post.user.username;
+    if (reposters.length === 1) return reposters[0].username;
+    if (reposters.length === 2) return `${reposters[0].username}, ${reposters[1].username}`;
+    return `${reposters[0].username}, ${reposters[1].username} và ${reposters.length - 2} người khác`;
+  };
+
   return (
     <article className="border-b border-border py-4 w-full max-w-[470px] mx-auto sm:border sm:rounded-xl sm:my-6 sm:bg-card">
       {/* Header */}
       {isRepost && (
         <div className="px-3 sm:px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground">
           <Repeat className="w-4 h-4" />
-          <span className="text-xs font-semibold">{post.user.username} đã đăng lại</span>
+          <span className="text-xs font-semibold">{renderRepostedBy()} đã đăng lại</span>
         </div>
       )}
       <div className="flex items-center justify-between px-3 pb-3 sm:px-4 pt-2">
@@ -136,6 +175,21 @@ export function PostCard({ post }: PostCardProps) {
             <span className="text-muted-foreground text-sm font-normal">
               {formatTimeAgo(displayPost.createdAt || displayPost.created_at || new Date().toISOString())}
             </span>
+            {showFollowButton && !isMyPost && (
+              <>
+                <span className="text-muted-foreground text-xs">•</span>
+                <button 
+                  onClick={handleFollow}
+                  className={`text-sm font-semibold transition-colors ${
+                    isFollowing 
+                      ? 'text-muted-foreground hover:text-foreground' 
+                      : 'text-primary hover:text-primary/80'
+                  }`}
+                >
+                  {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                </button>
+              </>
+            )}
           </div>
         </div>
           <Button variant="ghost" size="icon" onClick={() => setActionOpen(true)}>
@@ -156,27 +210,52 @@ export function PostCard({ post }: PostCardProps) {
           {displayPost.images.length > 1 ? (
             <Carousel className="w-full">
               <CarouselContent>
-                {displayPost.images.map((img: string, index: number) => (
-                  <CarouselItem key={index} className="flex items-center justify-center">
-                    <img
-                      src={img}
-                      alt={`Post image ${index + 1}`}
-                      className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
-                      onClick={() => setIsDetailOpen(true)}
-                    />
-                  </CarouselItem>
-                ))}
+                {displayPost.images.map((url: string, index: number) => {
+                  const isVideo = url.match(/\.(mp4|webm|mov|mkv)$/i) || url.includes('video');
+                  return (
+                    <CarouselItem key={index} className="flex items-center justify-center">
+                      {isVideo ? (
+                        <video
+                          src={url}
+                          controls
+                          className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
+                          onClick={() => setIsDetailOpen(true)}
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`Post media ${index + 1}`}
+                          className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
+                          onClick={() => setIsDetailOpen(true)}
+                        />
+                      )}
+                    </CarouselItem>
+                  );
+                })}
               </CarouselContent>
               <CarouselPrevious className="left-4 opacity-50 hover:opacity-100 hidden sm:flex" />
               <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex" />
             </Carousel>
           ) : (
-            <img
-              src={displayPost.images[0]}
-              alt="Post image"
-              className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
-              onClick={() => setIsDetailOpen(true)}
-            />
+            (() => {
+              const url = displayPost.images[0];
+              const isVideo = url.match(/\.(mp4|webm|mov|mkv)$/i) || url.includes('video');
+              return isVideo ? (
+                <video
+                  src={url}
+                  controls
+                  className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
+                  onClick={() => setIsDetailOpen(true)}
+                />
+              ) : (
+                <img
+                  src={url}
+                  alt="Post media"
+                  className="w-full h-auto max-h-[700px] object-contain cursor-pointer"
+                  onClick={() => setIsDetailOpen(true)}
+                />
+              );
+            })()
           )}
         </div>
       )}
@@ -260,14 +339,14 @@ export function PostCard({ post }: PostCardProps) {
 
       {/* Post Detail Modal */}
       <PostDetailModal 
-        post={post} 
+        post={displayPost} 
         open={isDetailOpen} 
         onOpenChange={setIsDetailOpen} 
       />
       
       {actionOpen && (
         <PostActionModal
-          post={post}
+          post={displayPost}
           open={actionOpen}
           onOpenChange={setActionOpen}
           onEditClick={() => setEditOpen(true)}
@@ -276,7 +355,7 @@ export function PostCard({ post }: PostCardProps) {
 
       {editOpen && (
         <EditPostModal
-          post={post}
+          post={displayPost}
           open={editOpen}
           onOpenChange={setEditOpen}
         />
