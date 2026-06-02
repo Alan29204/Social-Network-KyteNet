@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { Loader2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,10 @@ export function FollowingModal({ userId, isOpen, onClose }: FollowingModalProps)
   const isMe = currentUser?.id === userId;
   const { ref, inView } = useInView();
   
-  // Track unfollowed users locally to show "Theo dõi" (blue button) without removing from DOM
+  // Track unfollowed users locally to show "Theo dõi lại"
   const [unfollowedUsers, setUnfollowedUsers] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
   
   // Confirmation dialog state
   const [confirmUser, setConfirmUser] = useState<any>(null);
@@ -117,7 +120,12 @@ export function FollowingModal({ userId, isOpen, onClose }: FollowingModalProps)
         </DialogHeader>
         <div className="p-2 relative">
           <Search className="w-4 h-4 absolute left-4 top-5 text-muted-foreground" />
-          <Input placeholder="Tìm kiếm" className="pl-8 bg-muted/50 border-none" />
+          <Input 
+            placeholder="Tìm kiếm" 
+            className="pl-8 bg-muted/50 border-none" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
         <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto mt-2 pb-4">
           {status === 'pending' ? (
@@ -128,9 +136,21 @@ export function FollowingModal({ userId, isOpen, onClose }: FollowingModalProps)
             <>
               {data.pages.map((page, i) => (
                 <div key={i} className="flex flex-col gap-4">
-                  {(page.data?.data || page.data || []).map((f: any) => (
+                  {(page.data?.data || page.data || [])
+                    .filter((f: any) => 
+                      !searchTerm || 
+                      f.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      f.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((f: any) => (
                     <div key={f.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          handleCloseModal();
+                          navigate(`/profile/${f.user?.id}`);
+                        }}
+                      >
                         <Avatar className="w-10 h-10 border border-border">
                           <AvatarImage src={f.user?.avatar || '/default-avatar.png'} className="object-cover" />
                           <AvatarFallback>{f.user?.username?.[0]?.toUpperCase()}</AvatarFallback>

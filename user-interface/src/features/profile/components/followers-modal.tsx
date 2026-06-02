@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { Loader2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,8 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
   
   // Track removed followers locally to show "Đã xóa" without removing from DOM
   const [removedFollowers, setRemovedFollowers] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
   
   // Confirmation dialog state
   const [confirmUser, setConfirmUser] = useState<any>(null);
@@ -99,7 +102,12 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
         </DialogHeader>
         <div className="p-2 relative">
           <Search className="w-4 h-4 absolute left-4 top-5 text-muted-foreground" />
-          <Input placeholder="Tìm kiếm" className="pl-8 bg-muted/50 border-none" />
+          <Input 
+            placeholder="Tìm kiếm" 
+            className="pl-8 bg-muted/50 border-none" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
         <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto mt-2 pb-4">
           {status === 'pending' ? (
@@ -110,9 +118,21 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
             <>
               {data.pages.map((page, i) => (
                 <div key={i} className="flex flex-col gap-4">
-                  {(page.data?.data || page.data || []).map((f: any) => (
+                  {(page.data?.data || page.data || [])
+                    .filter((f: any) => 
+                      !searchTerm || 
+                      f.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      f.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((f: any) => (
                     <div key={f.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          handleCloseModal();
+                          navigate(`/profile/${f.user?.id}`);
+                        }}
+                      >
                         <Avatar className="w-10 h-10 border border-border">
                           <AvatarImage src={f.user?.avatar || '/default-avatar.png'} className="object-cover" />
                           <AvatarFallback>{f.user?.username?.[0]?.toUpperCase()}</AvatarFallback>
@@ -165,7 +185,7 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
           <AlertDialogHeader className="flex flex-col items-center text-center w-full">
             <AlertDialogTitle className="text-xl">Xóa người theo dõi?</AlertDialogTitle>
             <AlertDialogDescription className="text-center w-full px-4">
-              Instagram sẽ không cho {confirmUser?.username} biết rằng bạn đã xóa họ khỏi danh sách người theo dõi mình.
+              Snet sẽ không cho {confirmUser?.username} biết rằng bạn đã xóa họ khỏi danh sách người theo dõi mình.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col w-full sm:flex-col sm:space-x-0 mt-6 gap-2 border-t pt-4">
