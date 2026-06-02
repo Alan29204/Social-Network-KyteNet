@@ -9,6 +9,8 @@ import RegisterPage from '@/features/auth/pages/register-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 import ExplorePage from '@/features/explore/pages/explore-page';
+import SuggestedPeoplePage from '@/features/explore/pages/suggested-people-page';
+import MessagesPage from '@/features/chats/pages/messages-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollToTop } from '@/components/scroll-to-top';
 
@@ -32,6 +34,8 @@ function App() {
               <Route path="/profile/edit" element={<EditProfilePage />} />
               {/* Add other routes like /explore here later */}
               <Route path="explore" element={<ExplorePage />} />
+              <Route path="explore/people" element={<SuggestedPeoplePage />} />
+              <Route path="messages" element={<MessagesPage />} />
             </Route>
           </Route>
         </Routes>

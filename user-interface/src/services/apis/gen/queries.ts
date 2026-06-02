@@ -668,6 +668,12 @@ page: number;
 limit: number;
 };
 
+export type RelationsControllerGetSuggestedUsersParams = {
+limit: number;
+};
+
+export type RelationsControllerGetSuggestedUsers200 = { [key: string]: unknown };
+
 export type NotificationUsersControllerGetNotificationsParams = {
 page?: number;
 limit?: number;
@@ -2156,6 +2162,126 @@ export const useRelationsControllerRemoveFollower = <TError = unknown,
       > => {
       return useMutation(getRelationsControllerRemoveFollowerMutationOptions(options), queryClient);
     }
+
+export type relationsControllerGetSuggestedUsersResponse200 = {
+  data: RelationsControllerGetSuggestedUsers200
+  status: 200
+}
+
+export type relationsControllerGetSuggestedUsersResponseSuccess = (relationsControllerGetSuggestedUsersResponse200) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerGetSuggestedUsersResponse = (relationsControllerGetSuggestedUsersResponseSuccess)
+
+export const getRelationsControllerGetSuggestedUsersUrl = (params: RelationsControllerGetSuggestedUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/relations/suggested?${stringifiedParams}` : `/relations/suggested`
+}
+
+/**
+ * @summary Get suggested users based on mutual followers
+ */
+export const relationsControllerGetSuggestedUsers = async (params: RelationsControllerGetSuggestedUsersParams, options?: RequestInit): Promise<relationsControllerGetSuggestedUsersResponse> => {
+
+  return orvalClient<relationsControllerGetSuggestedUsersResponse>(getRelationsControllerGetSuggestedUsersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRelationsControllerGetSuggestedUsersQueryKey = (params?: RelationsControllerGetSuggestedUsersParams,) => {
+    return [
+    `/relations/suggested`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRelationsControllerGetSuggestedUsersQueryOptions = <TData = Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError = unknown>(params: RelationsControllerGetSuggestedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetSuggestedUsersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>> = ({ signal }) => relationsControllerGetSuggestedUsers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RelationsControllerGetSuggestedUsersQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>>
+export type RelationsControllerGetSuggestedUsersQueryError = unknown
+
+
+export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError = unknown>(
+ params: RelationsControllerGetSuggestedUsersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError = unknown>(
+ params: RelationsControllerGetSuggestedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError = unknown>(
+ params: RelationsControllerGetSuggestedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get suggested users based on mutual followers
+ */
+
+export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError = unknown>(
+ params: RelationsControllerGetSuggestedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetSuggestedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRelationsControllerGetSuggestedUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export type relationsControllerGetRelationResponse200 = {
   data: void

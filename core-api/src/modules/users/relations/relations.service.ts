@@ -127,21 +127,12 @@ export class RelationsService {
       },
     });
 
-    // Relation acceptUser -> requestUser
-    const relationAcceptRequest = await this.relationRepository.findOne({
-      where: {
-        request_side_id: dto.user_id,
-        accept_side_id: user.id,
-      },
-    });
-
     const relationNew = dto.relation;
 
     // Update relation requestUser -> acceptUser
     switch (true) {
       // RequestUser -> acceptUser relation following
-      case relationNew === RelationType.FOLLOWING &&
-        !relationRequestAccept:
+      case relationNew === RelationType.FOLLOWING && !relationRequestAccept:
         await this.relationRepository.save({
           request_side_id: user.id,
           accept_side_id: dto.user_id,
@@ -165,8 +156,7 @@ export class RelationsService {
         }
         break;
 
-      case relationNew === RelationType.FOLLOWING &&
-        !!relationRequestAccept:
+      case relationNew === RelationType.FOLLOWING && !!relationRequestAccept:
         // Already following, do nothing to be idempotent
         break;
 
@@ -182,8 +172,7 @@ export class RelationsService {
         await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
         break;
 
-      case relationNew === RelationType.NONE &&
-        !relationRequestAccept:
+      case relationNew === RelationType.NONE && !relationRequestAccept:
         // Already unfollowed, do nothing
         break;
 
@@ -208,5 +197,72 @@ export class RelationsService {
     return {
       message: `Update relation ${relationNew} successfully`,
     };
+  }
+
+  async getSuggestedUsers(userId: string, limit: number) {
+    // Truy vấn SQL tối ưu (Raw Query) để tìm Bạn chung
+    const query = `
+      SELECT 
+          u.id, u.username, u.avatar,
+          CAST(COUNT(r2.request_side_id) AS INTEGER) as mutual_count,
+          COALESCE(
+              json_agg(
+                  json_build_object('id', mutual_user.id, 'username', mutual_user.username, 'avatar', mutual_user.avatar)
+              ) FILTER (WHERE mutual_user.id IS NOT NULL), 
+              '[]'
+          ) as mutual_friends
+      FROM "user" u
+      INNER JOIN relation r2 ON r2.accept_side_id = u.id AND r2.relation_type = 'following'
+      INNER JOIN relation r1 ON r1.accept_side_id = r2.request_side_id AND r1.request_side_id = $1 AND r1.relation_type = 'following'
+      LEFT JOIN "user" mutual_user ON mutual_user.id = r2.request_side_id
+      WHERE u.id != $1
+      AND u.id NOT IN (
+          SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type = 'following'
+      )
+      GROUP BY u.id
+      ORDER BY mutual_count DESC, RANDOM()
+      LIMIT $2
+    `;
+
+    const suggestedUsers = await this.relationRepository.query(query, [
+      userId,
+      limit,
+    ]);
+
+    // Fallback: Nếu không đủ gợi ý, lấy thêm random các user chưa theo dõi
+    if (suggestedUsers.length < limit) {
+      const fallbackLimit = limit - suggestedUsers.length;
+      const existingIds = suggestedUsers.map((u: any) => u.id);
+
+      const existingIdsClause =
+        existingIds.length > 0
+          ? `AND u.id NOT IN (${existingIds.map((_, i) => `$${i + 3}`).join(',')})`
+          : '';
+
+      const fallbackQuery = `
+        SELECT u.id, u.username, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
+        FROM "user" u
+        WHERE u.id != $1
+        AND u.id NOT IN (
+            SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type = 'following'
+        )
+        ${existingIdsClause}
+        ORDER BY RANDOM()
+        LIMIT $2
+      `;
+
+      const params: any[] = [userId, fallbackLimit];
+      if (existingIds.length > 0) {
+        params.push(...existingIds);
+      }
+
+      const fallbackUsers = await this.relationRepository.query(
+        fallbackQuery,
+        params,
+      );
+      return [...suggestedUsers, ...fallbackUsers];
+    }
+
+    return suggestedUsers;
   }
 }

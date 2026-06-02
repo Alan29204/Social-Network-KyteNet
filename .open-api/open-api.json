@@ -330,6 +330,37 @@
         ]
       }
     },
+    "/relations/suggested": {
+      "get": {
+        "operationId": "RelationsController_getSuggestedUsers",
+        "summary": "Get suggested users based on mutual followers",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
     "/relations/{user_id}": {
       "get": {
         "operationId": "RelationsController_getRelation",

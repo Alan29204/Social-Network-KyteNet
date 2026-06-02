@@ -62,6 +62,16 @@ export class RelationsController {
     return this.relationShipsService.removeFollower(user.id, followerId);
   }
 
+  @Get('suggested')
+  @ResponseMessage('Get suggested users successfully')
+  @ApiOperation({ summary: 'Get suggested users based on mutual followers' })
+  async getSuggestedUsers(
+    @User() user: IUser,
+    @Query('limit') limit: number = 5,
+  ) {
+    return this.relationShipsService.getSuggestedUsers(user.id, limit);
+  }
+
   @Get(':user_id')
   @ResponseMessage('Get relation between 2 users successfully')
   @ApiOperation({ summary: 'Get relation between 2 users' })

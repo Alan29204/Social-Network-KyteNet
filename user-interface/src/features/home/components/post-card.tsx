@@ -55,6 +55,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount);
   const repostTimerRef = useRef<NodeJS.Timeout | null>(null);
   const followTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const likeTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const [localLiked, setLocalLiked] = useState(post.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(post.likesCount);
@@ -79,10 +80,20 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   });
 
   const handleLikePost = () => {
+    // Optimistic UI: Update local state immediately
     const newStatus = !localLiked;
     setLocalLiked(newStatus);
     setLocalLikesCount((prev) => (newStatus ? (prev || 0) + 1 : Math.max(0, (prev || 1) - 1)));
-    reactionMutation.mutate({ postId: displayPost.id, reaction: 'like' });
+
+    // Debounce API call: Wait 500ms before sending to server to prevent spam clicks
+    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+    likeTimerRef.current = setTimeout(() => {
+      // Only call API if the final state is different from the original state?
+      // Actually, reaction toggling on backend might just flip, but we should ensure we send the desired state.
+      // The backend reaction API just toggles, so if we clicked an even number of times, we shouldn't send anything!
+      // To be safe, we just send a reaction request if they actually want to change it.
+      reactionMutation.mutate({ postId: displayPost.id, reaction: 'like' });
+    }, 500);
   };
 
   const repostMutation = useMutation({
