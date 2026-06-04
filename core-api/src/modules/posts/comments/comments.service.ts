@@ -4,6 +4,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationType } from 'src/common/enums/notification.enum';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comment } from './entities/comment.entity';
@@ -49,9 +51,13 @@ export class CommentsService {
 
       // Send notification to post owner
       try {
-        const post = await this.postRepository.findOne({ where: { id: dto.post_id } });
-        const actor = await this.userRepository.findOne({ where: { id: user.id } });
-        
+        const post = await this.postRepository.findOne({
+          where: { id: dto.post_id },
+        });
+        const actor = await this.userRepository.findOne({
+          where: { id: user.id },
+        });
+
         if (post && actor) {
           if (!dto.parent_id) {
             // It's a root comment on the post
@@ -63,7 +69,9 @@ export class CommentsService {
             );
           } else {
             // It's a reply to a parent comment
-            const parentComment = await this.commentRepository.findOne({ where: { id: dto.parent_id } });
+            const parentComment = await this.commentRepository.findOne({
+              where: { id: dto.parent_id },
+            });
             if (parentComment) {
               await this.notificationService.notifyReplyComment(
                 user.id,
@@ -90,7 +98,10 @@ export class CommentsService {
         console.error('Error sending comment notification:', e);
       }
 
-      return { message: 'Comment created successfully', comment_id: comment.id };
+      return {
+        message: 'Comment created successfully',
+        comment_id: comment.id,
+      };
     } catch {
       throw new InternalServerErrorException('Error creating comment');
     }
@@ -100,7 +111,7 @@ export class CommentsService {
    * Update an existing comment's content.
    * Only the comment owner can update.
    */
-  async update(commentId: string, user: IUser, content: string) {
+  async update(commentId: string, user: IUser, dto: UpdateCommentDto) {
     try {
       const comment = await this.commentRepository.findOne({
         where: { id: commentId },
@@ -116,8 +127,50 @@ export class CommentsService {
         );
       }
 
-      comment.content = content;
+      const oldTags = comment.tagged_users || [];
+      const newTags = dto.tagged_users || oldTags;
+
+      comment.content = dto.content;
+      comment.tagged_users = newTags;
+
       await this.commentRepository.save(comment);
+
+      // Diff tags
+      const removedTags = oldTags.filter((tag) => !newTags.includes(tag));
+      const addedTags = newTags.filter((tag) => !oldTags.includes(tag));
+
+      const actor = await this.userRepository.findOne({
+        where: { id: user.id },
+      });
+
+      if (actor) {
+        for (const removedId of removedTags) {
+          try {
+            await this.notificationService.undoNotification(
+              user.id,
+              removedId,
+              comment.post_id,
+              'POST',
+              NotificationType.COMMENT,
+            );
+          } catch (e) {
+            console.error('Error undoing tag notification:', e);
+          }
+        }
+
+        for (const addedId of addedTags) {
+          try {
+            await this.notificationService.notifyTagInComment(
+              user.id,
+              actor.username,
+              addedId,
+              comment.post_id,
+            );
+          } catch (e) {
+            console.error('Error sending tag notification:', e);
+          }
+        }
+      }
 
       // Invalidate post cache
       await this.redisService.del(`post:${comment.post_id}`);

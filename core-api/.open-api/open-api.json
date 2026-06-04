@@ -516,6 +516,43 @@
       }
     },
     "/notifications": {
+      "get": {
+        "operationId": "NotificationController_getUserNotifications",
+        "summary": "Get user notifications",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      },
       "post": {
         "operationId": "NotificationController_createNotiSystem",
         "summary": "Admin: Create notification system",
@@ -532,6 +569,67 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationController_getUnreadCount",
+        "summary": "Get unread notification count",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "operationId": "NotificationController_markAllAsRead",
+        "summary": "Mark all notifications as read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationController_markAsRead",
+        "summary": "Mark a notification as read",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -564,7 +662,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -602,7 +707,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2404,9 +2516,22 @@
               "system"
             ]
           },
+          "target_type": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
           },
           "notification_user": {
             "type": "array",
@@ -2420,7 +2545,11 @@
           "title",
           "message",
           "notification_type",
+          "target_type",
+          "target_id",
           "created_at",
+          "updated_at",
+          "metadata",
           "notification_user"
         ]
       },
@@ -3672,6 +3801,175 @@
           "relation"
         ]
       },
+      "NotificationActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar"
+        ]
+      },
+      "NotificationMetadataDto": {
+        "type": "object",
+        "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationActorDto"
+            }
+          },
+          "thumbnail": {
+            "type": "string",
+            "nullable": true
+          },
+          "reaction": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "actors"
+        ]
+      },
+      "NotificationItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notification_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "notification_type": {
+            "enum": [
+              "like",
+              "comment",
+              "follow",
+              "reaction",
+              "system"
+            ],
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMetadataDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "notification_id",
+          "title",
+          "message",
+          "notification_type",
+          "target_type",
+          "target_id",
+          "is_read",
+          "created_at",
+          "updated_at",
+          "metadata"
+        ]
+      },
+      "NotificationPaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "unread_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unread_count"
+        ]
+      },
       "CreateNotiSystemDto": {
         "type": "object",
         "properties": {
@@ -3980,6 +4278,17 @@
           "content": {
             "type": "string",
             "example": "Nội dung bình luận đã chỉnh sửa"
+          },
+          "tagged_users": {
+            "example": [
+              "user-id-1",
+              "user-id-2"
+            ],
+            "description": "tagged user IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

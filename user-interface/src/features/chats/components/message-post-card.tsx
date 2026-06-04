@@ -5,10 +5,9 @@ import { useState } from 'react';
 
 interface MessagePostCardProps {
   post: any; // Can be null if deleted, or { is_unavailable: true } if privacy restricted
-  isOwnMessage: boolean;
 }
 
-export function MessagePostCard({ post, isOwnMessage }: MessagePostCardProps) {
+export function MessagePostCard({ post }: MessagePostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   if (!post) {

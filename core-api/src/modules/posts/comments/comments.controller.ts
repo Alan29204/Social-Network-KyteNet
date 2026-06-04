@@ -27,7 +27,7 @@ export class CommentsController {
     @User() user: IUser,
     @Body() dto: UpdateCommentDto,
   ) {
-    return this.commentsService.update(id, user, dto.content);
+    return this.commentsService.update(id, user, dto);
   }
 
   @Delete(':id')

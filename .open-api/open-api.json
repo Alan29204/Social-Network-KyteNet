@@ -516,6 +516,43 @@
       }
     },
     "/notifications": {
+      "get": {
+        "operationId": "NotificationController_getUserNotifications",
+        "summary": "Get user notifications",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      },
       "post": {
         "operationId": "NotificationController_createNotiSystem",
         "summary": "Admin: Create notification system",
@@ -532,6 +569,67 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationController_getUnreadCount",
+        "summary": "Get unread notification count",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "operationId": "NotificationController_markAllAsRead",
+        "summary": "Mark all notifications as read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationController_markAsRead",
+        "summary": "Mark a notification as read",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -564,7 +662,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -602,7 +707,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -800,6 +912,30 @@
         ]
       }
     },
+    "/chat-rooms/{id}/read": {
+      "post": {
+        "operationId": "ChatRoomsController_markRoomAsRead",
+        "summary": "Mark all messages in room as read for user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
     "/chat-rooms/permission-add-member": {
       "patch": {
         "operationId": "ChatRoomsController_updatePermissionAddMember",
@@ -942,6 +1078,12 @@
                   "message": {
                     "type": "string"
                   },
+                  "reply_to_id": {
+                    "type": "string"
+                  },
+                  "shared_post_id": {
+                    "type": "string"
+                  },
                   "medias-messages": {
                     "type": "array",
                     "items": {
@@ -1064,6 +1206,53 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      }
+    },
+    "/chat-messages/{id}/reactions": {
+      "post": {
+        "operationId": "ChatMessagesController_toggleReaction",
+        "summary": "Toggle emoji reaction on a message",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reaction_type": {
+                    "type": "string",
+                    "enum": [
+                      "like",
+                      "love",
+                      "haha",
+                      "wow",
+                      "sad",
+                      "angry"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -2035,7 +2224,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2320,9 +2516,22 @@
               "system"
             ]
           },
+          "target_type": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
           },
           "notification_user": {
             "type": "array",
@@ -2336,7 +2545,11 @@
           "title",
           "message",
           "notification_type",
+          "target_type",
+          "target_id",
           "created_at",
+          "updated_at",
+          "metadata",
           "notification_user"
         ]
       },
@@ -2400,6 +2613,9 @@
           "allow_notification": {
             "type": "boolean"
           },
+          "unread_count": {
+            "type": "number"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -2418,6 +2634,7 @@
           "member_type",
           "nickname",
           "allow_notification",
+          "unread_count",
           "created_at",
           "user",
           "chat_room"
@@ -2450,150 +2667,20 @@
           "chat_room"
         ]
       },
-      "ChatMessage": {
+      "MessageReaction": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
-          "chat_room_id": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "medias": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "message_status": {
-            "enum": [
-              "normal",
-              "edited",
-              "deleted"
-            ],
-            "type": "string"
-          },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "pin_messages": {
-            "$ref": "#/components/schemas/PinMessage"
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "created_by",
-          "message",
-          "medias",
-          "message_status",
-          "chat_room",
-          "user",
-          "created_at",
-          "pin_messages"
-        ]
-      },
-      "PinChat": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "chat_room_id": {
+          "chat_message_id": {
             "type": "string"
           },
           "user_id": {
             "type": "string"
           },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "user_id",
-          "chat_room",
-          "user"
-        ]
-      },
-      "WaitingMembers": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "chat_room_id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "user_id",
-          "chat_room",
-          "user"
-        ]
-      },
-      "ChatRoom": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "type": "object"
-          },
-          "avatar": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "permission_add_member": {
-            "enum": [
-              "admin",
-              "member"
-            ],
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "last_message_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "reaction_default": {
+          "reaction_type": {
+            "type": "string",
             "enum": [
               "like",
               "love",
@@ -2601,63 +2688,27 @@
               "wow",
               "sad",
               "angry"
-            ],
-            "type": "string"
+            ]
           },
-          "end_to_end_encryption": {
-            "type": "boolean"
+          "chat_message": {
+            "$ref": "#/components/schemas/ChatMessage"
           },
           "user": {
             "$ref": "#/components/schemas/User"
           },
-          "chat_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMember"
-            }
-          },
-          "chat_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
-            }
-          },
-          "pin_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinMessage"
-            }
-          },
-          "pin_chats": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinChat"
-            }
-          },
-          "waiting_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WaitingMembers"
-            }
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name",
-          "type",
-          "avatar",
-          "created_by",
-          "permission_add_member",
-          "created_at",
-          "last_message_at",
-          "reaction_default",
-          "end_to_end_encryption",
+          "chat_message_id",
+          "user_id",
+          "reaction_type",
+          "chat_message",
           "user",
-          "chat_members",
-          "chat_messages",
-          "pin_messages",
-          "pin_chats",
-          "waiting_members"
+          "created_at"
         ]
       },
       "PostInteractions": {
@@ -2970,6 +3021,239 @@
           "save_posts",
           "comments",
           "reactions"
+        ]
+      },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "medias": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message_status": {
+            "enum": [
+              "normal",
+              "edited",
+              "deleted"
+            ],
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pin_messages": {
+            "$ref": "#/components/schemas/PinMessage"
+          },
+          "reply_to_id": {
+            "type": "string"
+          },
+          "reply_to": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageReaction"
+            }
+          },
+          "shared_post_id": {
+            "type": "string"
+          },
+          "shared_post": {
+            "$ref": "#/components/schemas/Post"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "created_by",
+          "message",
+          "medias",
+          "message_status",
+          "chat_room",
+          "user",
+          "created_at",
+          "pin_messages",
+          "reply_to_id",
+          "reply_to",
+          "reactions",
+          "shared_post_id",
+          "shared_post"
+        ]
+      },
+      "PinChat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "user_id",
+          "chat_room",
+          "user"
+        ]
+      },
+      "WaitingMembers": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "user_id",
+          "chat_room",
+          "user"
+        ]
+      },
+      "ChatRoom": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "object"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "permission_add_member": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reaction_default": {
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ],
+            "type": "string"
+          },
+          "end_to_end_encryption": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "chat_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMember"
+            }
+          },
+          "chat_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
+          },
+          "pin_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinMessage"
+            }
+          },
+          "pin_chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinChat"
+            }
+          },
+          "waiting_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WaitingMembers"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "avatar",
+          "created_by",
+          "permission_add_member",
+          "created_at",
+          "last_message_at",
+          "reaction_default",
+          "end_to_end_encryption",
+          "user",
+          "chat_members",
+          "chat_messages",
+          "pin_messages",
+          "pin_chats",
+          "waiting_members"
         ]
       },
       "User": {
@@ -3515,6 +3799,175 @@
         "required": [
           "user_id",
           "relation"
+        ]
+      },
+      "NotificationActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar"
+        ]
+      },
+      "NotificationMetadataDto": {
+        "type": "object",
+        "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationActorDto"
+            }
+          },
+          "thumbnail": {
+            "type": "string",
+            "nullable": true
+          },
+          "reaction": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "actors"
+        ]
+      },
+      "NotificationItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notification_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "notification_type": {
+            "enum": [
+              "like",
+              "comment",
+              "follow",
+              "reaction",
+              "system"
+            ],
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMetadataDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "notification_id",
+          "title",
+          "message",
+          "notification_type",
+          "target_type",
+          "target_id",
+          "is_read",
+          "created_at",
+          "updated_at",
+          "metadata"
+        ]
+      },
+      "NotificationPaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "unread_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unread_count"
         ]
       },
       "CreateNotiSystemDto": {

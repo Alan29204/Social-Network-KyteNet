@@ -1,4 +1,5 @@
 import { RelationType } from '../../../common/enums/relation.enum';
+import { NotificationType } from '../../../common/enums/notification.enum';
 import {
   BadRequestException,
   forwardRef,
@@ -95,6 +96,19 @@ export class RelationsService {
     }
 
     await this.relationRepository.remove(relation);
+
+    try {
+      await this.notificationService.undoNotification(
+        followerId,
+        userId,
+        userId,
+        'USER',
+        NotificationType.FOLLOW,
+      );
+    } catch (e) {
+      console.error('Error undoing follow notification:', e);
+    }
+
     return { message: 'Follower removed successfully' };
   }
 
@@ -170,6 +184,18 @@ export class RelationsService {
 
         // Cleanup feed: remove unfollowed user's posts
         await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
+
+        try {
+          await this.notificationService.undoNotification(
+            user.id,
+            dto.user_id,
+            dto.user_id,
+            'USER',
+            NotificationType.FOLLOW,
+          );
+        } catch (e) {
+          console.error('Error undoing follow notification:', e);
+        }
         break;
 
       case relationNew === RelationType.NONE && !relationRequestAccept:
@@ -187,6 +213,12 @@ export class RelationsService {
           request_side_id: dto.user_id,
           accept_side_id: user.id,
         });
+
+        try {
+          await this.notificationService.purgeNotifications(user.id, dto.user_id);
+        } catch (e) {
+          console.error('Error purging notifications on block:', e);
+        }
         break;
 
       // Other case

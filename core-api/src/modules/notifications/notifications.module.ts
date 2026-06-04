@@ -7,6 +7,8 @@ import { NotificationUser } from 'src/modules/notifications/notification-users/e
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { GatewayModule } from 'src/modules/chats/gateway/gateway.module';
+import { forwardRef } from '@nestjs/common';
+import { NotificationUsersModule } from './notification-users/notification-users.module';
 
 @Module({
   imports: [
@@ -14,6 +16,7 @@ import { GatewayModule } from 'src/modules/chats/gateway/gateway.module';
     TypeOrmModule.forFeature([Notification, NotificationUser]),
     BullModule.registerQueue({ name: 'noti-system' }),
     GatewayModule,
+    forwardRef(() => NotificationUsersModule),
   ],
   controllers: [NotificationController],
   providers: [NotificationService],

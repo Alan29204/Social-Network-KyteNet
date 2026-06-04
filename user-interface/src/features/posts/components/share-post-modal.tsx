@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useUsersControllerSearchUsersForMessage, useChatRoomsControllerGetOrCreateDirectChat, useChatMessagesControllerCreateMessage } from '@/services/apis/gen/queries';
+import { useUsersControllerSearchUsersForMessage, useChatRoomsControllerGetOrCreateDirectChat } from '@/services/apis/gen/queries';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { socketService } from '@/services/socket.service';
@@ -34,7 +34,6 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
   const users: any[] = (usersResponse as any)?.data?.data || [];
 
   const createDirectChatMutation = useChatRoomsControllerGetOrCreateDirectChat();
-  const createMessageMutation = useChatMessagesControllerCreateMessage();
 
   const handleToggleUser = (userId: string) => {
     setSelectedUserIds((prev) =>

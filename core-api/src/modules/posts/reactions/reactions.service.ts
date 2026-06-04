@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { NotificationType } from 'src/common/enums/notification.enum';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Reaction } from './entities/reaction.entity';
 import { Repository } from 'typeorm';
@@ -52,6 +53,24 @@ export class ReactionsService {
       if (existingReaction.reaction === reactionType) {
         // Same reaction → toggle off (un-react)
         await this.reactionRepository.delete(existingReaction.id);
+        
+        if (postId) {
+          try {
+            const post = await this.postRepository.findOne({ where: { id: postId } });
+            if (post) {
+              await this.notificationService.undoNotification(
+                user.id,
+                post.user_id,
+                postId,
+                'POST',
+                NotificationType.REACTION,
+              );
+            }
+          } catch (e) {
+            console.error('Error undoing reaction notification:', e);
+          }
+        }
+
         result = { message: 'Reaction removed' };
       } else {
         // Different reaction → update to new type

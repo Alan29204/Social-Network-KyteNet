@@ -1724,7 +1724,7 @@ export default function MessagesPage() {
                         {/* Shared Post Card */}
                         {msg.shared_post_id && (
                           <div className={`mt-1 mb-1 ${msg.is_sending ? 'opacity-70' : ''}`}>
-                            <MessagePostCard post={msg.shared_post} isOwnMessage={isMine} />
+                            <MessagePostCard post={msg.shared_post} />
                           </div>
                         )}
 

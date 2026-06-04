@@ -7,6 +7,7 @@ import {
   Index,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()
@@ -25,8 +26,22 @@ export class Notification {
   @Column({ type: 'enum', enum: NotificationType })
   notification_type: NotificationType;
 
+  @Index()
+  @Column({ nullable: true })
+  target_type: string;
+
+  @Index()
+  @Column({ nullable: true })
+  target_id: string;
+
   @CreateDateColumn()
   created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: any;
 
   @OneToMany(
     () => NotificationUser,

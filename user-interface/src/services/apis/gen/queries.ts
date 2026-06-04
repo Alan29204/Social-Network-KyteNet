@@ -110,12 +110,18 @@ export const NotificationNotificationType = {
   system: 'system',
 } as const;
 
+export type NotificationMetadata = { [key: string]: unknown };
+
 export type Notification = {
   id: string;
   title: string;
   message: string;
   notification_type: NotificationNotificationType;
+  target_type: string;
+  target_id: string;
   created_at: string;
+  updated_at: string;
+  metadata: NotificationMetadata;
   notification_user: NotificationUser[];
 };
 
@@ -164,6 +170,7 @@ export type ChatMember = {
   member_type: ChatMemberMemberType;
   nickname: string;
   allow_notification: boolean;
+  unread_count: number;
   created_at: string;
   user: User;
   chat_room: ChatRoom;
@@ -186,54 +193,26 @@ export type PinMessage = {
   chat_room: ChatRoom;
 };
 
-export type ChatMessage = {
+export type MessageReactionReactionType = typeof MessageReactionReactionType[keyof typeof MessageReactionReactionType];
+
+
+export const MessageReactionReactionType = {
+  like: 'like',
+  love: 'love',
+  haha: 'haha',
+  wow: 'wow',
+  sad: 'sad',
+  angry: 'angry',
+} as const;
+
+export type MessageReaction = {
   id: string;
-  chat_room_id: string;
-  created_by: string;
-  message: string;
-  medias: string[];
-  message_status: ChatMessageMessageStatus;
-  chat_room: ChatRoom;
+  chat_message_id: string;
+  user_id: string;
+  reaction_type: MessageReactionReactionType;
+  chat_message: ChatMessage;
   user: User;
   created_at: string;
-  pin_messages: PinMessage;
-};
-
-export type PinChat = {
-  id: string;
-  chat_room_id: string;
-  user_id: string;
-  chat_room: ChatRoom;
-  user: User;
-};
-
-export type WaitingMembers = {
-  id: string;
-  chat_room_id: string;
-  user_id: string;
-  chat_room: ChatRoom;
-  user: User;
-};
-
-export type ChatRoomType = { [key: string]: unknown };
-
-export type ChatRoom = {
-  id: string;
-  name: string;
-  type: ChatRoomType;
-  avatar: string;
-  created_by: string;
-  permission_add_member: ChatRoomPermissionAddMember;
-  created_at: string;
-  last_message_at: string;
-  reaction_default: ChatRoomReactionDefault;
-  end_to_end_encryption: boolean;
-  user: User;
-  chat_members: ChatMember[];
-  chat_messages: ChatMessage[];
-  pin_messages: PinMessage[];
-  pin_chats: PinChat[];
-  waiting_members: WaitingMembers[];
 };
 
 export type PostInteractions = {
@@ -330,6 +309,61 @@ export type Post = {
   save_posts: SavePost;
   comments: Comment[];
   reactions: Reaction[];
+};
+
+export type ChatMessage = {
+  id: string;
+  chat_room_id: string;
+  created_by: string;
+  message: string;
+  medias: string[];
+  message_status: ChatMessageMessageStatus;
+  chat_room: ChatRoom;
+  user: User;
+  created_at: string;
+  pin_messages: PinMessage;
+  reply_to_id: string;
+  reply_to: ChatMessage;
+  reactions: MessageReaction[];
+  shared_post_id: string;
+  shared_post: Post;
+};
+
+export type PinChat = {
+  id: string;
+  chat_room_id: string;
+  user_id: string;
+  chat_room: ChatRoom;
+  user: User;
+};
+
+export type WaitingMembers = {
+  id: string;
+  chat_room_id: string;
+  user_id: string;
+  chat_room: ChatRoom;
+  user: User;
+};
+
+export type ChatRoomType = { [key: string]: unknown };
+
+export type ChatRoom = {
+  id: string;
+  name: string;
+  type: ChatRoomType;
+  avatar: string;
+  created_by: string;
+  permission_add_member: ChatRoomPermissionAddMember;
+  created_at: string;
+  last_message_at: string;
+  reaction_default: ChatRoomReactionDefault;
+  end_to_end_encryption: boolean;
+  user: User;
+  chat_members: ChatMember[];
+  chat_messages: ChatMessage[];
+  pin_messages: PinMessage[];
+  pin_chats: PinChat[];
+  waiting_members: WaitingMembers[];
 };
 
 export type User = {
@@ -536,6 +570,68 @@ export type UpdateRelationDto = {
   /** ID user other */
   user_id: string;
   relation: string;
+};
+
+export type NotificationActorDto = {
+  id: string;
+  username: string;
+  /** @nullable */
+  avatar: string | null;
+};
+
+export type NotificationMetadataDto = {
+  actors: NotificationActorDto[];
+  /** @nullable */
+  thumbnail?: string | null;
+  /** @nullable */
+  reaction?: string | null;
+  /** @nullable */
+  comment_type?: string | null;
+  /** @nullable */
+  relation_type?: string | null;
+};
+
+export type NotificationItemDtoNotificationType = typeof NotificationItemDtoNotificationType[keyof typeof NotificationItemDtoNotificationType];
+
+
+export const NotificationItemDtoNotificationType = {
+  like: 'like',
+  comment: 'comment',
+  follow: 'follow',
+  reaction: 'reaction',
+  system: 'system',
+} as const;
+
+export type NotificationItemDto = {
+  id: string;
+  notification_id: string;
+  title: string;
+  message: string;
+  notification_type: NotificationItemDtoNotificationType;
+  /** @nullable */
+  target_type: string | null;
+  /** @nullable */
+  target_id: string | null;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+  metadata: NotificationMetadataDto | null;
+};
+
+export type NotificationPaginationMetaDto = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type NotificationListResponseDto = {
+  data: NotificationItemDto[];
+  meta: NotificationPaginationMetaDto;
+};
+
+export type UnreadCountResponseDto = {
+  unread_count: number;
 };
 
 export type CreateNotiSystemDto = {
@@ -848,6 +944,11 @@ limit: number;
 
 export type RelationsControllerGetSuggestedUsers200 = { [key: string]: unknown };
 
+export type NotificationControllerGetUserNotificationsParams = {
+page?: number;
+limit?: number;
+};
+
 export type NotificationUsersControllerGetNotificationsParams = {
 page?: number;
 limit?: number;
@@ -867,6 +968,8 @@ limit?: number;
 export type ChatMessagesControllerCreateMessageBody = {
   chat_room_id?: string;
   message?: string;
+  reply_to_id?: string;
+  shared_post_id?: string;
   'medias-messages'?: Blob[];
 };
 
@@ -877,6 +980,22 @@ limit?: number;
 
 export type ChatMessagesControllerEditMessageBody = {
   message?: string;
+};
+
+export type ChatMessagesControllerToggleReactionBodyReactionType = typeof ChatMessagesControllerToggleReactionBodyReactionType[keyof typeof ChatMessagesControllerToggleReactionBodyReactionType];
+
+
+export const ChatMessagesControllerToggleReactionBodyReactionType = {
+  like: 'like',
+  love: 'love',
+  haha: 'haha',
+  wow: 'wow',
+  sad: 'sad',
+  angry: 'angry',
+} as const;
+
+export type ChatMessagesControllerToggleReactionBody = {
+  reaction_type?: ChatMessagesControllerToggleReactionBodyReactionType;
 };
 
 export type FeedControllerGetFollowingFeedParams = {
@@ -966,6 +1085,8 @@ export const AdminsControllerListReportsStatus = {
   resolved: 'resolved',
   rejected: 'rejected',
 } as const;
+
+export type PinMessagesControllerTogglePinMessage200 = { [key: string]: unknown };
 
 export type SearchControllerSearchAllParams = {
 q: string;
@@ -2958,6 +3079,199 @@ export function useDeviceSessionsControllerReAuth<TData = Awaited<ReturnType<typ
 
 
 
+export type notificationControllerGetUserNotificationsResponse200 = {
+  data: NotificationListResponseDto
+  status: 200
+}
+
+export type notificationControllerGetUserNotificationsResponseSuccess = (notificationControllerGetUserNotificationsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerGetUserNotificationsResponse = (notificationControllerGetUserNotificationsResponseSuccess)
+
+export const getNotificationControllerGetUserNotificationsUrl = (params?: NotificationControllerGetUserNotificationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/notifications?${stringifiedParams}` : `/notifications`
+}
+
+/**
+ * @summary Get user notifications
+ */
+export const notificationControllerGetUserNotifications = async (params?: NotificationControllerGetUserNotificationsParams, options?: RequestInit): Promise<notificationControllerGetUserNotificationsResponse> => {
+
+  return orvalClient<notificationControllerGetUserNotificationsResponse>(getNotificationControllerGetUserNotificationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getNotificationControllerGetUserNotificationsInfiniteQueryKey = (params?: NotificationControllerGetUserNotificationsParams,) => {
+    return [
+    'infinite', `/notifications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getNotificationControllerGetUserNotificationsQueryKey = (params?: NotificationControllerGetUserNotificationsParams,) => {
+    return [
+    `/notifications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getNotificationControllerGetUserNotificationsInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, NotificationControllerGetUserNotificationsParams['page']>, TError = unknown>(params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getNotificationControllerGetUserNotificationsInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, QueryKey, NotificationControllerGetUserNotificationsParams['page']> = ({ signal, pageParam }) => notificationControllerGetUserNotifications({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type NotificationControllerGetUserNotificationsInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>>
+export type NotificationControllerGetUserNotificationsInfiniteQueryError = unknown
+
+
+export function useNotificationControllerGetUserNotificationsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, NotificationControllerGetUserNotificationsParams['page']>, TError = unknown>(
+ params: undefined |  NotificationControllerGetUserNotificationsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUserNotificationsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, NotificationControllerGetUserNotificationsParams['page']>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUserNotificationsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, NotificationControllerGetUserNotificationsParams['page']>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get user notifications
+ */
+
+export function useNotificationControllerGetUserNotificationsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, NotificationControllerGetUserNotificationsParams['page']>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData, QueryKey, NotificationControllerGetUserNotificationsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getNotificationControllerGetUserNotificationsInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const getNotificationControllerGetUserNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError = unknown>(params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getNotificationControllerGetUserNotificationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>> = ({ signal }) => notificationControllerGetUserNotifications(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type NotificationControllerGetUserNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>>
+export type NotificationControllerGetUserNotificationsQueryError = unknown
+
+
+export function useNotificationControllerGetUserNotifications<TData = Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError = unknown>(
+ params: undefined |  NotificationControllerGetUserNotificationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUserNotifications<TData = Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUserNotifications<TData = Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get user notifications
+ */
+
+export function useNotificationControllerGetUserNotifications<TData = Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError = unknown>(
+ params?: NotificationControllerGetUserNotificationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUserNotifications>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getNotificationControllerGetUserNotificationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export type notificationControllerCreateNotiSystemResponse201 = {
   data: void
   status: 201
@@ -3040,8 +3354,285 @@ export const useNotificationControllerCreateNotiSystem = <TError = unknown,
       return useMutation(getNotificationControllerCreateNotiSystemMutationOptions(options), queryClient);
     }
 
-export type notificationUsersControllerGetNotificationsResponse200 = {
+export type notificationControllerGetUnreadCountResponse200 = {
+  data: UnreadCountResponseDto
+  status: 200
+}
+
+export type notificationControllerGetUnreadCountResponseSuccess = (notificationControllerGetUnreadCountResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerGetUnreadCountResponse = (notificationControllerGetUnreadCountResponseSuccess)
+
+export const getNotificationControllerGetUnreadCountUrl = () => {
+
+
+
+
+  return `/notifications/unread-count`
+}
+
+/**
+ * @summary Get unread notification count
+ */
+export const notificationControllerGetUnreadCount = async ( options?: RequestInit): Promise<notificationControllerGetUnreadCountResponse> => {
+
+  return orvalClient<notificationControllerGetUnreadCountResponse>(getNotificationControllerGetUnreadCountUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getNotificationControllerGetUnreadCountQueryKey = () => {
+    return [
+    `/notifications/unread-count`
+    ] as const;
+    }
+
+
+export const getNotificationControllerGetUnreadCountQueryOptions = <TData = Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getNotificationControllerGetUnreadCountQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>> = ({ signal }) => notificationControllerGetUnreadCount({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type NotificationControllerGetUnreadCountQueryResult = NonNullable<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>>
+export type NotificationControllerGetUnreadCountQueryError = unknown
+
+
+export function useNotificationControllerGetUnreadCount<TData = Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUnreadCount<TData = Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>,
+          TError,
+          Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useNotificationControllerGetUnreadCount<TData = Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get unread notification count
+ */
+
+export function useNotificationControllerGetUnreadCount<TData = Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof notificationControllerGetUnreadCount>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getNotificationControllerGetUnreadCountQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type notificationControllerMarkAllAsReadResponse200 = {
   data: void
+  status: 200
+}
+
+export type notificationControllerMarkAllAsReadResponseSuccess = (notificationControllerMarkAllAsReadResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerMarkAllAsReadResponse = (notificationControllerMarkAllAsReadResponseSuccess)
+
+export const getNotificationControllerMarkAllAsReadUrl = () => {
+
+
+
+
+  return `/notifications/read-all`
+}
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const notificationControllerMarkAllAsRead = async ( options?: RequestInit): Promise<notificationControllerMarkAllAsReadResponse> => {
+
+  return orvalClient<notificationControllerMarkAllAsReadResponse>(getNotificationControllerMarkAllAsReadUrl(),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getNotificationControllerMarkAllAsReadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>, TError,void, TContext> => {
+
+const mutationKey = ['notificationControllerMarkAllAsRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>, void> = () => {
+
+
+          return  notificationControllerMarkAllAsRead(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotificationControllerMarkAllAsReadMutationResult = NonNullable<Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>>
+
+    export type NotificationControllerMarkAllAsReadMutationError = unknown
+
+    /**
+ * @summary Mark all notifications as read
+ */
+export const useNotificationControllerMarkAllAsRead = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notificationControllerMarkAllAsRead>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getNotificationControllerMarkAllAsReadMutationOptions(options), queryClient);
+    }
+
+export type notificationControllerMarkAsReadResponse200 = {
+  data: void
+  status: 200
+}
+
+export type notificationControllerMarkAsReadResponseSuccess = (notificationControllerMarkAsReadResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerMarkAsReadResponse = (notificationControllerMarkAsReadResponseSuccess)
+
+export const getNotificationControllerMarkAsReadUrl = (id: string,) => {
+
+
+
+
+  return `/notifications/${id}/read`
+}
+
+/**
+ * @summary Mark a notification as read
+ */
+export const notificationControllerMarkAsRead = async (id: string, options?: RequestInit): Promise<notificationControllerMarkAsReadResponse> => {
+
+  return orvalClient<notificationControllerMarkAsReadResponse>(getNotificationControllerMarkAsReadUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getNotificationControllerMarkAsReadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsRead>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsRead>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['notificationControllerMarkAsRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notificationControllerMarkAsRead>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  notificationControllerMarkAsRead(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotificationControllerMarkAsReadMutationResult = NonNullable<Awaited<ReturnType<typeof notificationControllerMarkAsRead>>>
+
+    export type NotificationControllerMarkAsReadMutationError = unknown
+
+    /**
+ * @summary Mark a notification as read
+ */
+export const useNotificationControllerMarkAsRead = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsRead>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notificationControllerMarkAsRead>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getNotificationControllerMarkAsReadMutationOptions(options), queryClient);
+    }
+
+export type notificationUsersControllerGetNotificationsResponse200 = {
+  data: NotificationListResponseDto
   status: 200
 }
 
@@ -3316,7 +3907,7 @@ export const useNotificationUsersControllerDeleteNoti = <TError = unknown,
     }
 
 export type notificationUsersControllerGetUnreadCountResponse200 = {
-  data: void
+  data: UnreadCountResponseDto
   status: 200
 }
 
@@ -4232,6 +4823,88 @@ export const useChatRoomsControllerGetOrCreateDirectChat = <TError = unknown,
       return useMutation(getChatRoomsControllerGetOrCreateDirectChatMutationOptions(options), queryClient);
     }
 
+export type chatRoomsControllerMarkRoomAsReadResponse201 = {
+  data: void
+  status: 201
+}
+
+export type chatRoomsControllerMarkRoomAsReadResponseSuccess = (chatRoomsControllerMarkRoomAsReadResponse201) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerMarkRoomAsReadResponse = (chatRoomsControllerMarkRoomAsReadResponseSuccess)
+
+export const getChatRoomsControllerMarkRoomAsReadUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/read`
+}
+
+/**
+ * @summary Mark all messages in room as read for user
+ */
+export const chatRoomsControllerMarkRoomAsRead = async (id: string, options?: RequestInit): Promise<chatRoomsControllerMarkRoomAsReadResponse> => {
+
+  return orvalClient<chatRoomsControllerMarkRoomAsReadResponse>(getChatRoomsControllerMarkRoomAsReadUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerMarkRoomAsReadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerMarkRoomAsRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  chatRoomsControllerMarkRoomAsRead(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerMarkRoomAsReadMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>>
+
+    export type ChatRoomsControllerMarkRoomAsReadMutationError = unknown
+
+    /**
+ * @summary Mark all messages in room as read for user
+ */
+export const useChatRoomsControllerMarkRoomAsRead = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerMarkRoomAsRead>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerMarkRoomAsReadMutationOptions(options), queryClient);
+    }
+
 export type chatRoomsControllerUpdatePermissionAddMemberResponse200 = {
   data: void
   status: 200
@@ -4673,6 +5346,12 @@ if(chatMessagesControllerCreateMessageBody.chat_room_id !== undefined) {
 if(chatMessagesControllerCreateMessageBody.message !== undefined) {
  formData.append(`message`, chatMessagesControllerCreateMessageBody.message);
  }
+if(chatMessagesControllerCreateMessageBody.reply_to_id !== undefined) {
+ formData.append(`reply_to_id`, chatMessagesControllerCreateMessageBody.reply_to_id);
+ }
+if(chatMessagesControllerCreateMessageBody.shared_post_id !== undefined) {
+ formData.append(`shared_post_id`, chatMessagesControllerCreateMessageBody.shared_post_id);
+ }
 if(chatMessagesControllerCreateMessageBody['medias-messages'] !== undefined) {
  chatMessagesControllerCreateMessageBody['medias-messages'].forEach(value => formData.append(`medias-messages`, value));
  }
@@ -5104,6 +5783,89 @@ export const useChatMessagesControllerDeleteMessage = <TError = unknown,
         TContext
       > => {
       return useMutation(getChatMessagesControllerDeleteMessageMutationOptions(options), queryClient);
+    }
+
+export type chatMessagesControllerToggleReactionResponse201 = {
+  data: void
+  status: 201
+}
+
+export type chatMessagesControllerToggleReactionResponseSuccess = (chatMessagesControllerToggleReactionResponse201) & {
+  headers: Headers;
+};
+;
+
+export type chatMessagesControllerToggleReactionResponse = (chatMessagesControllerToggleReactionResponseSuccess)
+
+export const getChatMessagesControllerToggleReactionUrl = (id: string,) => {
+
+
+
+
+  return `/chat-messages/${id}/reactions`
+}
+
+/**
+ * @summary Toggle emoji reaction on a message
+ */
+export const chatMessagesControllerToggleReaction = async (id: string,
+    chatMessagesControllerToggleReactionBody: ChatMessagesControllerToggleReactionBody, options?: RequestInit): Promise<chatMessagesControllerToggleReactionResponse> => {
+
+  return orvalClient<chatMessagesControllerToggleReactionResponse>(getChatMessagesControllerToggleReactionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatMessagesControllerToggleReactionBody)
+  }
+);}
+
+
+
+
+export const getChatMessagesControllerToggleReactionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>, TError,{id: string;data: ChatMessagesControllerToggleReactionBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>, TError,{id: string;data: ChatMessagesControllerToggleReactionBody}, TContext> => {
+
+const mutationKey = ['chatMessagesControllerToggleReaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>, {id: string;data: ChatMessagesControllerToggleReactionBody}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  chatMessagesControllerToggleReaction(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatMessagesControllerToggleReactionMutationResult = NonNullable<Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>>
+    export type ChatMessagesControllerToggleReactionMutationBody = ChatMessagesControllerToggleReactionBody
+    export type ChatMessagesControllerToggleReactionMutationError = unknown
+
+    /**
+ * @summary Toggle emoji reaction on a message
+ */
+export const useChatMessagesControllerToggleReaction = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>, TError,{id: string;data: ChatMessagesControllerToggleReactionBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatMessagesControllerToggleReaction>>,
+        TError,
+        {id: string;data: ChatMessagesControllerToggleReactionBody},
+        TContext
+      > => {
+      return useMutation(getChatMessagesControllerToggleReactionMutationOptions(options), queryClient);
     }
 
 export type feedControllerGetFollowingFeedResponse200 = {
@@ -8668,7 +9430,7 @@ export const useReportsControllerCreateReport = <TError = unknown,
     }
 
 export type pinMessagesControllerTogglePinMessageResponse200 = {
-  data: void
+  data: PinMessagesControllerTogglePinMessage200
   status: 200
 }
 
