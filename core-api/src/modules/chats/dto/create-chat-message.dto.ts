@@ -5,6 +5,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateChatMessageDto {
   @IsNotEmpty()
@@ -23,7 +24,14 @@ export class CreateChatMessageDto {
   medias: string;
 
   /** Optional: ID of the message being replied to */
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsUUID()
   reply_to_id?: string;
+
+  /** Optional: ID of the post being shared */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  shared_post_id?: string;
 }

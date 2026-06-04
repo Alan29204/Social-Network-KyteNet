@@ -3,6 +3,7 @@ import { MessageStatusType } from 'src/common/enums/message-status.enum';
 import { MessageReaction } from 'src/modules/chats/entities/message-reaction.entity';
 import { PinMessage } from 'src/modules/chats/pin-messages/entities/pin-messages.entity';
 import { User } from 'src/modules/users/entities/user.entity';
+import { Post } from 'src/modules/posts/entities/post.entity';
 import {
   Column,
   CreateDateColumn,
@@ -69,4 +70,12 @@ export class ChatMessage {
   /** Emoji reactions on this message */
   @OneToMany(() => MessageReaction, (r) => r.chat_message)
   reactions: MessageReaction[];
+
+  /** The post being shared in this message (nullable) */
+  @Column({ nullable: true })
+  shared_post_id: string;
+
+  @ManyToOne(() => Post, { nullable: true })
+  @JoinColumn({ name: 'shared_post_id' })
+  shared_post: Post;
 }

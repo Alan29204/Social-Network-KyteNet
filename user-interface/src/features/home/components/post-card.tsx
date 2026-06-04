@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
+import { SharePostModal } from '@/features/posts/components/share-post-modal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
@@ -49,6 +50,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Local state for debounced optimistic repost
   const [localReposted, setLocalReposted] = useState(post.isReposted);
@@ -310,7 +312,10 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
             </span>
           </button>
 
-          <button className="hover:text-muted-foreground transition-colors">
+          <button 
+            className="hover:text-muted-foreground transition-colors"
+            onClick={() => setShareOpen(true)}
+          >
             <Send className="w-6 h-6" />
           </button>
         </div>
@@ -369,6 +374,14 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
           post={displayPost}
           open={editOpen}
           onOpenChange={setEditOpen}
+        />
+      )}
+
+      {shareOpen && (
+        <SharePostModal
+          post={displayPost}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
         />
       )}
     </article>

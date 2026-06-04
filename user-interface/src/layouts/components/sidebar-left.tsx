@@ -60,7 +60,7 @@ export function SidebarLeft() {
   });
 
   const rooms = (chatRoomsResponse as any)?.data?.data || [];
-  const unreadCount = rooms.reduce((acc: number, room: any) => acc + (room.unread_count || 0), 0);
+  const unreadCount = rooms.filter((room: any) => room.unread_count > 0).length;
 
   useEffect(() => {
     if (!user || !accessToken) return;

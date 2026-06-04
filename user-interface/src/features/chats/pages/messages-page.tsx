@@ -48,6 +48,7 @@ import { orvalClient } from '@/services/apis/axios-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { MessagePostCard } from '../components/message-post-card';
 
 /** 6 fixed reaction emojis (Messenger-style) */
 const REACTION_EMOJIS: Record<string, string> = {
@@ -70,10 +71,11 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { activeChats, setActiveChats, selectedRoomId, setSelectedRoomId } =
+  const { setActiveChats, selectedRoomId, setSelectedRoomId } =
     useMessagingStore();
 
   // Custom states for premium features
@@ -91,6 +93,13 @@ export default function MessagesPage() {
   const [isPinnedExpanded, setIsPinnedExpanded] = useState(false);
   const [forwardTargets, setForwardTargets] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
+
+  // Focus input when replying
+  useEffect(() => {
+    if (replyingTo && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [replyingTo]);
 
   // 1. Fetch Chat Rooms
   const { data: chatRoomsResponse, isLoading: isLoadingRooms } =
@@ -531,7 +540,7 @@ export default function MessagesPage() {
     ) {
       scrollToBottom('smooth');
     }
-    prevMessagesLenRef.length = messages.length;
+    prevMessagesLenRef.current = messages.length;
   }, [messages.length, isLoadingMore, selectedRoomId, scrollToBottom]);
 
   /**
@@ -1581,7 +1590,7 @@ export default function MessagesPage() {
                                         const action = res?.data?.action || res?.action;
                                         const pinMessage = res?.data?.pinMessage || res?.pinMessage;
                                         queryClient.setQueryData(
-                                          getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+                                          getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId!),
                                           (old: any) => {
                                             if (!old) return old;
                                             return {
@@ -1615,7 +1624,7 @@ export default function MessagesPage() {
                                 className="cursor-pointer flex justify-between py-2 text-destructive focus:text-destructive rounded-lg"
                                 onClick={() => {
                                   queryClient.setQueryData(
-                                    getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+                                    getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId!),
                                     (old: any) => {
                                       if (!old) return old;
                                       return {
@@ -1667,15 +1676,56 @@ export default function MessagesPage() {
                             </span>
                             {/* Quoted Bubble */}
                             <div
-                              className={`px-3 py-1 bg-muted/60 dark:bg-muted/40 text-muted-foreground text-xs rounded-2xl mb-1 max-w-[85%] truncate ${
+                              onClick={() => {
+                                const el = document.getElementById(`msg-${msg.reply_to.id}`);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  el.classList.add('bg-muted/50', 'transition-colors', 'duration-500');
+                                  setTimeout(() => {
+                                    el.classList.remove('bg-muted/50');
+                                  }, 2000);
+                                }
+                              }}
+                              className={`px-3 py-1.5 bg-muted/60 dark:bg-muted/40 text-muted-foreground text-xs rounded-xl mb-1 max-w-[85%] cursor-pointer hover:bg-muted/80 transition-colors flex items-center gap-2 ${
                                 isMine ? 'self-end' : 'self-start'
                               }`}
                             >
-                              {msg.reply_to.message_status === 'deleted'
-                                ? 'Tin nhắn đã thu hồi'
-                                : msg.reply_to.message || '📷 Ảnh'}
+                              {msg.reply_to.message_status === 'deleted' ? (
+                                <span className="truncate">Tin nhắn đã thu hồi</span>
+                              ) : msg.reply_to.shared_post_id ? (
+                                <>
+                                  <ImageIcon className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Bài viết của {msg.reply_to.shared_post?.user?.username || 'người dùng'}</span>
+                                  {msg.reply_to.shared_post?.medias?.[0] && (
+                                    <img 
+                                      src={msg.reply_to.shared_post.medias[0].startsWith('http') || msg.reply_to.shared_post.medias[0].startsWith('blob:') ? msg.reply_to.shared_post.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${msg.reply_to.shared_post.medias[0]}`} 
+                                      alt="thumbnail" 
+                                      className="w-6 h-6 object-cover rounded shrink-0"
+                                    />
+                                  )}
+                                </>
+                              ) : msg.reply_to.medias && msg.reply_to.medias.length > 0 && !msg.reply_to.message ? (
+                                <>
+                                  <ImageIcon className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Hình ảnh/Video</span>
+                                  <img 
+                                    src={msg.reply_to.medias[0].startsWith('http') || msg.reply_to.medias[0].startsWith('blob:') ? msg.reply_to.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${msg.reply_to.medias[0]}`} 
+                                    alt="thumbnail" 
+                                    className="w-6 h-6 object-cover rounded shrink-0"
+                                  />
+                                </>
+                              ) : (
+                                <span className="truncate line-clamp-2">{msg.reply_to.message}</span>
+                              )}
                             </div>
                           </>
+                        )}
+
+                        {/* Shared Post Card */}
+                        {msg.shared_post_id && (
+                          <div className={`mt-1 mb-1 ${msg.is_sending ? 'opacity-70' : ''}`}>
+                            <MessagePostCard post={msg.shared_post} isOwnMessage={isMine} />
+                          </div>
                         )}
 
                         {/* Media attachments */}
@@ -1820,7 +1870,7 @@ export default function MessagesPage() {
                                     const action = res?.data?.action || res?.action;
                                     const pinMessage = res?.data?.pinMessage || res?.pinMessage;
                                     queryClient.setQueryData(
-                                      getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+                                      getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId!),
                                       (old: any) => {
                                         if (!old) return old;
                                         return {
@@ -1908,13 +1958,40 @@ export default function MessagesPage() {
             {replyingTo && (
               <div className="px-4 py-2 border-t border-border/40 bg-muted/30 flex items-center gap-3 shrink-0 animate-in slide-in-from-bottom-1 duration-150">
                 <div className="w-1 h-10 bg-[#0084ff] rounded-full shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#0084ff]">
-                    Đang trả lời {replyingTo.user?.full_name || replyingTo.user?.username || 'người dùng'}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {replyingTo.message || (replyingTo.medias?.length ? '📷 Ảnh' : '')}
-                  </p>
+                <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-xs font-semibold text-[#0084ff]">
+                      Đang trả lời {replyingTo.user?.full_name || replyingTo.user?.username || 'người dùng'}
+                    </p>
+                    {replyingTo.shared_post_id ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                         <ImageIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                         <span className="text-xs text-muted-foreground truncate">Bài viết của {replyingTo.shared_post?.user?.username || 'người dùng'}</span>
+                      </div>
+                    ) : replyingTo.medias && replyingTo.medias.length > 0 && !replyingTo.message ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                         <ImageIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                         <span className="text-xs text-muted-foreground truncate">Hình ảnh/Video</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {replyingTo.message}
+                      </p>
+                    )}
+                  </div>
+                  {replyingTo.shared_post_id && replyingTo.shared_post?.medias?.[0] ? (
+                    <img 
+                      src={replyingTo.shared_post.medias[0].startsWith('http') || replyingTo.shared_post.medias[0].startsWith('blob:') ? replyingTo.shared_post.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${replyingTo.shared_post.medias[0]}`} 
+                      className="w-9 h-9 object-cover rounded shrink-0" 
+                      alt="reply-thumb"
+                    />
+                  ) : replyingTo.medias && replyingTo.medias.length > 0 && (
+                    <img 
+                      src={replyingTo.medias[0].startsWith('http') || replyingTo.medias[0].startsWith('blob:') ? replyingTo.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${replyingTo.medias[0]}`} 
+                      className="w-9 h-9 object-cover rounded shrink-0" 
+                      alt="reply-thumb"
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => setReplyingTo(null)}
@@ -1962,6 +2039,7 @@ export default function MessagesPage() {
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  ref={chatInputRef}
                   className="flex-1 bg-transparent outline-none text-[15px]"
                 />
 

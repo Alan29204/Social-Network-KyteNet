@@ -124,13 +124,16 @@ export class ChatMessagesService {
       if (dto.reply_to_id) {
         message.reply_to_id = dto.reply_to_id;
       }
+      if (dto.shared_post_id) {
+        message.shared_post_id = dto.shared_post_id;
+      }
 
       const savedMessage = await this.chatMessagesRepository.save(message);
 
       // Load message with user relation for response
       const fullMessage = await this.chatMessagesRepository.findOne({
         where: { id: savedMessage.id },
-        relations: ['user', 'reply_to', 'reply_to.user'],
+        relations: ['user', 'reply_to', 'reply_to.user', 'shared_post', 'shared_post.user'],
       });
 
       // Cache last_message in Redis Hash (for room list preview)
@@ -187,6 +190,8 @@ export class ChatMessagesService {
         .leftJoinAndSelect('msg.pin_messages', 'pin_messages')
         .leftJoinAndSelect('msg.reply_to', 'reply_to')
         .leftJoinAndSelect('reply_to.user', 'reply_to_user')
+        .leftJoinAndSelect('msg.shared_post', 'shared_post')
+        .leftJoinAndSelect('shared_post.user', 'shared_post_user')
         .leftJoinAndSelect('msg.reactions', 'reactions')
         .leftJoinAndSelect('reactions.user', 'reaction_user')
         .where('msg.chat_room_id = :roomId', { roomId })
@@ -199,7 +204,63 @@ export class ChatMessagesService {
         });
       }
 
-      const messages = await query.getMany();
+      let messages = await query.getMany();
+
+      // Privacy checks for shared posts
+      messages = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.shared_post_id) {
+            if (!msg.shared_post) {
+              // Post was deleted
+              (msg as any).shared_post = null;
+            } else {
+              const post = msg.shared_post;
+              let isUnavailable = false;
+              let unavailableReason = '';
+
+              if (post.user_id !== userId) {
+                // 1. Check if blocked (Author blocked the viewer)
+                const isBlocked = await this.dataSource.query(
+                  `SELECT id FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'block'`,
+                  [post.user_id, userId],
+                );
+                if (isBlocked && isBlocked.length > 0) {
+                  isUnavailable = true;
+                  unavailableReason = 'blocked';
+                }
+
+                // 2. Check FOLLOWER privacy
+                if (!isUnavailable && post.privacy === 'follower') {
+                  const isFollowing = await this.dataSource.query(
+                    `SELECT id FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'following'`,
+                    [userId, post.user_id],
+                  );
+                  if (!isFollowing || isFollowing.length === 0) {
+                    isUnavailable = true;
+                    unavailableReason = 'follower';
+                  }
+                }
+
+                // 3. Check PRIVATE privacy
+                if (!isUnavailable && post.privacy === 'private') {
+                  isUnavailable = true;
+                  unavailableReason = 'private';
+                }
+              }
+
+              if (isUnavailable) {
+                (msg as any).shared_post = {
+                  id: post.id,
+                  is_unavailable: true,
+                  unavailable_reason: unavailableReason,
+                  user: post.user,
+                };
+              }
+            }
+          }
+          return msg;
+        }),
+      );
 
       // Reverse to get chronological order
       messages.reverse();

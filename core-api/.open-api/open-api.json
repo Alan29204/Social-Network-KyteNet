@@ -966,6 +966,12 @@
                   "message": {
                     "type": "string"
                   },
+                  "reply_to_id": {
+                    "type": "string"
+                  },
+                  "shared_post_id": {
+                    "type": "string"
+                  },
                   "medias-messages": {
                     "type": "array",
                     "items": {
@@ -2576,231 +2582,6 @@
           "created_at"
         ]
       },
-      "ChatMessage": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "chat_room_id": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "medias": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "message_status": {
-            "enum": [
-              "normal",
-              "edited",
-              "deleted"
-            ],
-            "type": "string"
-          },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "pin_messages": {
-            "$ref": "#/components/schemas/PinMessage"
-          },
-          "reply_to_id": {
-            "type": "string"
-          },
-          "reply_to": {
-            "$ref": "#/components/schemas/ChatMessage"
-          },
-          "reactions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MessageReaction"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "created_by",
-          "message",
-          "medias",
-          "message_status",
-          "chat_room",
-          "user",
-          "created_at",
-          "pin_messages",
-          "reply_to_id",
-          "reply_to",
-          "reactions"
-        ]
-      },
-      "PinChat": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "chat_room_id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "user_id",
-          "chat_room",
-          "user"
-        ]
-      },
-      "WaitingMembers": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "chat_room_id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "chat_room": {
-            "$ref": "#/components/schemas/ChatRoom"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "chat_room_id",
-          "user_id",
-          "chat_room",
-          "user"
-        ]
-      },
-      "ChatRoom": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "type": "object"
-          },
-          "avatar": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "permission_add_member": {
-            "enum": [
-              "admin",
-              "member"
-            ],
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "last_message_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "reaction_default": {
-            "enum": [
-              "like",
-              "love",
-              "haha",
-              "wow",
-              "sad",
-              "angry"
-            ],
-            "type": "string"
-          },
-          "end_to_end_encryption": {
-            "type": "boolean"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "chat_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMember"
-            }
-          },
-          "chat_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
-            }
-          },
-          "pin_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinMessage"
-            }
-          },
-          "pin_chats": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinChat"
-            }
-          },
-          "waiting_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WaitingMembers"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "type",
-          "avatar",
-          "created_by",
-          "permission_add_member",
-          "created_at",
-          "last_message_at",
-          "reaction_default",
-          "end_to_end_encryption",
-          "user",
-          "chat_members",
-          "chat_messages",
-          "pin_messages",
-          "pin_chats",
-          "waiting_members"
-        ]
-      },
       "PostInteractions": {
         "type": "object",
         "properties": {
@@ -3111,6 +2892,239 @@
           "save_posts",
           "comments",
           "reactions"
+        ]
+      },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "medias": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message_status": {
+            "enum": [
+              "normal",
+              "edited",
+              "deleted"
+            ],
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pin_messages": {
+            "$ref": "#/components/schemas/PinMessage"
+          },
+          "reply_to_id": {
+            "type": "string"
+          },
+          "reply_to": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageReaction"
+            }
+          },
+          "shared_post_id": {
+            "type": "string"
+          },
+          "shared_post": {
+            "$ref": "#/components/schemas/Post"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "created_by",
+          "message",
+          "medias",
+          "message_status",
+          "chat_room",
+          "user",
+          "created_at",
+          "pin_messages",
+          "reply_to_id",
+          "reply_to",
+          "reactions",
+          "shared_post_id",
+          "shared_post"
+        ]
+      },
+      "PinChat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "user_id",
+          "chat_room",
+          "user"
+        ]
+      },
+      "WaitingMembers": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_room_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "chat_room": {
+            "$ref": "#/components/schemas/ChatRoom"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "chat_room_id",
+          "user_id",
+          "chat_room",
+          "user"
+        ]
+      },
+      "ChatRoom": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "object"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "permission_add_member": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reaction_default": {
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ],
+            "type": "string"
+          },
+          "end_to_end_encryption": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "chat_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMember"
+            }
+          },
+          "chat_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
+          },
+          "pin_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinMessage"
+            }
+          },
+          "pin_chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinChat"
+            }
+          },
+          "waiting_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WaitingMembers"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "avatar",
+          "created_by",
+          "permission_add_member",
+          "created_at",
+          "last_message_at",
+          "reaction_default",
+          "end_to_end_encryption",
+          "user",
+          "chat_members",
+          "chat_messages",
+          "pin_messages",
+          "pin_chats",
+          "waiting_members"
         ]
       },
       "User": {

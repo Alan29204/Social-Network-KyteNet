@@ -49,6 +49,8 @@ export class ChatMessagesController {
       properties: {
         chat_room_id: { type: 'string' },
         message: { type: 'string' },
+        reply_to_id: { type: 'string' },
+        shared_post_id: { type: 'string' },
         'medias-messages': {
           type: 'array',
           items: {
@@ -66,6 +68,7 @@ export class ChatMessagesController {
     @UploadedFiles()
     files: Express.Multer.File[],
   ) {
+    console.log('--- RECEIVED DTO IN createMessage ---', dto);
     // Save message to DB
     const savedMessage = await this.chatMessagesService.createMessage(
       dto,
