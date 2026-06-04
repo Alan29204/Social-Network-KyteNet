@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Grid3X3, Image as ImageIcon, PlaySquare, Bookmark, Repeat } from 'lucide-react';
+import { Menu, Image as ImageIcon, PlaySquare, Bookmark, Repeat } from 'lucide-react';
 import { AllPostsList } from './post-lists/all-posts-list';
 import { MediaPostsGrid } from './post-lists/media-posts-grid';
 import { VideoPostsGrid } from './post-lists/video-posts-grid';
@@ -17,7 +17,7 @@ export function ProfileTabs({ userId }: ProfileTabsProps) {
   const isMe = currentUser?.id === userId;
 
   const tabs = [
-    { value: 'all', icon: <Grid3X3 className="w-5 h-5" />, label: 'BÀI VIẾT', content: <AllPostsList userId={userId} /> },
+    { value: 'all', icon: <Menu className="w-5 h-5" />, label: 'BÀI VIẾT', content: <AllPostsList userId={userId} /> },
     { value: 'media', icon: <ImageIcon className="w-5 h-5" />, label: 'MEDIA', content: <MediaPostsGrid userId={userId} /> },
     { value: 'video', icon: <PlaySquare className="w-5 h-5" />, label: 'VIDEO', content: <VideoPostsGrid userId={userId} /> },
   ];

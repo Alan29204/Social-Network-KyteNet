@@ -268,7 +268,7 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       }
     } else if (target_type === 'USER') {
       onClose();
-      navigate(`/profile/${target_id}`);
+      navigate(`/profile/${primaryActor?.id || target_id}`);
       setIsHandling(false);
     } else {
       onClose();

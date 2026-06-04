@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePostsControllerCreate } from '@/services/apis/gen/queries';
 import {
@@ -16,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Paperclip, X, Globe, Users, Lock, Loader2, Smile } from 'lucide-react';
+import { Paperclip, X, Globe, Users, Lock, Loader2, Smile, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -39,7 +40,34 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const [privacy, setPrivacy] = useState('public');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+
+  const [postStatus, setPostStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (postStatus === 'loading') {
+        e.preventDefault();
+        e.returnValue = ''; // Required for some browsers to show prompt
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [postStatus]);
+
+  useEffect(() => {
+    if (!open) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (postStatus !== 'success') {
+         setPostStatus('idle');
+         setErrorMessage('');
+      }
+    }
+  }, [open, postStatus]);
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setCaption((prev) => prev + emojiData.emoji);
@@ -81,26 +109,39 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const { mutate: createPost, isPending } = usePostsControllerCreate({
     mutation: {
       onSuccess: async () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setPostStatus('success');
+
         // Đợi tải lại dữ liệu ngầm xong
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['infinite'] }),
           queryClient.invalidateQueries({ queryKey: ['profile'] })
         ]);
 
-        // Reset state after success
-        setImages([]);
-        setMediaPreviews([]);
-        setCaption('');
-        setPrivacy('public');
-        onOpenChange(false);
+        setTimeout(() => {
+          // Reset state after success
+          setImages([]);
+          setMediaPreviews([]);
+          setCaption('');
+          setPrivacy('public');
+          setPostStatus('idle');
+          onOpenChange(false);
+          
+          if (user?.id) {
+            navigate(`/profile/${user.id}`);
+          }
+        }, 1500);
       },
       onError: (error: any) => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setPostStatus('error');
+        
         console.error('Lỗi khi tạo bài viết:', error);
         if (error.response) {
           console.error('Response data:', error.response.data);
-          alert(`Lỗi: ${JSON.stringify(error.response.data)}`);
+          setErrorMessage(error.response.data?.message || `Lỗi: ${JSON.stringify(error.response.data)}`);
         } else {
-          alert('Có lỗi xảy ra, vui lòng thử lại.');
+          setErrorMessage('Đăng bài thất bại. Vui lòng kiểm tra lại kết nối Internet.');
         }
       }
     }
@@ -110,6 +151,13 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
     if (!caption.trim() && images.length === 0) return;
 
     const hashtags = caption.match(/#[\p{L}0-9_]+/gu)?.map(tag => tag.slice(1)) || [];
+
+    setPostStatus('loading');
+    
+    timeoutRef.current = setTimeout(() => {
+      setPostStatus('error');
+      setErrorMessage('Đăng bài thất bại. Vui lòng kiểm tra lại kết nối Internet.');
+    }, 15000);
 
     createPost({
       data: {
@@ -122,25 +170,65 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden gap-0 bg-card">
+    <Dialog open={open} onOpenChange={(val) => {
+      if (postStatus === 'loading' || postStatus === 'success') return;
+      onOpenChange(val);
+    }}>
+      <DialogContent 
+        className={`sm:max-w-[500px] p-0 overflow-hidden gap-0 bg-card ${postStatus === 'loading' || postStatus === 'success' ? '[&>button]:hidden' : ''}`}
+        onInteractOutside={(e) => {
+          if (postStatus === 'loading' || postStatus === 'success') e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (postStatus === 'loading' || postStatus === 'success') e.preventDefault();
+        }}
+      >
         <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
           <div className="w-8" /> {/* Spacer to center title */}
           <DialogTitle className="text-center text-base font-semibold">
             Tạo bài viết mới
           </DialogTitle>
+          {postStatus === 'idle' || postStatus === 'error' ? (
             <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary font-semibold text-sm hover:text-primary/80 hover:bg-transparent px-0"
-            onClick={handleCreatePost}
-            disabled={(!caption.trim() && images.length === 0) || isPending}
-          >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Chia sẻ'}
-          </Button>
+              variant="ghost"
+              size="sm"
+              className="text-primary font-semibold text-sm hover:text-primary/80 hover:bg-transparent px-0"
+              onClick={handleCreatePost}
+              disabled={(!caption.trim() && images.length === 0) || isPending}
+            >
+              Chia sẻ
+            </Button>
+          ) : (
+            <div className="w-8" />
+          )}
         </DialogHeader>
 
-        <div className="flex flex-col h-full max-h-[70vh] overflow-y-auto">
+        {postStatus === 'loading' && (
+          <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+            <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            <p className="text-lg font-semibold animate-pulse">Đang đăng bài...</p>
+          </div>
+        )}
+
+        {postStatus === 'success' && (
+          <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+            <div className="relative">
+              <CheckCircle2 className="w-16 h-16 text-green-500 animate-checkmark stroke-[1.5]" />
+            </div>
+            <p className="text-lg font-semibold text-green-600">Đăng bài thành công!</p>
+          </div>
+        )}
+
+        {postStatus === 'error' && (
+          <div className="flex flex-col items-center justify-center h-[300px] gap-4 px-6 text-center">
+            <AlertTriangle className="w-16 h-16 text-destructive" />
+            <p className="text-lg font-semibold text-destructive">{errorMessage}</p>
+            <Button variant="outline" onClick={() => setPostStatus('idle')}>Quay lại</Button>
+          </div>
+        )}
+
+        {postStatus === 'idle' && (
+          <div className="flex flex-col h-full max-h-[70vh] overflow-y-auto">
           {/* User Info & Privacy */}
           <div className="flex items-center gap-3 p-4">
             <Avatar className="w-10 h-10">
@@ -251,6 +339,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
             />
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
