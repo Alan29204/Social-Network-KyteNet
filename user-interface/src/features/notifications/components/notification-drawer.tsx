@@ -2,12 +2,15 @@ import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { getNotificationControllerGetUnreadCountQueryKey, getNotificationControllerGetUserNotificationsInfiniteQueryKey, useNotificationControllerGetUserNotificationsInfinite, useNotificationControllerMarkAsRead } from '@/services/apis/gen/queries';
-import { Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
+import { getNotificationControllerGetUnreadCountQueryKey, getNotificationControllerGetUserNotificationsInfiniteQueryKey, useNotificationControllerGetUserNotificationsInfinite, useNotificationControllerMarkAsRead, useNotificationControllerMarkAllAsRead, useNotificationControllerDeleteNotification, useNotificationControllerMarkAsUnread } from '@/services/apis/gen/queries';
+import { orvalClient } from '@/services/apis/axios-client';
+import { Loader2, MoreHorizontal } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -16,6 +19,19 @@ interface NotificationDrawerProps {
 
 export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps) {
   const { ref, inView } = useInView();
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const markAllAsReadMutation = useNotificationControllerMarkAllAsRead({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUnreadCountQueryKey() });
+        toast({ title: 'Đã đánh dấu tất cả là đã đọc' });
+      },
+    }
+  });
 
   const {
     data,
@@ -24,7 +40,7 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
     fetchNextPage,
     hasNextPage,
   } = useNotificationControllerGetUserNotificationsInfinite(
-    { limit: 20 },
+    { limit: 20, is_read: filter === 'unread' ? 'false' : undefined },
     { 
       query: { 
         enabled: isOpen,
@@ -68,8 +84,37 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 md:p-6 pb-2">
+        <div className="p-4 md:p-6 pb-2 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-foreground">Thông báo</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => markAllAsReadMutation.mutate()}>
+                Đánh dấu tất cả là đã đọc
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="px-4 md:px-6 flex gap-2 pb-2">
+          <Button 
+            variant={filter === 'all' ? 'default' : 'secondary'} 
+            className="rounded-full h-8 px-4 text-xs font-semibold"
+            onClick={() => setFilter('all')}
+          >
+            Tất cả
+          </Button>
+          <Button 
+            variant={filter === 'unread' ? 'default' : 'secondary'} 
+            className="rounded-full h-8 px-4 text-xs font-semibold"
+            onClick={() => setFilter('unread')}
+          >
+            Chưa đọc
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
@@ -125,12 +170,34 @@ function formatNotificationMessage(message: string, actors: any[]) {
 function NotificationItem({ notification, onClose }: { notification: any, onClose: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [isReadLocal, setIsReadLocal] = useState(notification.is_read);
+  const [isHandling, setIsHandling] = useState(false);
   
   const markAsReadMutation = useNotificationControllerMarkAsRead({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUnreadCountQueryKey() });
+        // Only invalidate the list to update actual state, don't invalidate count directly 
+        // to avoid reverting optimistic updates if server is slow
         queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
+      }
+    }
+  });
+
+  const markAsUnreadMutation = useNotificationControllerMarkAsUnread({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
+      }
+    }
+  });
+
+  const deleteMutation = useNotificationControllerDeleteNotification({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
+        toast({ title: 'Đã xóa thông báo' });
       }
     }
   });
@@ -143,8 +210,6 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
   let dateString = notification.updated_at || notification.created_at;
   let dateObj = new Date(dateString);
 
-  // Fix timezone shift from Postgres TIMESTAMP WITHOUT TIMEZONE
-  // The backend sends a UTC string that is actually shifted backwards by the local timezone offset
   const offset = dateObj.getTimezoneOffset();
   dateObj = new Date(dateObj.getTime() - (offset * 60 * 1000));
 
@@ -153,24 +218,122 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
     locale: vi,
   });
 
-  const handleClick = () => {
-    if (!notification.is_read) {
-      markAsReadMutation.mutate({ id: notification.id });
-    }
-    
-    onClose();
+  const handleClick = async () => {
+    if (isHandling) return;
+    setIsHandling(true);
 
-    if (notification.target_type === 'POST') {
-      navigate(`/post/${notification.target_id}`);
-    } else if (notification.target_type === 'USER') {
-      navigate(`/profile/${notification.target_id}`);
+    if (!isReadLocal) {
+      setIsReadLocal(true);
+      markAsReadMutation.mutate({ id: notification.id });
+      
+      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+        if (old?.data?.unread_count > 0) {
+          return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
+        }
+        return old;
+      });
     }
+
+    const { target_type, target_id, metadata } = notification;
+
+    if (target_type === 'POST') {
+      try {
+        await queryClient.fetchQuery({
+           queryKey: ['postDetail', target_id],
+           queryFn: () => orvalClient({ url: `/posts/${target_id}`, method: 'GET' })
+        });
+        
+        onClose();
+        
+        if (metadata?.commentId) {
+          navigate(`/post/${target_id}?commentId=${metadata.commentId}`);
+        } else {
+          navigate(`/post/${target_id}`);
+        }
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+           toast({ title: "Bài viết này không còn khả dụng hoặc đã bị xóa" });
+        } else {
+           toast({ title: "Không thể tải nội dung, vui lòng kiểm tra kết nối mạng" });
+           setIsReadLocal(false);
+           queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+             if (old?.data?.unread_count !== undefined) {
+               return { ...old, data: { ...old.data, unread_count: old.data.unread_count + 1 } };
+             }
+             return old;
+           });
+        }
+      } finally {
+        setIsHandling(false);
+      }
+    } else if (target_type === 'USER') {
+      onClose();
+      navigate(`/profile/${target_id}`);
+      setIsHandling(false);
+    } else {
+      onClose();
+      setIsHandling(false);
+    }
+  };
+
+  const handleToggleRead = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isReadLocal) {
+      // Mark as unread
+      setIsReadLocal(false);
+      markAsUnreadMutation.mutate({ id: notification.id });
+      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+        if (old?.data?.unread_count !== undefined) {
+          return { ...old, data: { ...old.data, unread_count: old.data.unread_count + 1 } };
+        }
+        return old;
+      });
+    } else {
+      // Mark as read
+      setIsReadLocal(true);
+      markAsReadMutation.mutate({ id: notification.id });
+      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+        if (old?.data?.unread_count > 0) {
+          return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
+        }
+        return old;
+      });
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteMutation.mutate({ id: notification.id });
+    if (!isReadLocal) {
+      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+        if (old?.data?.unread_count > 0) {
+          return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
+        }
+        return old;
+      });
+    }
+    // Optimistically remove from list
+    queryClient.setQueryData(getNotificationControllerGetUserNotificationsInfiniteQueryKey(), (old: any) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          data: {
+            ...page.data,
+            data: (page.data?.data || []).filter((n: any) => n.id !== notification.id)
+          }
+        }))
+      };
+    });
   };
 
   return (
     <div 
       onClick={handleClick}
-      className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary transition-colors cursor-pointer group"
+      className={`flex items-center gap-3 p-3 rounded-lg hover:bg-secondary transition-colors cursor-pointer group ${
+        !isReadLocal ? 'bg-blue-50/50 dark:bg-blue-950/30' : ''
+      }`}
     >
       {/* Left: Avatar */}
       <Avatar className="w-11 h-11 border bg-muted shrink-0">
@@ -186,17 +349,35 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
         </span>
       </div>
 
-      {/* Right: Action button */}
-      {notification.notification_type === 'FOLLOW' && (
-        <Button size="sm" variant="secondary" className="h-8 text-xs font-semibold px-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-          Theo dõi lại
-        </Button>
-      )}
-      
-      {/* Unread indicator dot */}
-      {!notification.is_read && (
-        <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 ml-1" />
-      )}
+      {/* Right Actions */}
+      <div className="flex items-center gap-1 shrink-0 ml-1">
+        {notification.notification_type === 'FOLLOW' && (
+          <Button size="sm" variant="secondary" className="h-8 text-xs font-semibold px-3 mr-1" onClick={(e) => e.stopPropagation()}>
+            Theo dõi lại
+          </Button>
+        )}
+        
+        {/* Unread indicator dot */}
+        {!isReadLocal && (
+          <div className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleToggleRead}>
+              {isReadLocal ? 'Đánh dấu là chưa đọc' : 'Đánh dấu là đã đọc'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDelete} className="text-red-500">
+              Xóa thông báo này
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

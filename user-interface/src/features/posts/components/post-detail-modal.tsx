@@ -18,11 +18,12 @@ import {
   X,
   Repeat,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
@@ -59,6 +60,9 @@ export function PostDetailModal({
 }: PostDetailModalProps) {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const targetCommentId = searchParams.get('commentId');
+  const { toast } = useToast();
   const [showEmoji, setShowEmoji] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [replyingTo, setReplyingTo] = useState<{
@@ -83,6 +87,25 @@ export function PostDetailModal({
     enabled: open,
   });
 
+  useEffect(() => {
+    if (open) {
+      window.history.pushState({ isModal: true }, '', `/post/${initialPost.id}`);
+      
+      const handlePopState = () => {
+         onOpenChange(false);
+      };
+      window.addEventListener('popstate', handlePopState);
+      
+      return () => {
+         window.removeEventListener('popstate', handlePopState);
+         if (window.history.state?.isModal) {
+            window.history.back();
+         }
+      };
+    }
+  }, [open, initialPost.id, onOpenChange]);
+
+
   const post = queryData?.data || initialPost;
   const comments = post?.comments || [];
   const displayPost = post?.shared_post || post;
@@ -93,6 +116,25 @@ export function PostDetailModal({
   const rootComments = comments.filter((c: any) => !c.parent_id);
   const getChildComments = (parentId: string) =>
     comments.filter((c: any) => c.parent_id === parentId);
+
+  useEffect(() => {
+    if (open && targetCommentId && !isLoading && rootComments.length > 0) {
+      // Need a small timeout to ensure DOM is fully rendered before scrolling
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`comment-${targetCommentId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('bg-blue-500/20', 'dark:bg-blue-500/30');
+          setTimeout(() => {
+            element.classList.remove('bg-blue-500/20', 'dark:bg-blue-500/30');
+          }, 1500);
+        } else {
+          toast({ title: "Bình luận này đã bị xóa" });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, targetCommentId, isLoading, rootComments.length, toast]);
 
   // Mutation Đăng bình luận
   const commentMutation = useMutation({
@@ -284,7 +326,7 @@ export function PostDetailModal({
     const likesCount = c.interactions?.likes || 0;
 
     return (
-      <div key={c.id} className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''}`}>
+      <div key={c.id} id={`comment-${c.id}`} className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''} transition-colors duration-1000 p-1 -m-1 rounded-lg`}>
         <Link to={`/profile/${c.user.id}`} onClick={() => onOpenChange(false)}>
           <Avatar className="w-8 h-8 shrink-0 ring-1 ring-border">
             <AvatarImage

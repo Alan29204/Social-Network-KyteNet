@@ -11,6 +11,7 @@ import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 import ExplorePage from '@/features/explore/pages/explore-page';
 import SuggestedPeoplePage from '@/features/explore/pages/suggested-people-page';
 import MessagesPage from '@/features/chats/pages/messages-page';
+import PostPage from '@/features/posts/pages/post-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollToTop } from '@/components/scroll-to-top';
 
@@ -32,6 +33,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/profile/:id" element={<ProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
+              <Route path="/post/:id" element={<PostPage />} />
               {/* Add other routes like /explore here later */}
               <Route path="explore" element={<ExplorePage />} />
               <Route path="explore/people" element={<SuggestedPeoplePage />} />

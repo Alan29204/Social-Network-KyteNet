@@ -66,6 +66,7 @@ export class CommentsService {
               actor.username,
               post.user_id,
               dto.post_id,
+              comment.id,
             );
           } else {
             // It's a reply to a parent comment
@@ -78,6 +79,7 @@ export class CommentsService {
                 actor.username,
                 parentComment.user_id,
                 dto.post_id,
+                comment.id,
               );
             }
           }
@@ -90,6 +92,7 @@ export class CommentsService {
                 actor.username,
                 taggedUserId,
                 dto.post_id,
+                comment.id,
               );
             }
           }
@@ -165,6 +168,7 @@ export class CommentsService {
               actor.username,
               addedId,
               comment.post_id,
+              comment.id,
             );
           } catch (e) {
             console.error('Error sending tag notification:', e);

@@ -479,6 +479,12 @@ export type UpdateUserDto = {
      */
   username: string;
   /**
+     * Your full name
+     * @minLength 2
+     * @maxLength 50
+     */
+  full_name: string;
+  /**
      * bio
      * @minLength 5
      * @maxLength 100
@@ -537,6 +543,12 @@ export type AfterSignUpDto = {
      * @maxLength 20
      */
   username: string;
+  /**
+     * Your full name
+     * @minLength 2
+     * @maxLength 50
+     */
+  full_name: string;
   /** bio */
   bio: string;
   /** website */
@@ -789,6 +801,8 @@ export type CreateCommentDto = {
 
 export type UpdateCommentDto = {
   content: string;
+  /** tagged user IDs */
+  tagged_users?: string[];
 };
 
 export type CreateSaveListDto = {
@@ -947,6 +961,7 @@ export type RelationsControllerGetSuggestedUsers200 = { [key: string]: unknown }
 export type NotificationControllerGetUserNotificationsParams = {
 page?: number;
 limit?: number;
+is_read?: boolean;
 };
 
 export type NotificationUsersControllerGetNotificationsParams = {
@@ -1882,6 +1897,7 @@ export const getUsersControllerUpdateUserUrl = () => {
 export const usersControllerUpdateUser = async (updateUserDto: UpdateUserDto, options?: RequestInit): Promise<usersControllerUpdateUserResponse> => {
     const formData = new FormData();
 formData.append(`username`, updateUserDto.username);
+formData.append(`full_name`, updateUserDto.full_name);
 formData.append(`bio`, updateUserDto.bio);
 formData.append(`website`, updateUserDto.website);
 formData.append(`birthday`, updateUserDto.birthday);
@@ -3629,6 +3645,170 @@ export const useNotificationControllerMarkAsRead = <TError = unknown,
         TContext
       > => {
       return useMutation(getNotificationControllerMarkAsReadMutationOptions(options), queryClient);
+    }
+
+export type notificationControllerMarkAsUnreadResponse200 = {
+  data: void
+  status: 200
+}
+
+export type notificationControllerMarkAsUnreadResponseSuccess = (notificationControllerMarkAsUnreadResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerMarkAsUnreadResponse = (notificationControllerMarkAsUnreadResponseSuccess)
+
+export const getNotificationControllerMarkAsUnreadUrl = (id: string,) => {
+
+
+
+
+  return `/notifications/${id}/unread`
+}
+
+/**
+ * @summary Mark a notification as unread
+ */
+export const notificationControllerMarkAsUnread = async (id: string, options?: RequestInit): Promise<notificationControllerMarkAsUnreadResponse> => {
+
+  return orvalClient<notificationControllerMarkAsUnreadResponse>(getNotificationControllerMarkAsUnreadUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getNotificationControllerMarkAsUnreadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['notificationControllerMarkAsUnread'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  notificationControllerMarkAsUnread(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotificationControllerMarkAsUnreadMutationResult = NonNullable<Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>>
+
+    export type NotificationControllerMarkAsUnreadMutationError = unknown
+
+    /**
+ * @summary Mark a notification as unread
+ */
+export const useNotificationControllerMarkAsUnread = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notificationControllerMarkAsUnread>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getNotificationControllerMarkAsUnreadMutationOptions(options), queryClient);
+    }
+
+export type notificationControllerDeleteNotificationResponse200 = {
+  data: void
+  status: 200
+}
+
+export type notificationControllerDeleteNotificationResponseSuccess = (notificationControllerDeleteNotificationResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerDeleteNotificationResponse = (notificationControllerDeleteNotificationResponseSuccess)
+
+export const getNotificationControllerDeleteNotificationUrl = (id: string,) => {
+
+
+
+
+  return `/notifications/${id}`
+}
+
+/**
+ * @summary Delete a notification
+ */
+export const notificationControllerDeleteNotification = async (id: string, options?: RequestInit): Promise<notificationControllerDeleteNotificationResponse> => {
+
+  return orvalClient<notificationControllerDeleteNotificationResponse>(getNotificationControllerDeleteNotificationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getNotificationControllerDeleteNotificationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteNotification>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['notificationControllerDeleteNotification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notificationControllerDeleteNotification>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  notificationControllerDeleteNotification(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotificationControllerDeleteNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof notificationControllerDeleteNotification>>>
+
+    export type NotificationControllerDeleteNotificationMutationError = unknown
+
+    /**
+ * @summary Delete a notification
+ */
+export const useNotificationControllerDeleteNotification = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notificationControllerDeleteNotification>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getNotificationControllerDeleteNotificationMutationOptions(options), queryClient);
     }
 
 export type notificationUsersControllerGetNotificationsResponse200 = {

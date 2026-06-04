@@ -33,6 +33,7 @@ export class NotificationService {
     postOwnerId: string,
     postId: string,
     reactionType: string,
+    commentId?: string,
   ) {
     if (actorId === postOwnerId) return;
 
@@ -42,7 +43,7 @@ export class NotificationService {
       postOwnerId,
       NotificationType.REACTION,
       actorId,
-      { reaction: reactionType },
+      { reaction: reactionType, commentId },
     );
   }
 
@@ -51,6 +52,7 @@ export class NotificationService {
     actorName: string,
     postOwnerId: string,
     postId: string,
+    commentId?: string,
   ) {
     if (actorId === postOwnerId) return;
 
@@ -60,7 +62,7 @@ export class NotificationService {
       postOwnerId,
       NotificationType.COMMENT,
       actorId,
-      { comment_type: 'post_comment' },
+      { comment_type: 'post_comment', commentId },
     );
   }
 
@@ -69,6 +71,7 @@ export class NotificationService {
     actorName: string,
     parentCommentOwnerId: string,
     postId: string,
+    commentId?: string,
   ) {
     if (actorId === parentCommentOwnerId) return;
 
@@ -78,7 +81,7 @@ export class NotificationService {
       parentCommentOwnerId,
       NotificationType.COMMENT,
       actorId,
-      { comment_type: 'reply_comment' },
+      { comment_type: 'reply_comment', commentId },
     );
   }
 
@@ -87,6 +90,7 @@ export class NotificationService {
     actorName: string,
     taggedUserId: string,
     postId: string,
+    commentId?: string,
   ) {
     if (actorId === taggedUserId) return;
 
@@ -96,7 +100,7 @@ export class NotificationService {
       taggedUserId,
       NotificationType.COMMENT,
       actorId,
-      { comment_type: 'tag' },
+      { comment_type: 'tag', commentId },
     );
   }
 
@@ -126,17 +130,24 @@ export class NotificationService {
     userId: string,
     page: number = 1,
     limit: number = 20,
+    isRead?: boolean,
   ) {
     const skip = (page - 1) * limit;
 
-    const [notifications, total] = await this.notificationRepo
+    const queryBuilder = this.notificationRepo
       .createQueryBuilder('noti')
       .innerJoinAndSelect(
         'noti.notification_user',
         'nu',
         'nu.user_id = :userId',
         { userId },
-      )
+      );
+
+    if (isRead !== undefined) {
+      queryBuilder.andWhere('nu.is_read = :isRead', { isRead });
+    }
+
+    const [notifications, total] = await queryBuilder
       .orderBy('noti.updated_at', 'DESC')
       .skip(skip)
       .take(limit)
@@ -186,6 +197,19 @@ export class NotificationService {
       { is_read: true },
     );
     return { message: 'All marked as read' };
+  }
+
+  async markAsUnread(userId: string, notiUserId: string) {
+    await this.notiUserRepo.update(
+      { id: notiUserId, user_id: userId },
+      { is_read: false },
+    );
+    return { message: 'Marked as unread' };
+  }
+
+  async deleteNotification(userId: string, notiUserId: string) {
+    await this.notiUserRepo.delete({ id: notiUserId, user_id: userId });
+    return { message: 'Notification deleted successfully' };
   }
 
   // ═══════════════════════════════════════════

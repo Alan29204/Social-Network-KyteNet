@@ -91,14 +91,16 @@ export class ReactionsService {
 
     // Resolve targetPostId for cache invalidation
     let targetPostId = postId;
+    let commentOwnerId = null;
     if (!targetPostId && commentId) {
       try {
         const commentRows = await this.reactionRepository.manager.query(
-          'SELECT post_id FROM comment WHERE id = $1',
+          'SELECT post_id, user_id FROM comment WHERE id = $1',
           [commentId],
         );
         if (commentRows?.length > 0) {
           targetPostId = commentRows[0].post_id;
+          commentOwnerId = commentRows[0].user_id;
         }
       } catch (e) {
         console.error('Failed to resolve post_id from comment:', e);
@@ -110,19 +112,33 @@ export class ReactionsService {
       await this.redisService.del(`post:${targetPostId}`);
     }
 
-    // Send notification to post owner (only on new reaction or change, for POST reactions only)
-    if (postId && result.reaction) {
+    // Send notification (only on new reaction or change)
+    if (result.reaction) {
       try {
-        const post = await this.postRepository.findOne({ where: { id: postId } });
         const actor = await this.userRepository.findOne({ where: { id: user.id } });
-        if (post && actor) {
-          await this.notificationService.notifyReaction(
-            user.id,
-            actor.username,
-            post.user_id,
-            postId,
-            result.reaction,
-          );
+        if (actor) {
+          if (postId) {
+            // Post reaction
+            const post = await this.postRepository.findOne({ where: { id: postId } });
+            if (post) {
+              await this.notificationService.notifyReaction(
+                user.id,
+                actor.username,
+                post.user_id,
+                postId,
+                result.reaction,
+              );
+            }
+          } else if (commentId && targetPostId && commentOwnerId) {
+            // Comment reaction
+            await this.notificationService.notifyReaction(
+              user.id,
+              actor.username,
+              commentOwnerId,
+              targetPostId,
+              result.reaction,
+            );
+          }
         }
       } catch (e) {
         console.error('Error sending reaction notification:', e);
