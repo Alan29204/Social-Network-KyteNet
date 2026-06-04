@@ -8,10 +8,12 @@ import {
 } from 'typeorm';
 import { User } from 'src/modules/users/entities/user.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
+import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
 
 export enum ReportType {
   POST = 'post',
   USER = 'user',
+  MESSAGE = 'message',
 }
 
 export enum ReportReason {
@@ -57,6 +59,10 @@ export class Report {
   /** ID of the reported user (if type = user) */
   @Column({ nullable: true })
   reported_user_id: string;
+
+  /** ID of the reported message (if type = message) */
+  @Column({ nullable: true })
+  reported_message_id: string;
 
   /** Admin note on resolution */
   @Column({ nullable: true })

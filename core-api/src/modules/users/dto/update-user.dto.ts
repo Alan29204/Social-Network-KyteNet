@@ -50,4 +50,8 @@ export class UpdateUserDto {
   @ApiProperty({ example: 'true', description: 'Cờ để xóa avatar hiện tại' })
   @IsOptional()
   removeAvatar?: string;
+
+  @ApiProperty({ type: 'string', format: 'binary', required: false, description: 'File ảnh đại diện người dùng' })
+  @IsOptional()
+  'avatar-user'?: any;
 }

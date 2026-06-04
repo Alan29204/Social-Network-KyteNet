@@ -38,6 +38,9 @@ export class ChatMember {
   @Column({ default: true })
   allow_notification: boolean;
 
+  @Column({ default: 0 })
+  unread_count: number;
+
   @CreateDateColumn()
   created_at: Date;
 

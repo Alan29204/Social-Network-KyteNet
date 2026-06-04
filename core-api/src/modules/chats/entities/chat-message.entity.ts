@@ -1,5 +1,6 @@
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
 import { MessageStatusType } from 'src/common/enums/message-status.enum';
+import { MessageReaction } from 'src/modules/chats/entities/message-reaction.entity';
 import { PinMessage } from 'src/modules/chats/pin-messages/entities/pin-messages.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import {
@@ -9,6 +10,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -54,4 +56,17 @@ export class ChatMessage {
 
   @OneToOne(() => PinMessage, (pinMessage) => pinMessage.chat_message)
   pin_messages: PinMessage;
+
+  /** ID of the message being replied to (nullable) */
+  @Column({ nullable: true })
+  reply_to_id: string;
+
+  /** The message being replied to */
+  @ManyToOne(() => ChatMessage, { nullable: true })
+  @JoinColumn({ name: 'reply_to_id' })
+  reply_to: ChatMessage;
+
+  /** Emoji reactions on this message */
+  @OneToMany(() => MessageReaction, (r) => r.chat_message)
+  reactions: MessageReaction[];
 }

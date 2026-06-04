@@ -800,6 +800,30 @@
         ]
       }
     },
+    "/chat-rooms/{id}/read": {
+      "post": {
+        "operationId": "ChatRoomsController_markRoomAsRead",
+        "summary": "Mark all messages in room as read for user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
     "/chat-rooms/permission-add-member": {
       "patch": {
         "operationId": "ChatRoomsController_updatePermissionAddMember",
@@ -1064,6 +1088,53 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Messages"
+        ]
+      }
+    },
+    "/chat-messages/{id}/reactions": {
+      "post": {
+        "operationId": "ChatMessagesController_toggleReaction",
+        "summary": "Toggle emoji reaction on a message",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reaction_type": {
+                    "type": "string",
+                    "enum": [
+                      "like",
+                      "love",
+                      "haha",
+                      "wow",
+                      "sad",
+                      "angry"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -2035,7 +2106,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2400,6 +2478,9 @@
           "allow_notification": {
             "type": "boolean"
           },
+          "unread_count": {
+            "type": "number"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -2418,6 +2499,7 @@
           "member_type",
           "nickname",
           "allow_notification",
+          "unread_count",
           "created_at",
           "user",
           "chat_room"
@@ -2448,6 +2530,50 @@
           "chat_message_id",
           "chat_message",
           "chat_room"
+        ]
+      },
+      "MessageReaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chat_message_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "reaction_type": {
+            "type": "string",
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ]
+          },
+          "chat_message": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chat_message_id",
+          "user_id",
+          "reaction_type",
+          "chat_message",
+          "user",
+          "created_at"
         ]
       },
       "ChatMessage": {
@@ -2491,6 +2617,18 @@
           },
           "pin_messages": {
             "$ref": "#/components/schemas/PinMessage"
+          },
+          "reply_to_id": {
+            "type": "string"
+          },
+          "reply_to": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageReaction"
+            }
           }
         },
         "required": [
@@ -2503,7 +2641,10 @@
           "chat_room",
           "user",
           "created_at",
-          "pin_messages"
+          "pin_messages",
+          "reply_to_id",
+          "reply_to",
+          "reactions"
         ]
       },
       "PinChat": {

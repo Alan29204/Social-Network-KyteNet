@@ -9,16 +9,27 @@ import {
   Post,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Public, ResponseMessage, User } from 'src/common/decorators/customize';
 import { IUser } from './users.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import { SearchUserMessageResponseDto } from './dto/search-user-message.dto';
 import { isUUID } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
 import { AfterSignUpDto } from './dto/after-signup.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -52,6 +63,26 @@ export class UsersController {
     return await this.usersService.login(user, loginDto);
   }
 
+  @Get('search-messages')
+  @ResponseMessage('Search users for messaging')
+  @ApiOperation({ summary: 'Search users with message priority ranking' })
+  @ApiOkResponse({
+    type: SearchUserMessageResponseDto,
+    description: 'List of matched users',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Search keyword (empty = suggested users)',
+  })
+  async searchUsersForMessage(
+    @User() user: IUser,
+    @Query('q') q?: string,
+  ): Promise<SearchUserMessageResponseDto> {
+    return this.usersService.searchUsersForMessage(user.id, q);
+  }
+
   @Get(':user_id')
   @ResponseMessage('Find user by ID successfully')
   @ApiOperation({ summary: 'Find user by ID' })
@@ -67,9 +98,11 @@ export class UsersController {
       user.id,
       user_id,
     );
-    
+
     const stats = await this.usersService.getProfileStats(user_id);
-    const relationStatus = await (this.usersService as any).relationsService.getRelation(user.id, user_id);
+    const relationStatus = await (
+      this.usersService as any
+    ).relationsService.getRelation(user.id, user_id);
     const isFollowing = relationStatus === 'following';
 
     if (!privacySeeProfile) {
@@ -90,6 +123,8 @@ export class UsersController {
   @Patch('/profile')
   @ResponseMessage('Update profile user seccessfully')
   @ApiOperation({ summary: 'Update profile user' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UpdateUserDto })
   @UseInterceptors(FileInterceptor('avatar-user'))
   async updateUser(
     @Body() dto: UpdateUserDto,
@@ -121,21 +156,19 @@ export class UsersController {
   @Public()
   @ResponseMessage('Password reset request processed')
   @ApiOperation({ summary: 'Request password reset (sends OTP code)' })
-  forgotPassword(@Body('email') email: string) {
-    return this.usersService.forgotPassword(email);
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.usersService.forgotPassword(dto.email);
   }
 
   @Post('/reset-password')
   @Public()
   @ResponseMessage('Password reset successfully')
   @ApiOperation({ summary: 'Reset password with OTP code' })
-  resetPassword(
-    @Body() body: { email: string; reset_code: string; new_password: string },
-  ) {
+  resetPassword(@Body() dto: ResetPasswordDto) {
     return this.usersService.resetPassword(
-      body.email,
-      body.reset_code,
-      body.new_password,
+      dto.email,
+      dto.reset_code,
+      dto.new_password,
     );
   }
 }
@@ -144,4 +177,3 @@ export interface LoginMetaData {
   deviceId: string;
   ipAddress: string;
 }
-

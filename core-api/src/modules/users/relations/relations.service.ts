@@ -203,7 +203,7 @@ export class RelationsService {
     // Truy vấn SQL tối ưu (Raw Query) để tìm Bạn chung
     const query = `
       SELECT 
-          u.id, u.username, u.avatar,
+          u.id, u.username, u.full_name, u.avatar,
           CAST(COUNT(r2.request_side_id) AS INTEGER) as mutual_count,
           COALESCE(
               json_agg(
@@ -240,7 +240,7 @@ export class RelationsService {
           : '';
 
       const fallbackQuery = `
-        SELECT u.id, u.username, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
+        SELECT u.id, u.username, u.full_name, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
         FROM "user" u
         WHERE u.id != $1
         AND u.id NOT IN (

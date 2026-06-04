@@ -9,6 +9,7 @@ import { GenderType } from 'src/common/enums/gender.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 import { RoleType } from 'src/common/enums/role.enum';
 import { UserCategoryType } from 'src/common/enums/user-category.enum';
+import { MessagePrivacyType } from 'src/common/enums/message-privacy.enum';
 import { NotificationUser } from 'src/modules/notifications/notification-users/entities/notification-user.entity';
 import { PinChat } from 'src/modules/chats/pin-chats/entities/pin-chat.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
@@ -52,6 +53,9 @@ export class User {
   username: string;
 
   @Column({ nullable: true })
+  full_name: string;
+
+  @Column({ nullable: true })
   bio: string;
 
   @Column({ nullable: true })
@@ -68,6 +72,9 @@ export class User {
 
   @Column({ type: 'enum', enum: PrivacyType, default: PrivacyType.PUBLIC })
   privacy: PrivacyType;
+
+  @Column({ type: 'enum', enum: MessagePrivacyType, default: MessagePrivacyType.EVERYONE })
+  message_privacy: MessagePrivacyType;
 
   @Column({ nullable: true })
   last_active: Date;

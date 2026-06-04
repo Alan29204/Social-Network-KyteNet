@@ -1,6 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { SaveListsService } from './save-lists.service';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
 import { CreateSaveListDto } from './dto/create-save-list.dto';
@@ -21,12 +30,18 @@ export class SaveListsController {
   @Get()
   @ResponseMessage('Lấy danh sách bộ sưu tập thành công')
   @ApiOperation({ summary: 'Lấy danh sách bộ sưu tập của người dùng hiện tại' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
   findAll(
     @User() user: IUser,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.saveListsService.findAllByUser(user, page ? +page : 1, limit ? +limit : 10);
+    return this.saveListsService.findAllByUser(
+      user,
+      page ? +page : 1,
+      limit ? +limit : 10,
+    );
   }
 
   @Put(':id')

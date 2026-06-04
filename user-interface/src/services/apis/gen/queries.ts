@@ -30,6 +30,10 @@ import type {
 } from '@tanstack/react-query';
 
 import { orvalClient } from '../axios-client';
+export type ChatbotDto = {
+  prompt: string;
+};
+
 export type RelationRelationType = typeof RelationRelationType[keyof typeof RelationRelationType];
 
 
@@ -55,6 +59,14 @@ export const UserPrivacy = {
   public: 'public',
   follower: 'follower',
   private: 'private',
+} as const;
+
+export type UserMessagePrivacy = typeof UserMessagePrivacy[keyof typeof UserMessagePrivacy];
+
+
+export const UserMessagePrivacy = {
+  everyone: 'everyone',
+  following: 'following',
 } as const;
 
 export type UserUserCategory = typeof UserUserCategory[keyof typeof UserUserCategory];
@@ -331,12 +343,14 @@ export type User = {
   avatar: string;
   cover_photo: string;
   username: string;
+  full_name: string;
   bio: string;
   website: string;
   birthday: string;
   gender: UserGender;
   address: string;
   privacy: UserPrivacy;
+  message_privacy: UserMessagePrivacy;
   last_active: string;
   user_category: UserUserCategory;
   company: string[];
@@ -373,6 +387,30 @@ export type LoginDto = {
   /** @minLength 6 */
   password: string;
   deviceId: string;
+};
+
+export type SearchUserMessageItemDto = {
+  /** User ID */
+  id: string;
+  /** Username */
+  username: string;
+  /** Full name */
+  full_name?: string;
+  /** Avatar URL */
+  avatar?: string;
+  /** Privacy setting */
+  privacy?: string;
+  /** Message privacy setting */
+  message_privacy?: string;
+  /** Ranking score (2 = following, 1 = others) */
+  rank?: number;
+  /** Mutual friend count */
+  mutual_count?: number;
+};
+
+export type SearchUserMessageResponseDto = {
+  /** List of matched users */
+  data: SearchUserMessageItemDto[];
 };
 
 /**
@@ -432,6 +470,8 @@ export type UpdateUserDto = {
   privacy: UpdateUserDtoPrivacy;
   /** Cờ để xóa avatar hiện tại */
   removeAvatar?: string;
+  /** File ảnh đại diện người dùng */
+  'avatar-user'?: Blob;
 };
 
 /**
@@ -475,6 +515,23 @@ export type AfterSignUpDto = {
   address: string;
 };
 
+export type ForgotPasswordDto = {
+  /** Email tài khoản cần khôi phục */
+  email: string;
+};
+
+export type ResetPasswordDto = {
+  /** Email tài khoản */
+  email: string;
+  /** Mã xác thực OTP gửi qua email */
+  reset_code: string;
+  /**
+     * Mật khẩu mới
+     * @minLength 6
+     */
+  new_password: string;
+};
+
 export type UpdateRelationDto = {
   /** ID user other */
   user_id: string;
@@ -514,6 +571,8 @@ export type UpdateChatRoomDto = {
      * @maxLength 30
      */
   name: string;
+  /** File ảnh đại diện phòng chat */
+  'avatar-chat-room'?: Blob;
   id: string;
 };
 
@@ -538,7 +597,54 @@ export type RequestJoinChatRoomDto = {
   chat_room_id: string;
 };
 
-export type AppResponseSerialization = { [key: string]: unknown };
+export type AddMembersDto = {
+  /** ID phòng chat */
+  chat_room_id: string;
+  /** Danh sách các ID người dùng muốn thêm */
+  user_ids: string[];
+};
+
+export type RemoveMemberDto = {
+  /** ID phòng chat */
+  chat_room_id: string;
+  /** ID thành viên muốn xóa */
+  target_user_id: string;
+};
+
+/**
+ * Dữ liệu phản hồi
+ */
+export type AppResponseSerializationData = { [key: string]: unknown };
+
+export type AppResponseSerialization = {
+  /** Mã trạng thái phản hồi HTTP */
+  statusCode: number;
+  /** Thông báo đi kèm phản hồi */
+  message: string;
+  /** Dữ liệu phản hồi */
+  data: AppResponseSerializationData;
+};
+
+/**
+ * Quyền riêng tư của bài viết chia sẻ
+ */
+export type SharePostDtoPrivacy = typeof SharePostDtoPrivacy[keyof typeof SharePostDtoPrivacy];
+
+
+export const SharePostDtoPrivacy = {
+  public: 'public',
+  follower: 'follower',
+  private: 'private',
+} as const;
+
+export type SharePostDto = {
+  /** ID bài đăng gốc muốn chia sẻ */
+  post_id: string;
+  /** Nội dung chia sẻ thêm */
+  content?: string;
+  /** Quyền riêng tư của bài viết chia sẻ */
+  privacy?: SharePostDtoPrivacy;
+};
 
 /**
  * privacy
@@ -567,6 +673,13 @@ export type UpdatePostDto = {
   privacy: UpdatePostDtoPrivacy;
 };
 
+export type SavePostDto = {
+  /** ID bài đăng muốn lưu */
+  post_id: string;
+  /** ID bộ sưu tập muốn lưu vào */
+  save_list_id: string;
+};
+
 export type CreateCommentDto = {
   /** Content of the comment */
   content: string;
@@ -576,6 +689,10 @@ export type CreateCommentDto = {
   parent_id?: string;
   /** tagged user IDs */
   tagged_users?: string[];
+};
+
+export type UpdateCommentDto = {
+  content: string;
 };
 
 export type CreateSaveListDto = {
@@ -622,12 +739,31 @@ export type AddAdminDto = {
   user_id: string;
 };
 
+/**
+ * Trạng thái giải quyết báo cáo
+ */
+export type ResolveReportDtoStatus = typeof ResolveReportDtoStatus[keyof typeof ResolveReportDtoStatus];
+
+
+export const ResolveReportDtoStatus = {
+  resolved: 'resolved',
+  rejected: 'rejected',
+} as const;
+
+export type ResolveReportDto = {
+  /** Trạng thái giải quyết báo cáo */
+  status: ResolveReportDtoStatus;
+  /** Ghi chú của admin */
+  admin_note: string;
+};
+
 export type CreateReportDtoType = typeof CreateReportDtoType[keyof typeof CreateReportDtoType];
 
 
 export const CreateReportDtoType = {
   post: 'post',
   user: 'user',
+  message: 'message',
 } as const;
 
 export type CreateReportDtoReason = typeof CreateReportDtoReason[keyof typeof CreateReportDtoReason];
@@ -651,9 +787,18 @@ export type CreateReportDto = {
   reported_post_id?: string;
   /** ID of the reported user */
   reported_user_id?: string;
+  /** ID of the reported message */
+  reported_message_id?: string;
 };
 
 export type UsersControllerGetAccount200 = { [key: string]: unknown };
+
+export type UsersControllerSearchUsersForMessageParams = {
+/**
+ * Search keyword (empty = suggested users)
+ */
+q?: string;
+};
 
 export type UsersControllerGetProfile200 = { [key: string]: unknown };
 
@@ -662,11 +807,40 @@ export type UsersControllerUpdateUser200 = { [key: string]: unknown };
 export type UsersControllerForgotPassword201 = { [key: string]: unknown };
 
 export type RelationsControllerGetListRelationParams = {
-relation: string;
-mode: string;
-page: number;
-limit: number;
+/**
+ * Kiểu quan hệ bạn bè
+ */
+relation: RelationsControllerGetListRelationRelation;
+/**
+ * Chế độ xem followers hoặc following
+ */
+mode?: RelationsControllerGetListRelationMode;
+/**
+ * Số trang (mặc định: 1)
+ */
+page?: number;
+/**
+ * Số lượng phần tử mỗi trang (mặc định: 10)
+ */
+limit?: number;
 };
+
+export type RelationsControllerGetListRelationRelation = typeof RelationsControllerGetListRelationRelation[keyof typeof RelationsControllerGetListRelationRelation];
+
+
+export const RelationsControllerGetListRelationRelation = {
+  following: 'following',
+  block: 'block',
+  none: 'none',
+} as const;
+
+export type RelationsControllerGetListRelationMode = typeof RelationsControllerGetListRelationMode[keyof typeof RelationsControllerGetListRelationMode];
+
+
+export const RelationsControllerGetListRelationMode = {
+  followers: 'followers',
+  following: 'following',
+} as const;
 
 export type RelationsControllerGetSuggestedUsersParams = {
 limit: number;
@@ -688,16 +862,6 @@ page?: number;
  * @minimum 1
  */
 limit?: number;
-};
-
-export type ChatMembersControllerAddMembersBody = {
-  chat_room_id?: string;
-  user_ids?: string[];
-};
-
-export type ChatMembersControllerRemoveMemberBody = {
-  chat_room_id?: string;
-  target_user_id?: string;
 };
 
 export type ChatMessagesControllerCreateMessageBody = {
@@ -768,13 +932,13 @@ export type PostsControllerCreateBody = {
 export type PostsControllerFindOne200 = { [key: string]: unknown };
 
 export type SavePostsControllerGetSavedPostsParams = {
-page: number;
-limit: number;
+page?: number;
+limit?: number;
 };
 
 export type SaveListsControllerFindAllParams = {
-page: number;
-limit: number;
+page?: number;
+limit?: number;
 };
 
 export type AdminsControllerListUsersParams = {
@@ -802,19 +966,6 @@ export const AdminsControllerListReportsStatus = {
   resolved: 'resolved',
   rejected: 'rejected',
 } as const;
-
-export type AdminsControllerResolveReportBodyStatus = typeof AdminsControllerResolveReportBodyStatus[keyof typeof AdminsControllerResolveReportBodyStatus];
-
-
-export const AdminsControllerResolveReportBodyStatus = {
-  resolved: 'resolved',
-  rejected: 'rejected',
-} as const;
-
-export type AdminsControllerResolveReportBody = {
-  status?: AdminsControllerResolveReportBodyStatus;
-  admin_note?: string;
-};
 
 export type SearchControllerSearchAllParams = {
 q: string;
@@ -984,14 +1135,14 @@ export const getAppControllerChatbotUrl = () => {
 /**
  * @summary Tạo prompt với Chatbot AI
  */
-export const appControllerChatbot = async ( options?: RequestInit): Promise<appControllerChatbotResponse> => {
+export const appControllerChatbot = async (chatbotDto: ChatbotDto, options?: RequestInit): Promise<appControllerChatbotResponse> => {
 
   return orvalClient<appControllerChatbotResponse>(getAppControllerChatbotUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatbotDto)
   }
 );}
 
@@ -999,8 +1150,8 @@ export const appControllerChatbot = async ( options?: RequestInit): Promise<appC
 
 
 export const getAppControllerChatbotMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext> => {
 
 const mutationKey = ['appControllerChatbot'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1012,10 +1163,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof appControllerChatbot>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof appControllerChatbot>>, {data: ChatbotDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  appControllerChatbot(requestOptions)
+          return  appControllerChatbot(data,requestOptions)
         }
 
 
@@ -1026,18 +1177,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AppControllerChatbotMutationResult = NonNullable<Awaited<ReturnType<typeof appControllerChatbot>>>
-
+    export type AppControllerChatbotMutationBody = ChatbotDto
     export type AppControllerChatbotMutationError = unknown
 
     /**
  * @summary Tạo prompt với Chatbot AI
  */
 export const useAppControllerChatbot = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof appControllerChatbot>>,
         TError,
-        void,
+        {data: ChatbotDto},
         TContext
       > => {
       return useMutation(getAppControllerChatbotMutationOptions(options), queryClient);
@@ -1351,6 +1502,126 @@ export const useUsersControllerLogin = <TError = unknown,
       return useMutation(getUsersControllerLoginMutationOptions(options), queryClient);
     }
 
+export type usersControllerSearchUsersForMessageResponse200 = {
+  data: SearchUserMessageResponseDto
+  status: 200
+}
+
+export type usersControllerSearchUsersForMessageResponseSuccess = (usersControllerSearchUsersForMessageResponse200) & {
+  headers: Headers;
+};
+;
+
+export type usersControllerSearchUsersForMessageResponse = (usersControllerSearchUsersForMessageResponseSuccess)
+
+export const getUsersControllerSearchUsersForMessageUrl = (params?: UsersControllerSearchUsersForMessageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/users/search-messages?${stringifiedParams}` : `/users/search-messages`
+}
+
+/**
+ * @summary Search users with message priority ranking
+ */
+export const usersControllerSearchUsersForMessage = async (params?: UsersControllerSearchUsersForMessageParams, options?: RequestInit): Promise<usersControllerSearchUsersForMessageResponse> => {
+
+  return orvalClient<usersControllerSearchUsersForMessageResponse>(getUsersControllerSearchUsersForMessageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getUsersControllerSearchUsersForMessageQueryKey = (params?: UsersControllerSearchUsersForMessageParams,) => {
+    return [
+    `/users/search-messages`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getUsersControllerSearchUsersForMessageQueryOptions = <TData = Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError = unknown>(params?: UsersControllerSearchUsersForMessageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getUsersControllerSearchUsersForMessageQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>> = ({ signal }) => usersControllerSearchUsersForMessage(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type UsersControllerSearchUsersForMessageQueryResult = NonNullable<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>>
+export type UsersControllerSearchUsersForMessageQueryError = unknown
+
+
+export function useUsersControllerSearchUsersForMessage<TData = Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError = unknown>(
+ params: undefined |  UsersControllerSearchUsersForMessageParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>,
+          TError,
+          Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useUsersControllerSearchUsersForMessage<TData = Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError = unknown>(
+ params?: UsersControllerSearchUsersForMessageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>,
+          TError,
+          Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useUsersControllerSearchUsersForMessage<TData = Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError = unknown>(
+ params?: UsersControllerSearchUsersForMessageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Search users with message priority ranking
+ */
+
+export function useUsersControllerSearchUsersForMessage<TData = Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError = unknown>(
+ params?: UsersControllerSearchUsersForMessageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof usersControllerSearchUsersForMessage>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getUsersControllerSearchUsersForMessageQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export type usersControllerGetProfileResponse200 = {
   data: UsersControllerGetProfile200
   status: 200
@@ -1488,13 +1759,27 @@ export const getUsersControllerUpdateUserUrl = () => {
  * @summary Update profile user
  */
 export const usersControllerUpdateUser = async (updateUserDto: UpdateUserDto, options?: RequestInit): Promise<usersControllerUpdateUserResponse> => {
+    const formData = new FormData();
+formData.append(`username`, updateUserDto.username);
+formData.append(`bio`, updateUserDto.bio);
+formData.append(`website`, updateUserDto.website);
+formData.append(`birthday`, updateUserDto.birthday);
+formData.append(`gender`, updateUserDto.gender);
+formData.append(`address`, updateUserDto.address);
+formData.append(`privacy`, updateUserDto.privacy);
+if(updateUserDto.removeAvatar !== undefined) {
+ formData.append(`removeAvatar`, updateUserDto.removeAvatar);
+ }
+if(updateUserDto['avatar-user'] !== undefined) {
+ formData.append(`avatar-user`, updateUserDto['avatar-user']);
+ }
 
   return orvalClient<usersControllerUpdateUserResponse>(getUsersControllerUpdateUserUrl(),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(updateUserDto)
+    method: 'PATCH'
+    ,
+    body: formData
   }
 );}
 
@@ -1733,14 +2018,14 @@ export const getUsersControllerForgotPasswordUrl = () => {
 /**
  * @summary Request password reset (sends OTP code)
  */
-export const usersControllerForgotPassword = async ( options?: RequestInit): Promise<usersControllerForgotPasswordResponse> => {
+export const usersControllerForgotPassword = async (forgotPasswordDto: ForgotPasswordDto, options?: RequestInit): Promise<usersControllerForgotPasswordResponse> => {
 
   return orvalClient<usersControllerForgotPasswordResponse>(getUsersControllerForgotPasswordUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(forgotPasswordDto)
   }
 );}
 
@@ -1748,8 +2033,8 @@ export const usersControllerForgotPassword = async ( options?: RequestInit): Pro
 
 
 export const getUsersControllerForgotPasswordMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,{data: ForgotPasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,{data: ForgotPasswordDto}, TContext> => {
 
 const mutationKey = ['usersControllerForgotPassword'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1761,10 +2046,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerForgotPassword>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerForgotPassword>>, {data: ForgotPasswordDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  usersControllerForgotPassword(requestOptions)
+          return  usersControllerForgotPassword(data,requestOptions)
         }
 
 
@@ -1775,18 +2060,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UsersControllerForgotPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof usersControllerForgotPassword>>>
-
+    export type UsersControllerForgotPasswordMutationBody = ForgotPasswordDto
     export type UsersControllerForgotPasswordMutationError = unknown
 
     /**
  * @summary Request password reset (sends OTP code)
  */
 export const useUsersControllerForgotPassword = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerForgotPassword>>, TError,{data: ForgotPasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof usersControllerForgotPassword>>,
         TError,
-        void,
+        {data: ForgotPasswordDto},
         TContext
       > => {
       return useMutation(getUsersControllerForgotPasswordMutationOptions(options), queryClient);
@@ -1815,14 +2100,14 @@ export const getUsersControllerResetPasswordUrl = () => {
 /**
  * @summary Reset password with OTP code
  */
-export const usersControllerResetPassword = async ( options?: RequestInit): Promise<usersControllerResetPasswordResponse> => {
+export const usersControllerResetPassword = async (resetPasswordDto: ResetPasswordDto, options?: RequestInit): Promise<usersControllerResetPasswordResponse> => {
 
   return orvalClient<usersControllerResetPasswordResponse>(getUsersControllerResetPasswordUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(resetPasswordDto)
   }
 );}
 
@@ -1830,8 +2115,8 @@ export const usersControllerResetPassword = async ( options?: RequestInit): Prom
 
 
 export const getUsersControllerResetPasswordMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,{data: ResetPasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,{data: ResetPasswordDto}, TContext> => {
 
 const mutationKey = ['usersControllerResetPassword'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1843,10 +2128,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerResetPassword>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerResetPassword>>, {data: ResetPasswordDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  usersControllerResetPassword(requestOptions)
+          return  usersControllerResetPassword(data,requestOptions)
         }
 
 
@@ -1857,18 +2142,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UsersControllerResetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof usersControllerResetPassword>>>
-
+    export type UsersControllerResetPasswordMutationBody = ResetPasswordDto
     export type UsersControllerResetPasswordMutationError = unknown
 
     /**
  * @summary Reset password with OTP code
  */
 export const useUsersControllerResetPassword = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerResetPassword>>, TError,{data: ResetPasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof usersControllerResetPassword>>,
         TError,
-        void,
+        {data: ResetPasswordDto},
         TContext
       > => {
       return useMutation(getUsersControllerResetPasswordMutationOptions(options), queryClient);
@@ -3606,13 +3891,19 @@ export const getChatRoomsControllerUpdateNameOrAvatarUrl = () => {
  * @summary Update name or avatar chat room
  */
 export const chatRoomsControllerUpdateNameOrAvatar = async (updateChatRoomDto: UpdateChatRoomDto, options?: RequestInit): Promise<chatRoomsControllerUpdateNameOrAvatarResponse> => {
+    const formData = new FormData();
+formData.append(`name`, updateChatRoomDto.name);
+if(updateChatRoomDto['avatar-chat-room'] !== undefined) {
+ formData.append(`avatar-chat-room`, updateChatRoomDto['avatar-chat-room']);
+ }
+formData.append(`id`, updateChatRoomDto.id);
 
   return orvalClient<chatRoomsControllerUpdateNameOrAvatarResponse>(getChatRoomsControllerUpdateNameOrAvatarUrl(),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(updateChatRoomDto)
+    method: 'PATCH'
+    ,
+    body: formData
   }
 );}
 
@@ -4128,14 +4419,14 @@ export const getChatMembersControllerAddMembersUrl = () => {
 /**
  * @summary Add multiple members to a chat room
  */
-export const chatMembersControllerAddMembers = async (chatMembersControllerAddMembersBody: ChatMembersControllerAddMembersBody, options?: RequestInit): Promise<chatMembersControllerAddMembersResponse> => {
+export const chatMembersControllerAddMembers = async (addMembersDto: AddMembersDto, options?: RequestInit): Promise<chatMembersControllerAddMembersResponse> => {
 
   return orvalClient<chatMembersControllerAddMembersResponse>(getChatMembersControllerAddMembersUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(chatMembersControllerAddMembersBody)
+    body: JSON.stringify(addMembersDto)
   }
 );}
 
@@ -4143,8 +4434,8 @@ export const chatMembersControllerAddMembers = async (chatMembersControllerAddMe
 
 
 export const getChatMembersControllerAddMembersMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: ChatMembersControllerAddMembersBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: ChatMembersControllerAddMembersBody}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: AddMembersDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: AddMembersDto}, TContext> => {
 
 const mutationKey = ['chatMembersControllerAddMembers'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -4156,7 +4447,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, {data: ChatMembersControllerAddMembersBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, {data: AddMembersDto}> = (props) => {
           const {data} = props ?? {};
 
           return  chatMembersControllerAddMembers(data,requestOptions)
@@ -4170,18 +4461,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ChatMembersControllerAddMembersMutationResult = NonNullable<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>>
-    export type ChatMembersControllerAddMembersMutationBody = ChatMembersControllerAddMembersBody
+    export type ChatMembersControllerAddMembersMutationBody = AddMembersDto
     export type ChatMembersControllerAddMembersMutationError = unknown
 
     /**
  * @summary Add multiple members to a chat room
  */
 export const useChatMembersControllerAddMembers = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: ChatMembersControllerAddMembersBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerAddMembers>>, TError,{data: AddMembersDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof chatMembersControllerAddMembers>>,
         TError,
-        {data: ChatMembersControllerAddMembersBody},
+        {data: AddMembersDto},
         TContext
       > => {
       return useMutation(getChatMembersControllerAddMembersMutationOptions(options), queryClient);
@@ -4210,14 +4501,14 @@ export const getChatMembersControllerRemoveMemberUrl = () => {
 /**
  * @summary Remove a member from a chat room (Admin only)
  */
-export const chatMembersControllerRemoveMember = async (chatMembersControllerRemoveMemberBody: ChatMembersControllerRemoveMemberBody, options?: RequestInit): Promise<chatMembersControllerRemoveMemberResponse> => {
+export const chatMembersControllerRemoveMember = async (removeMemberDto: RemoveMemberDto, options?: RequestInit): Promise<chatMembersControllerRemoveMemberResponse> => {
 
   return orvalClient<chatMembersControllerRemoveMemberResponse>(getChatMembersControllerRemoveMemberUrl(),
   {
     ...options,
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(chatMembersControllerRemoveMemberBody)
+    body: JSON.stringify(removeMemberDto)
   }
 );}
 
@@ -4225,8 +4516,8 @@ export const chatMembersControllerRemoveMember = async (chatMembersControllerRem
 
 
 export const getChatMembersControllerRemoveMemberMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: ChatMembersControllerRemoveMemberBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: ChatMembersControllerRemoveMemberBody}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: RemoveMemberDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: RemoveMemberDto}, TContext> => {
 
 const mutationKey = ['chatMembersControllerRemoveMember'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -4238,7 +4529,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, {data: ChatMembersControllerRemoveMemberBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, {data: RemoveMemberDto}> = (props) => {
           const {data} = props ?? {};
 
           return  chatMembersControllerRemoveMember(data,requestOptions)
@@ -4252,18 +4543,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ChatMembersControllerRemoveMemberMutationResult = NonNullable<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>>
-    export type ChatMembersControllerRemoveMemberMutationBody = ChatMembersControllerRemoveMemberBody
+    export type ChatMembersControllerRemoveMemberMutationBody = RemoveMemberDto
     export type ChatMembersControllerRemoveMemberMutationError = unknown
 
     /**
  * @summary Remove a member from a chat room (Admin only)
  */
 export const useChatMembersControllerRemoveMember = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: ChatMembersControllerRemoveMemberBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>, TError,{data: RemoveMemberDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof chatMembersControllerRemoveMember>>,
         TError,
-        {data: ChatMembersControllerRemoveMemberBody},
+        {data: RemoveMemberDto},
         TContext
       > => {
       return useMutation(getChatMembersControllerRemoveMemberMutationOptions(options), queryClient);
@@ -5797,14 +6088,14 @@ export const getPostsControllerSharePostUrl = () => {
 /**
  * @summary Share/Repost a post
  */
-export const postsControllerSharePost = async ( options?: RequestInit): Promise<postsControllerSharePostResponse> => {
+export const postsControllerSharePost = async (sharePostDto: SharePostDto, options?: RequestInit): Promise<postsControllerSharePostResponse> => {
 
   return orvalClient<postsControllerSharePostResponse>(getPostsControllerSharePostUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sharePostDto)
   }
 );}
 
@@ -5812,8 +6103,8 @@ export const postsControllerSharePost = async ( options?: RequestInit): Promise<
 
 
 export const getPostsControllerSharePostMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,{data: SharePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,{data: SharePostDto}, TContext> => {
 
 const mutationKey = ['postsControllerSharePost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -5825,10 +6116,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postsControllerSharePost>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postsControllerSharePost>>, {data: SharePostDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  postsControllerSharePost(requestOptions)
+          return  postsControllerSharePost(data,requestOptions)
         }
 
 
@@ -5839,18 +6130,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PostsControllerSharePostMutationResult = NonNullable<Awaited<ReturnType<typeof postsControllerSharePost>>>
-
+    export type PostsControllerSharePostMutationBody = SharePostDto
     export type PostsControllerSharePostMutationError = unknown
 
     /**
  * @summary Share/Repost a post
  */
 export const usePostsControllerSharePost = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerSharePost>>, TError,{data: SharePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof postsControllerSharePost>>,
         TError,
-        void,
+        {data: SharePostDto},
         TContext
       > => {
       return useMutation(getPostsControllerSharePostMutationOptions(options), queryClient);
@@ -5879,14 +6170,14 @@ export const getSavePostsControllerSavePostUrl = () => {
 /**
  * @summary Save a post to a list
  */
-export const savePostsControllerSavePost = async ( options?: RequestInit): Promise<savePostsControllerSavePostResponse> => {
+export const savePostsControllerSavePost = async (savePostDto: SavePostDto, options?: RequestInit): Promise<savePostsControllerSavePostResponse> => {
 
   return orvalClient<savePostsControllerSavePostResponse>(getSavePostsControllerSavePostUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(savePostDto)
   }
 );}
 
@@ -5894,8 +6185,8 @@ export const savePostsControllerSavePost = async ( options?: RequestInit): Promi
 
 
 export const getSavePostsControllerSavePostMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,{data: SavePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,{data: SavePostDto}, TContext> => {
 
 const mutationKey = ['savePostsControllerSavePost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -5907,10 +6198,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePostsControllerSavePost>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePostsControllerSavePost>>, {data: SavePostDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  savePostsControllerSavePost(requestOptions)
+          return  savePostsControllerSavePost(data,requestOptions)
         }
 
 
@@ -5921,18 +6212,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SavePostsControllerSavePostMutationResult = NonNullable<Awaited<ReturnType<typeof savePostsControllerSavePost>>>
-
+    export type SavePostsControllerSavePostMutationBody = SavePostDto
     export type SavePostsControllerSavePostMutationError = unknown
 
     /**
  * @summary Save a post to a list
  */
 export const useSavePostsControllerSavePost = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerSavePost>>, TError,{data: SavePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof savePostsControllerSavePost>>,
         TError,
-        void,
+        {data: SavePostDto},
         TContext
       > => {
       return useMutation(getSavePostsControllerSavePostMutationOptions(options), queryClient);
@@ -5961,14 +6252,14 @@ export const getSavePostsControllerUnsavePostUrl = () => {
 /**
  * @summary Remove a saved post
  */
-export const savePostsControllerUnsavePost = async ( options?: RequestInit): Promise<savePostsControllerUnsavePostResponse> => {
+export const savePostsControllerUnsavePost = async (savePostDto: SavePostDto, options?: RequestInit): Promise<savePostsControllerUnsavePostResponse> => {
 
   return orvalClient<savePostsControllerUnsavePostResponse>(getSavePostsControllerUnsavePostUrl(),
   {
     ...options,
-    method: 'DELETE'
-
-
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(savePostDto)
   }
 );}
 
@@ -5976,8 +6267,8 @@ export const savePostsControllerUnsavePost = async ( options?: RequestInit): Pro
 
 
 export const getSavePostsControllerUnsavePostMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,{data: SavePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,{data: SavePostDto}, TContext> => {
 
 const mutationKey = ['savePostsControllerUnsavePost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -5989,10 +6280,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, {data: SavePostDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  savePostsControllerUnsavePost(requestOptions)
+          return  savePostsControllerUnsavePost(data,requestOptions)
         }
 
 
@@ -6003,18 +6294,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SavePostsControllerUnsavePostMutationResult = NonNullable<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>>
-
+    export type SavePostsControllerUnsavePostMutationBody = SavePostDto
     export type SavePostsControllerUnsavePostMutationError = unknown
 
     /**
  * @summary Remove a saved post
  */
 export const useSavePostsControllerUnsavePost = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePostsControllerUnsavePost>>, TError,{data: SavePostDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof savePostsControllerUnsavePost>>,
         TError,
-        void,
+        {data: SavePostDto},
         TContext
       > => {
       return useMutation(getSavePostsControllerUnsavePostMutationOptions(options), queryClient);
@@ -6033,7 +6324,7 @@ export type savePostsControllerGetSavedPostsResponseSuccess = (savePostsControll
 export type savePostsControllerGetSavedPostsResponse = (savePostsControllerGetSavedPostsResponseSuccess)
 
 export const getSavePostsControllerGetSavedPostsUrl = (saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams,) => {
+    params?: SavePostsControllerGetSavedPostsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -6052,7 +6343,7 @@ export const getSavePostsControllerGetSavedPostsUrl = (saveListId: string,
  * @summary Get saved posts in a list
  */
 export const savePostsControllerGetSavedPosts = async (saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: RequestInit): Promise<savePostsControllerGetSavedPostsResponse> => {
+    params?: SavePostsControllerGetSavedPostsParams, options?: RequestInit): Promise<savePostsControllerGetSavedPostsResponse> => {
 
   return orvalClient<savePostsControllerGetSavedPostsResponse>(getSavePostsControllerGetSavedPostsUrl(saveListId,params),
   {
@@ -6083,7 +6374,7 @@ export const getSavePostsControllerGetSavedPostsQueryKey = (saveListId: string,
 
 
 export const getSavePostsControllerGetSavedPostsInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, SavePostsControllerGetSavedPostsParams['page']>, TError = unknown>(saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6107,7 +6398,7 @@ export type SavePostsControllerGetSavedPostsInfiniteQueryError = unknown
 
 export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, SavePostsControllerGetSavedPostsParams['page']>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>> & Pick<
+    params: undefined |  SavePostsControllerGetSavedPostsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>,
           TError,
@@ -6118,7 +6409,7 @@ export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, SavePostsControllerGetSavedPostsParams['page']>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>> & Pick<
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>,
           TError,
@@ -6129,7 +6420,7 @@ export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, SavePostsControllerGetSavedPostsParams['page']>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -6138,7 +6429,7 @@ export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData
 
 export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, SavePostsControllerGetSavedPostsParams['page']>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetSavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -6155,7 +6446,7 @@ export function useSavePostsControllerGetSavedPostsInfinite<TData = InfiniteData
 
 
 export const getSavePostsControllerGetSavedPostsQueryOptions = <TData = Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError = unknown>(saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6179,7 +6470,7 @@ export type SavePostsControllerGetSavedPostsQueryError = unknown
 
 export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>> & Pick<
+    params: undefined |  SavePostsControllerGetSavedPostsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>,
           TError,
@@ -6190,7 +6481,7 @@ export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<t
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>> & Pick<
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>,
           TError,
@@ -6201,7 +6492,7 @@ export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<t
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -6210,7 +6501,7 @@ export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<t
 
 export function useSavePostsControllerGetSavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError = unknown>(
  saveListId: string,
-    params: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+    params?: SavePostsControllerGetSavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetSavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -6332,14 +6623,15 @@ export const getCommentsControllerUpdateUrl = (id: string,) => {
 /**
  * @summary Update comment
  */
-export const commentsControllerUpdate = async (id: string, options?: RequestInit): Promise<commentsControllerUpdateResponse> => {
+export const commentsControllerUpdate = async (id: string,
+    updateCommentDto: UpdateCommentDto, options?: RequestInit): Promise<commentsControllerUpdateResponse> => {
 
   return orvalClient<commentsControllerUpdateResponse>(getCommentsControllerUpdateUrl(id),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateCommentDto)
   }
 );}
 
@@ -6347,8 +6639,8 @@ export const commentsControllerUpdate = async (id: string, options?: RequestInit
 
 
 export const getCommentsControllerUpdateMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string;data: UpdateCommentDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string;data: UpdateCommentDto}, TContext> => {
 
 const mutationKey = ['commentsControllerUpdate'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -6360,10 +6652,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof commentsControllerUpdate>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof commentsControllerUpdate>>, {id: string;data: UpdateCommentDto}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  commentsControllerUpdate(id,requestOptions)
+          return  commentsControllerUpdate(id,data,requestOptions)
         }
 
 
@@ -6374,18 +6666,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CommentsControllerUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof commentsControllerUpdate>>>
-
+    export type CommentsControllerUpdateMutationBody = UpdateCommentDto
     export type CommentsControllerUpdateMutationError = unknown
 
     /**
  * @summary Update comment
  */
 export const useCommentsControllerUpdate = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commentsControllerUpdate>>, TError,{id: string;data: UpdateCommentDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof commentsControllerUpdate>>,
         TError,
-        {id: string},
+        {id: string;data: UpdateCommentDto},
         TContext
       > => {
       return useMutation(getCommentsControllerUpdateMutationOptions(options), queryClient);
@@ -6567,7 +6859,7 @@ export type saveListsControllerFindAllResponseSuccess = (saveListsControllerFind
 
 export type saveListsControllerFindAllResponse = (saveListsControllerFindAllResponseSuccess)
 
-export const getSaveListsControllerFindAllUrl = (params: SaveListsControllerFindAllParams,) => {
+export const getSaveListsControllerFindAllUrl = (params?: SaveListsControllerFindAllParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -6585,7 +6877,7 @@ export const getSaveListsControllerFindAllUrl = (params: SaveListsControllerFind
 /**
  * @summary Lấy danh sách bộ sưu tập của người dùng hiện tại
  */
-export const saveListsControllerFindAll = async (params: SaveListsControllerFindAllParams, options?: RequestInit): Promise<saveListsControllerFindAllResponse> => {
+export const saveListsControllerFindAll = async (params?: SaveListsControllerFindAllParams, options?: RequestInit): Promise<saveListsControllerFindAllResponse> => {
 
   return orvalClient<saveListsControllerFindAllResponse>(getSaveListsControllerFindAllUrl(params),
   {
@@ -6613,7 +6905,7 @@ export const getSaveListsControllerFindAllQueryKey = (params?: SaveListsControll
     }
 
 
-export const getSaveListsControllerFindAllInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+export const getSaveListsControllerFindAllInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6636,7 +6928,7 @@ export type SaveListsControllerFindAllInfiniteQueryError = unknown
 
 
 export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>> & Pick<
+ params: undefined |  SaveListsControllerFindAllParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof saveListsControllerFindAll>>,
           TError,
@@ -6646,7 +6938,7 @@ export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Await
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>> & Pick<
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof saveListsControllerFindAll>>,
           TError,
@@ -6656,7 +6948,7 @@ export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Await
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -6664,7 +6956,7 @@ export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Await
  */
 
 export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Awaited<ReturnType<typeof saveListsControllerFindAll>>, SaveListsControllerFindAllParams['page']>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData, QueryKey, SaveListsControllerFindAllParams['page']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -6680,7 +6972,7 @@ export function useSaveListsControllerFindAllInfinite<TData = InfiniteData<Await
 
 
 
-export const getSaveListsControllerFindAllQueryOptions = <TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+export const getSaveListsControllerFindAllQueryOptions = <TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6703,7 +6995,7 @@ export type SaveListsControllerFindAllQueryError = unknown
 
 
 export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>> & Pick<
+ params: undefined |  SaveListsControllerFindAllParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof saveListsControllerFindAll>>,
           TError,
@@ -6713,7 +7005,7 @@ export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof 
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>> & Pick<
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof saveListsControllerFindAll>>,
           TError,
@@ -6723,7 +7015,7 @@ export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof 
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -6731,7 +7023,7 @@ export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof 
  */
 
 export function useSaveListsControllerFindAll<TData = Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError = unknown>(
- params: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ params?: SaveListsControllerFindAllParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof saveListsControllerFindAll>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -8234,14 +8526,14 @@ export const getAdminsControllerResolveReportUrl = (id: string,) => {
  * @summary Admin: Resolve or reject a report
  */
 export const adminsControllerResolveReport = async (id: string,
-    adminsControllerResolveReportBody: AdminsControllerResolveReportBody, options?: RequestInit): Promise<adminsControllerResolveReportResponse> => {
+    resolveReportDto: ResolveReportDto, options?: RequestInit): Promise<adminsControllerResolveReportResponse> => {
 
   return orvalClient<adminsControllerResolveReportResponse>(getAdminsControllerResolveReportUrl(id),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(adminsControllerResolveReportBody)
+    body: JSON.stringify(resolveReportDto)
   }
 );}
 
@@ -8249,8 +8541,8 @@ export const adminsControllerResolveReport = async (id: string,
 
 
 export const getAdminsControllerResolveReportMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: AdminsControllerResolveReportBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: AdminsControllerResolveReportBody}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: ResolveReportDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: ResolveReportDto}, TContext> => {
 
 const mutationKey = ['adminsControllerResolveReport'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -8262,7 +8554,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminsControllerResolveReport>>, {id: string;data: AdminsControllerResolveReportBody}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminsControllerResolveReport>>, {id: string;data: ResolveReportDto}> = (props) => {
           const {id,data} = props ?? {};
 
           return  adminsControllerResolveReport(id,data,requestOptions)
@@ -8276,18 +8568,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AdminsControllerResolveReportMutationResult = NonNullable<Awaited<ReturnType<typeof adminsControllerResolveReport>>>
-    export type AdminsControllerResolveReportMutationBody = AdminsControllerResolveReportBody
+    export type AdminsControllerResolveReportMutationBody = ResolveReportDto
     export type AdminsControllerResolveReportMutationError = unknown
 
     /**
  * @summary Admin: Resolve or reject a report
  */
 export const useAdminsControllerResolveReport = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: AdminsControllerResolveReportBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminsControllerResolveReport>>, TError,{id: string;data: ResolveReportDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof adminsControllerResolveReport>>,
         TError,
-        {id: string;data: AdminsControllerResolveReportBody},
+        {id: string;data: ResolveReportDto},
         TContext
       > => {
       return useMutation(getAdminsControllerResolveReportMutationOptions(options), queryClient);
@@ -8373,6 +8665,88 @@ export const useReportsControllerCreateReport = <TError = unknown,
         TContext
       > => {
       return useMutation(getReportsControllerCreateReportMutationOptions(options), queryClient);
+    }
+
+export type pinMessagesControllerTogglePinMessageResponse200 = {
+  data: void
+  status: 200
+}
+
+export type pinMessagesControllerTogglePinMessageResponseSuccess = (pinMessagesControllerTogglePinMessageResponse200) & {
+  headers: Headers;
+};
+;
+
+export type pinMessagesControllerTogglePinMessageResponse = (pinMessagesControllerTogglePinMessageResponseSuccess)
+
+export const getPinMessagesControllerTogglePinMessageUrl = (messageId: string,) => {
+
+
+
+
+  return `/pin-messages/${messageId}`
+}
+
+/**
+ * @summary Pin or unpin a message
+ */
+export const pinMessagesControllerTogglePinMessage = async (messageId: string, options?: RequestInit): Promise<pinMessagesControllerTogglePinMessageResponse> => {
+
+  return orvalClient<pinMessagesControllerTogglePinMessageResponse>(getPinMessagesControllerTogglePinMessageUrl(messageId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getPinMessagesControllerTogglePinMessageMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>, TError,{messageId: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>, TError,{messageId: string}, TContext> => {
+
+const mutationKey = ['pinMessagesControllerTogglePinMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>, {messageId: string}> = (props) => {
+          const {messageId} = props ?? {};
+
+          return  pinMessagesControllerTogglePinMessage(messageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PinMessagesControllerTogglePinMessageMutationResult = NonNullable<Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>>
+
+    export type PinMessagesControllerTogglePinMessageMutationError = unknown
+
+    /**
+ * @summary Pin or unpin a message
+ */
+export const usePinMessagesControllerTogglePinMessage = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>, TError,{messageId: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof pinMessagesControllerTogglePinMessage>>,
+        TError,
+        {messageId: string},
+        TContext
+      > => {
+      return useMutation(getPinMessagesControllerTogglePinMessageMutationOptions(options), queryClient);
     }
 
 export type searchControllerSearchAllResponse200 = {

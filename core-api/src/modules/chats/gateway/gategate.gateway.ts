@@ -1,3 +1,6 @@
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/modules/users/entities/user.entity';
 import { NotificationUsersService } from '../../notifications/notification-users/notification-users.service';
 import {
   WebSocketGateway,
@@ -15,14 +18,15 @@ import { WsAuthMiddleware } from './ws-auth.middleware';
 import { INotiUser } from 'src/modules/notifications/notification.interface';
 import { ChatMessagesService } from 'src/modules/chats/chat-messages.service';
 
-/*
-    Client --|Gửi tin| Redis;
-    Redis --|Phản hồi nhanh| Client;
-    Redis --|Lưu vào hàng đợi| BullMQ;
-    BullMQ --|Ghi tin nhắn vào DB| PostgreSQL;
-    Client --|Yêu cầu tin nhắn cũ| PostgreSQL;
-*/
-
+/**
+ * WebSocket Gateway — Real-time messaging hub.
+ *
+ * Architecture (Hybrid Messaging Pattern):
+ * - Text messages: sent via WebSocket ('sendMessage' event)
+ * - Media messages: uploaded via REST POST /chat-messages, then broadcast here
+ * - All broadcasts use userId-based sockets (not room-based)
+ *   → Users receive messages from ALL their rooms without needing to join each room
+ */
 @WebSocketGateway({
   cors: true,
   pingInterval: 10000,
@@ -39,9 +43,15 @@ export class GatewayGateway
     private readonly wsAuthMiddleware: WsAuthMiddleware,
     private readonly notificationUsersService: NotificationUsersService,
     private readonly chatMessagesService: ChatMessagesService,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
   ) {}
 
-  // Initialize WebSocket
+  // ═══════════════════════════════════════════
+  //  LIFECYCLE: Init, Connect, Disconnect
+  // ═══════════════════════════════════════════
+
+  /** Initialize WebSocket server with auth middleware */
   afterInit() {
     console.log('WebSocket initialized');
     this.server.use((socket: Socket, next) =>
@@ -49,34 +59,97 @@ export class GatewayGateway
     );
   }
 
-  // Handle connection
+  /**
+   * Handle new socket connection.
+   * Each socket auto-joins the user's personal room (userId).
+   * This enables broadcasting to a user across all their tabs/devices.
+   */
   async handleConnection(socket: Socket) {
-    // Increase connection number
-    socket.join(socket.data.user.id);
-    await this.redisService.incr(`connection_number:${socket.data.user.id}`);
+    const userId = socket.data.user.id;
+    // Join personal room keyed by userId — this is the broadcast target
+    socket.join(userId);
+    await this.redisService.incr(`connection_number:${userId}`);
+
+    // Broadcast user online status to all connected clients
+    this.server.emit('userStatusChanged', {
+      user_id: userId,
+      is_online: true,
+    });
   }
 
-  // Handle disconnection
+  /**
+   * Handle socket disconnection.
+   * Decrements connection counter; if last connection, marks user offline.
+   */
   async handleDisconnect(@ConnectedSocket() socket: Socket) {
-    // get connection number
+    const userId = socket.data.user.id;
     const connectionNumber = await this.redisService.get(
-      `connection_number:${socket.data.user.id}`,
+      `connection_number:${userId}`,
     );
 
-    // Decrease connection number
-    if (parseInt(connectionNumber) === 1) {
-      await this.redisService.del(`connection_number:${socket.data.user.id}`);
+    let isOffline = false;
+    if (!connectionNumber || parseInt(connectionNumber) <= 1) {
+      await this.redisService.del(`connection_number:${userId}`);
+      isOffline = true;
+
+      // Update last_active timestamp in database
+      const now = new Date();
+      await this.usersRepository.update(userId, {
+        last_active: now,
+      });
     } else {
-      await this.redisService.decr(`connection_number:${socket.data.user.id}`);
+      await this.redisService.decr(`connection_number:${userId}`);
+    }
+
+    if (isOffline) {
+      this.server.emit('userStatusChanged', {
+        user_id: userId,
+        is_online: false,
+        last_active: new Date(),
+      });
     }
   }
 
-  // Send notification
+  // ═══════════════════════════════════════════
+  //  BROADCASTING: Core broadcast methods
+  // ═══════════════════════════════════════════
+
+  /**
+   * Broadcast an event to ALL members of a chat room via their userId sockets.
+   * This is the primary broadcast mechanism — replaces the old room-based emitToRoom.
+   *
+   * @param roomId - The chat room ID to look up members
+   * @param event - Socket event name (e.g., 'newMessage', 'messageEdited')
+   * @param data - Payload to broadcast
+   * @param excludeUserId - Optional userId to exclude from broadcast (e.g., sender)
+   */
+  async broadcastToMembers(
+    roomId: string,
+    event: string,
+    data: unknown,
+    excludeUserId?: string,
+  ) {
+    // Look up all member userIds for this room
+    const memberIds =
+      await this.chatMessagesService.getRoomMemberIds(roomId);
+
+    // Emit to each member's personal socket room
+    for (const userId of memberIds) {
+      if (excludeUserId && userId === excludeUserId) continue;
+      this.server.to(userId).emit(event, data);
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  NOTIFICATIONS
+  // ═══════════════════════════════════════════
+
+  /** Send a notification to a specific user */
   async sendNotification(noti: INotiUser) {
     this.server.to(noti.user_id).emit('notification', noti);
   }
 
-  // User read notification
+  /** Handle notification read event */
   @SubscribeMessage('readNotification')
   handleReadNotification(
     @ConnectedSocket() socket: Socket,
@@ -92,77 +165,74 @@ export class GatewayGateway
   //  CHAT: Real-time messaging
   // ═══════════════════════════════════════════
 
-  // Join a chat room
-  @SubscribeMessage('joinRoom')
-  async handleJoinRoom(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() roomId: string,
-  ) {
-    socket.join(roomId);
-    console.log(`User ${socket.data.user.id} joined room ${roomId}`);
-
-    // Get cached messages from Redis
-    const messages = await this.redisService.lRange(`chat:${roomId}`, 0, -1);
-
-    // Send cached message history to client
-    socket.emit(
-      'messageHistory',
-      messages.map((msg) => JSON.parse(msg)),
-    );
-  }
-
-  // Leave a chat room
-  @SubscribeMessage('leaveRoom')
-  async handleLeaveRoom(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() roomId: string,
-  ) {
-    socket.leave(roomId);
-    console.log(`User ${socket.data.user.id} left room ${roomId}`);
-  }
-
-  // Send a text message via WebSocket (real-time path)
+  /**
+   * Handle text message sent via WebSocket (fast path for text-only messages).
+   *
+   * Flow:
+   * 1. Save message to DB via service
+   * 2. Emit 'messageSaved' back to sender with tempId mapping
+   * 3. Broadcast 'newMessage' to all OTHER members via userId sockets
+   */
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() socket: Socket,
-    @MessageBody() body: { chat_room_id: string; message: string },
+    @MessageBody()
+    body: { chat_room_id: string; message: string; tempId: string; reply_to_id?: string },
   ) {
     try {
       const user = socket.data.user;
 
-      // Save message to DB + Redis via service
+      // Step 1: Save message to DB + Redis cache via service
       const savedMessage = await this.chatMessagesService.createMessage(
-        { chat_room_id: body.chat_room_id, message: body.message, medias: '' },
+        {
+          chat_room_id: body.chat_room_id,
+          message: body.message,
+          medias: '',
+          reply_to_id: body.reply_to_id,
+        },
         user,
       );
 
-      // Broadcast to all members in the room (including sender)
-      this.server.to(body.chat_room_id).emit('newMessage', savedMessage);
+      // Step 2: Confirm to sender — map tempId to real saved message
+      socket.emit('messageSaved', {
+        tempId: body.tempId,
+        message: savedMessage,
+      });
+
+      // Step 3: Broadcast to all OTHER members via userId sockets
+      await this.broadcastToMembers(
+        body.chat_room_id,
+        'newMessage',
+        savedMessage,
+        user.id, // exclude sender — they already got 'messageSaved'
+      );
     } catch (error) {
+      // Notify sender of failure
       socket.emit('messageError', {
+        tempId: body.tempId,
         error: error.message || 'Failed to send message',
       });
     }
   }
 
-  // Typing indicator
+  /**
+   * Typing indicator — broadcast to other room members.
+   * Frontend should debounce: emit true on keypress, false after 1.5s idle.
+   */
   @SubscribeMessage('typing')
-  handleTyping(
+  async handleTyping(
     @ConnectedSocket() socket: Socket,
     @MessageBody() body: { chat_room_id: string; is_typing: boolean },
   ) {
-    // Broadcast typing status to other members (not sender)
-    socket.to(body.chat_room_id).emit('userTyping', {
-      user_id: socket.data.user.id,
-      is_typing: body.is_typing,
-    });
-  }
-
-  /**
-   * Emit a message to a specific chat room.
-   * Called externally by ChatMessagesService (via REST API path).
-   */
-  emitToRoom(roomId: string, event: string, data: any) {
-    this.server.to(roomId).emit(event, data);
+    // Broadcast typing status to all members except sender
+    await this.broadcastToMembers(
+      body.chat_room_id,
+      'userTyping',
+      {
+        user_id: socket.data.user.id,
+        is_typing: body.is_typing,
+      },
+      socket.data.user.id,
+    );
   }
 }

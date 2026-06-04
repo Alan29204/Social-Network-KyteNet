@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class UpdateCommentDto {
+export class ChatbotDto {
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({ example: 'Nội dung bình luận đã chỉnh sửa' })
-  content: string;
+  @ApiProperty({ example: 'Hãy viết một bài đăng chào mừng' })
+  prompt: string;
 }

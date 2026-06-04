@@ -1,13 +1,7 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
@@ -31,9 +25,9 @@ export class CommentsController {
   update(
     @Param('id') id: string,
     @User() user: IUser,
-    @Body('content') content: string,
+    @Body() dto: UpdateCommentDto,
   ) {
-    return this.commentsService.update(id, user, content);
+    return this.commentsService.update(id, user, dto.content);
   }
 
   @Delete(':id')

@@ -10,12 +10,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AdminsService } from './admins.service';
-import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
 import { Admin } from 'src/common/decorators/customize';
 import { IAdmin } from './admin.interface';
 import { AddAdminDto } from './dto/add-admin.dto';
 import { ReportStatus } from '../reports/entities/report.entity';
+import { ResolveReportDto } from './dto/resolve-report.dto';
 
 @Controller('admins')
 @ApiTags('Admins')
@@ -100,20 +101,7 @@ export class AdminsController {
 
   @Patch('reports/:id/resolve')
   @ApiOperation({ summary: 'Admin: Resolve or reject a report' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string', enum: [ReportStatus.RESOLVED, ReportStatus.REJECTED] },
-        admin_note: { type: 'string' },
-      },
-    },
-  })
-  resolveReport(
-    @Param('id') id: string,
-    @Body('status') status: ReportStatus,
-    @Body('admin_note') admin_note: string,
-  ) {
-    return this.adminsService.resolveReport(id, admin_note, status);
+  resolveReport(@Param('id') id: string, @Body() dto: ResolveReportDto) {
+    return this.adminsService.resolveReport(id, dto.admin_note, dto.status);
   }
 }

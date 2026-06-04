@@ -7,10 +7,17 @@ import { AuthService } from 'src/modules/users/auth/auth.service';
 export class WsAuthMiddleware implements NestMiddleware {
   constructor(private readonly authService: AuthService) {}
   async use(socket: Socket, next: (err?: any) => void) {
-    const authToken: any = socket.handshake.headers.authorization;
+    let authToken: any = socket.handshake.headers.authorization;
+    if (!authToken && socket.handshake.auth) {
+      authToken = socket.handshake.auth.token;
+    }
 
     if (!authToken) {
       return next(new Error('Authentication error: No token provided'));
+    }
+
+    if (typeof authToken === 'string' && authToken.startsWith('Bearer ')) {
+      authToken = authToken.substring(7);
     }
 
     try {

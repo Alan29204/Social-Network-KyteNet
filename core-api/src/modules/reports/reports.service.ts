@@ -24,6 +24,9 @@ export class ReportsService {
     if (dto.type === ReportType.USER && !dto.reported_user_id) {
       throw new BadRequestException('reported_user_id is required when type is user');
     }
+    if (dto.type === ReportType.MESSAGE && !dto.reported_message_id) {
+      throw new BadRequestException('reported_message_id is required when type is message');
+    }
 
     try {
       const report = this.reportsRepository.create({
@@ -33,6 +36,7 @@ export class ReportsService {
         reporter_id: user.id,
         reported_post_id: dto.reported_post_id,
         reported_user_id: dto.reported_user_id,
+        reported_message_id: dto.reported_message_id,
         status: ReportStatus.PENDING,
       });
       await this.reportsRepository.save(report);
@@ -49,6 +53,7 @@ export class ReportsService {
       .leftJoinAndSelect('report.reporter', 'reporter')
       .leftJoinAndSelect('report.reported_post', 'reported_post')
       .leftJoinAndSelect('report.reported_user', 'reported_user')
+      .leftJoinAndSelect('report.reported_message', 'reported_message')
       .orderBy('report.created_at', 'DESC')
       .skip(skip)
       .take(limit);

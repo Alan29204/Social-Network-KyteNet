@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
@@ -18,4 +19,13 @@ export class UpdateChatRoomDto {
   @IsNotEmpty()
   @ApiProperty({ example: 'Group Chat' })
   name: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'binary',
+    required: false,
+    description: 'File ảnh đại diện phòng chat',
+  })
+  @IsOptional()
+  'avatar-chat-room'?: any;
 }

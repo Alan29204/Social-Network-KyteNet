@@ -41,7 +41,7 @@ export function AvatarUploadModal({
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   const queryClient = useQueryClient();
-  const { user, updateUser } = useAuthStore();
+  const { updateUser } = useAuthStore();
   const { toast } = useToast();
 
   // Reset modal when closing

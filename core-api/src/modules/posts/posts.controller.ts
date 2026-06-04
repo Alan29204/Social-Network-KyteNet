@@ -16,6 +16,7 @@ import {
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { SharePostDto } from './dto/share-post.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -38,8 +39,17 @@ export class PostsController {
         { name: 'page', description: 'Page number', required: false },
         { name: 'limit', description: 'Limit per page', required: false },
         { name: 'user_id', description: 'User ID', required: false },
-        { name: 'is_repost', description: 'Filter by repost status', required: false, type: 'boolean' },
-        { name: 'media_type', description: 'Filter by media type (image/video)', required: false },
+        {
+          name: 'is_repost',
+          description: 'Filter by repost status',
+          required: false,
+          type: 'boolean',
+        },
+        {
+          name: 'media_type',
+          description: 'Filter by media type (image/video)',
+          required: false,
+        },
       ],
     },
   })
@@ -130,15 +140,12 @@ export class PostsController {
   @Post('share')
   @ResponseMessage('Share post successfully')
   @ApiOperation({ summary: 'Share/Repost a post' })
-  sharePost(
-    @User() user: IUser,
-    @Body() body: { post_id: string; content?: string; privacy?: string },
-  ) {
+  sharePost(@User() user: IUser, @Body() dto: SharePostDto) {
     return this.postsService.sharePost(
       user,
-      body.post_id,
-      body.content,
-      body.privacy,
+      dto.post_id,
+      dto.content,
+      dto.privacy,
     );
   }
 

@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ChatRoomsService } from './chat-rooms.service';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
@@ -63,9 +63,19 @@ export class ChatRoomsController {
     return this.chatRoomsService.getOrCreateDirectChat(user.id, targetUserId);
   }
 
+  @Post(':id/read')
+  @ResponseMessage('Mark room as read success')
+  @ApiOperation({ summary: 'Mark all messages in room as read for user' })
+  markRoomAsRead(@Param('id') id: string, @User() user: IUser) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.markRoomAsRead(id, user.id);
+  }
+
   @Patch()
   @ResponseMessage('Update name or avatar chat room success')
   @ApiOperation({ summary: 'Update name or avatar chat room' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UpdateChatRoomDto })
   @UseInterceptors(FileInterceptor('avatar-chat-room'))
   updateNameOrAvatar(
     @Body() dto: UpdateChatRoomDto,

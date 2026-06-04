@@ -405,4 +405,106 @@ export class UsersService {
 
     return { message: 'Password reset successfully' };
   }
+
+  /**
+   * Search users for messaging with ranking priorities.
+   * Returns { data: users[] } to match SearchUserMessageResponseDto.
+   */
+  async searchUsersForMessage(userId: string, q?: string) {
+    // Nếu không có keyword, trả về gợi ý (suggested users)
+    if (!q || q.trim() === '') {
+      const suggested = await this.relationsService.getSuggestedUsers(
+        userId,
+        10,
+      );
+      // Map suggested users to include online status
+      const suggestedWithStatus = await Promise.all(
+        suggested.map(async (u) => {
+          const redisStatus = await this.redisService.get(
+            `connection_number:${u.id}`,
+          );
+          const isOnline = !!redisStatus && parseInt(redisStatus) > 0;
+          return {
+            ...u,
+            is_online: isOnline,
+          };
+        }),
+      );
+      return { data: suggestedWithStatus };
+    }
+
+    const prefix = `${q.toLowerCase()}%`;
+    const keyword = `%${q.toLowerCase()}%`;
+
+    const query = this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoin(
+        'relation',
+        'r',
+        `((r.request_side_id = :userId AND r.accept_side_id = user.id) OR 
+          (r.request_side_id = user.id AND r.accept_side_id = :userId)) AND 
+          r.relation_type = 'following'`,
+      )
+      .where(
+        '(LOWER(user.username) LIKE :keyword OR LOWER(user.full_name) LIKE :keyword)',
+        { keyword },
+      )
+      .andWhere('user.id != :userId', { userId })
+      .andWhere(
+        `user.id NOT IN (
+          SELECT accept_side_id FROM relation WHERE request_side_id = :userId AND relation_type = 'block'
+          UNION
+          SELECT request_side_id FROM relation WHERE accept_side_id = :userId AND relation_type = 'block'
+        )`,
+      )
+      .select([
+        'user.id AS id',
+        'user.username AS username',
+        'user.full_name AS full_name',
+        'user.avatar AS avatar',
+        'user.privacy AS privacy',
+        'user.message_privacy AS message_privacy',
+      ])
+      .addSelect(
+        `MAX(CASE 
+          WHEN LOWER(user.username) LIKE :prefix THEN 4
+          WHEN LOWER(user.full_name) LIKE :prefix THEN 3
+          WHEN LOWER(user.username) LIKE :keyword THEN 2
+          ELSE 1 
+        END)`,
+        'search_rank',
+      )
+      .addSelect(`MAX(CASE WHEN r.id IS NOT NULL THEN 2 ELSE 1 END)`, 'relation_rank')
+      .groupBy('user.id')
+      .orderBy('search_rank', 'DESC')
+      .addOrderBy('relation_rank', 'DESC')
+      .addOrderBy('user.username', 'ASC')
+      .limit(30)
+      .setParameter('userId', userId)
+      .setParameter('prefix', prefix)
+      .setParameter('keyword', keyword);
+
+    const results = await query.getRawMany();
+    
+    // Check online status in Redis for each matching user
+    const resultsWithStatus = await Promise.all(
+      results.map(async (u) => {
+        const redisStatus = await this.redisService.get(
+          `connection_number:${u.id}`,
+        );
+        const isOnline = !!redisStatus && parseInt(redisStatus) > 0;
+        return {
+          id: u.id,
+          username: u.username,
+          full_name: u.full_name,
+          avatar: u.avatar,
+          privacy: u.privacy,
+          message_privacy: u.message_privacy,
+          is_online: isOnline,
+        };
+      }),
+    );
+
+    return { data: resultsWithStatus };
+  }
 }

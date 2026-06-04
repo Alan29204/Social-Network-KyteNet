@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/components/theme-provider';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { useMessagingStore } from '@/features/chats/stores/messaging-store';
+import { socketService } from '@/services/socket.service';
 import {
   Home,
   Search,
@@ -29,6 +31,7 @@ import {
   RefreshCw,
   LogOut,
 } from 'lucide-react';
+import { getChatRoomsControllerGetListChatRoomQueryKey, useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -44,12 +47,60 @@ const navItems = [
 export function SidebarLeft() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { user, logout } = useAuthStore();
+  const { user, accessToken, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { selectedRoomId } = useMessagingStore();
+
+  const { data: chatRoomsResponse } = useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50 }, {
+    query: {
+      enabled: !!user && !!accessToken,
+    }
+  });
+
+  const rooms = (chatRoomsResponse as any)?.data?.data || [];
+  const unreadCount = rooms.reduce((acc: number, room: any) => acc + (room.unread_count || 0), 0);
+
+  useEffect(() => {
+    if (!user || !accessToken) return;
+
+    // Ensure socket is connected globally
+    socketService.connect(accessToken);
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
+    const handleNewMessage = (newMsg: any) => {
+      // Optmistically increment unread count for the specific room in React Query cache
+      // if we aren't currently viewing it.
+      if (
+        newMsg.created_by !== user.id && 
+        (location.pathname !== '/messages' || selectedRoomId !== newMsg.chat_room_id)
+      ) {
+        queryClient.setQueryData(
+          getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
+          (old: any) => {
+            if (!old?.data?.data) return old;
+            const updatedRooms = old.data.data.map((r: any) => {
+              if (r.id === newMsg.chat_room_id) {
+                return { ...r, unread_count: (r.unread_count || 0) + 1 };
+              }
+              return r;
+            });
+            return { ...old, data: { ...old.data, data: updatedRooms } };
+          }
+        );
+      }
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    return () => {
+      socket.off('newMessage', handleNewMessage);
+    };
+  }, [user, accessToken, location.pathname, selectedRoomId, queryClient]);
 
   const handleLogout = () => {
+    socketService.disconnect();
     logout();
     navigate('/login');
   };
@@ -126,6 +177,11 @@ export function SidebarLeft() {
                           isActive ? 'text-foreground' : 'text-foreground/80'
                         )}
                       />
+                      {item.label === 'Tin nhắn' && unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1.5 min-w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm border border-background">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </div>
+                      )}
                     </div>
                     <span className="hidden group-hover:block text-[15px] leading-snug whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
                       {item.label}

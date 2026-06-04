@@ -10,7 +10,7 @@ import {
   Inject,
   Delete,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { User, ResponseMessage } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
 import { RelationType } from 'src/common/enums/relation.enum';
@@ -34,6 +34,10 @@ export class RelationsController {
   @ApiOperation({
     summary: `Get list relation ['following', 'block'] of user`,
   })
+  @ApiQuery({ name: 'relation', enum: RelationType, required: true, description: 'Kiểu quan hệ bạn bè' })
+  @ApiQuery({ name: 'mode', enum: ['followers', 'following'], required: false, description: 'Chế độ xem followers hoặc following' })
+  @ApiQuery({ name: 'page', type: Number, required: false, description: 'Số trang (mặc định: 1)' })
+  @ApiQuery({ name: 'limit', type: Number, required: false, description: 'Số lượng phần tử mỗi trang (mặc định: 10)' })
   async getListRelation(
     @User() user: IUser,
     @Param('user_id') user_id: string,

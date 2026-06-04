@@ -21,4 +21,9 @@ export class CreateChatMessageDto {
   @IsString()
   @IsNotEmpty()
   medias: string;
+
+  /** Optional: ID of the message being replied to */
+  @IsOptional()
+  @IsUUID()
+  reply_to_id?: string;
 }
