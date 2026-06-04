@@ -89,27 +89,43 @@ export class ReactionsService {
       result = { message: 'Reacted', reaction: reactionType };
     }
 
-    // Invalidate post cache if it's a post reaction
-    if (postId) {
-      await this.redisService.del(`post:${postId}`);
-
-      // Send notification to post owner (only on new reaction or change)
-      if (result.reaction) {
-        try {
-          const post = await this.postRepository.findOne({ where: { id: postId } });
-          const actor = await this.userRepository.findOne({ where: { id: user.id } });
-          if (post && actor) {
-            await this.notificationService.notifyReaction(
-              user.id,
-              actor.username,
-              post.user_id,
-              postId,
-              result.reaction,
-            );
-          }
-        } catch (e) {
-          console.error('Error sending reaction notification:', e);
+    // Resolve targetPostId for cache invalidation
+    let targetPostId = postId;
+    if (!targetPostId && commentId) {
+      try {
+        const commentRows = await this.reactionRepository.manager.query(
+          'SELECT post_id FROM comment WHERE id = $1',
+          [commentId],
+        );
+        if (commentRows?.length > 0) {
+          targetPostId = commentRows[0].post_id;
         }
+      } catch (e) {
+        console.error('Failed to resolve post_id from comment:', e);
+      }
+    }
+
+    // Invalidate post cache
+    if (targetPostId) {
+      await this.redisService.del(`post:${targetPostId}`);
+    }
+
+    // Send notification to post owner (only on new reaction or change, for POST reactions only)
+    if (postId && result.reaction) {
+      try {
+        const post = await this.postRepository.findOne({ where: { id: postId } });
+        const actor = await this.userRepository.findOne({ where: { id: user.id } });
+        if (post && actor) {
+          await this.notificationService.notifyReaction(
+            user.id,
+            actor.username,
+            post.user_id,
+            postId,
+            result.reaction,
+          );
+        }
+      } catch (e) {
+        console.error('Error sending reaction notification:', e);
       }
     }
 

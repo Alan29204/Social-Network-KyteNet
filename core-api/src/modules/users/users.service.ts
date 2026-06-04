@@ -123,6 +123,7 @@ export class UsersService {
         password: hashPassword,
         avatar: dto?.avatar,
         username: dto.username,
+        full_name: dto.full_name,
         bio: dto?.bio,
         website: dto?.website,
         birthday: dto?.birthday,

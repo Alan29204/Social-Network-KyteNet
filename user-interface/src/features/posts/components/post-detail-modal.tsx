@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
@@ -172,15 +172,87 @@ export function PostDetailModal({
     inputRef.current?.focus();
   };
 
-  const handleLikePost = () => {
-    reactionMutation.mutate({
-      postId: post?.id || initialPost.id,
-      reaction: 'like',
+  const pendingToggles = useRef<Record<string, number>>({});
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const flushToggles = useCallback(() => {
+    Object.entries(pendingToggles.current).forEach(([id, count]) => {
+      if (count % 2 !== 0) {
+        // Odd number of clicks -> State changed -> Call API
+        const isComment = id.startsWith('comment_');
+        const actualId = id.replace(/^(comment|post)_/, '');
+        reactionMutation.mutate({
+          commentId: isComment ? actualId : undefined,
+          postId: !isComment ? actualId : undefined,
+          reaction: 'like',
+        });
+      }
     });
+    pendingToggles.current = {};
+  }, []);
+
+  const queueToggle = useCallback((id: string, isComment: boolean) => {
+    const key = isComment ? `comment_${id}` : `post_${id}`;
+    pendingToggles.current[key] = (pendingToggles.current[key] || 0) + 1;
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      flushToggles();
+    }, 500);
+  }, [flushToggles]);
+
+  const handleLikePost = () => {
+    queryClient.setQueryData(['postDetail', initialPost.id], (old: any) => {
+      if (!old?.data) return old;
+      const postData = old.data;
+      const isCurrentlyLiked = postData.interactions?.is_liked;
+      return {
+        ...old,
+        data: {
+          ...postData,
+          interactions: {
+            ...postData.interactions,
+            is_liked: !isCurrentlyLiked,
+            likes: isCurrentlyLiked
+              ? Math.max(0, (postData.interactions?.likes || 0) - 1)
+              : (postData.interactions?.likes || 0) + 1,
+          },
+        }
+      };
+    });
+    queueToggle(post?.id || initialPost.id, false);
   };
 
   const handleLikeComment = (commentId: string) => {
-    reactionMutation.mutate({ commentId, reaction: 'like' });
+    queryClient.setQueryData(['postDetail', initialPost.id], (old: any) => {
+      if (!old?.data) return old;
+      const postData = old.data;
+      return {
+        ...old,
+        data: {
+          ...postData,
+          comments: postData.comments?.map((c: any) => {
+            if (c.id === commentId) {
+              const isCurrentlyLiked = c.interactions?.is_liked;
+              return {
+                ...c,
+                interactions: {
+                  ...c.interactions,
+                  is_liked: !isCurrentlyLiked,
+                  likes: isCurrentlyLiked
+                    ? Math.max(0, (c.interactions?.likes || 0) - 1)
+                    : (c.interactions?.likes || 0) + 1,
+                },
+              };
+            }
+            return c;
+          }),
+        }
+      };
+    });
+    queueToggle(commentId, true);
   };
 
   const repostMutation = useMutation({

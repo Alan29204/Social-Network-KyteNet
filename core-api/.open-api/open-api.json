@@ -3605,6 +3605,13 @@
             "example": "Thành",
             "description": "Your last username"
           },
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "example": "Nguyễn Tuấn Thành",
+            "description": "Your full name"
+          },
           "bio": {
             "type": "string",
             "minLength": 5,
@@ -3665,6 +3672,7 @@
         },
         "required": [
           "username",
+          "full_name",
           "bio",
           "website",
           "birthday",
@@ -3699,6 +3707,13 @@
             "maxLength": 20,
             "example": "Nguyễn Tuấn Thành",
             "description": "Your last username"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "example": "Nguyễn Tuấn Thành",
+            "description": "Your full name"
           },
           "bio": {
             "type": "string",
@@ -3737,6 +3752,7 @@
           "password",
           "avatar",
           "username",
+          "full_name",
           "bio",
           "website",
           "birthday",

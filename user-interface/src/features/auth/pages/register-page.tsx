@@ -16,6 +16,7 @@ import { useRegister } from '@/features/auth/apis/auth-api';
 
 const registerSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
+  full_name: z.string().min(2, 'Họ và tên phải có ít nhất 2 ký tự').max(50, 'Họ và tên không được vượt quá 50 ký tự'),
   username: z.string().min(2, 'Tên người dùng phải có ít nhất 2 ký tự').max(20, 'Tên người dùng không được vượt quá 20 ký tự'),
   password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
   confirmPassword: z.string()
@@ -83,6 +84,18 @@ export default function RegisterPage() {
               )}
             </div>
             
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Họ và tên</Label>
+              <Input
+                id="full_name"
+                placeholder="Nguyễn Văn A"
+                {...register('full_name')}
+              />
+              {errors.full_name && (
+                <p className="text-xs text-destructive">{errors.full_name.message}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="username">Tên người dùng</Label>
               <Input

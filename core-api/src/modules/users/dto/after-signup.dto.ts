@@ -40,6 +40,16 @@ export class AfterSignUpDto {
   })
   username: string;
 
+  @MinLength(2)
+  @MaxLength(50)
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    example: 'Nguyễn Tuấn Thành',
+    description: 'Your full name',
+  })
+  full_name: string;
+
   @ApiProperty({ example: 'Good boy', description: 'bio' })
   @IsString()
   @IsOptional()

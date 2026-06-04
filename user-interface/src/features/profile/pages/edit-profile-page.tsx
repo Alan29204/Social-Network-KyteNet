@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 
 const profileSchema = z.object({
   username: z.string().min(2, 'Tên người dùng phải có ít nhất 2 ký tự').max(20, 'Tên người dùng không vượt quá 20 ký tự'),
+  full_name: z.string().min(2, 'Họ và tên phải có ít nhất 2 ký tự').max(50, 'Họ và tên không vượt quá 50 ký tự').optional().or(z.literal('')),
   bio: z.string().max(100, 'Tiểu sử không vượt quá 100 ký tự').optional().or(z.literal('')),
   website: z.string().max(100).optional().or(z.literal('')),
   birthday: z.string().optional().or(z.literal('')),
@@ -53,6 +54,7 @@ export default function EditProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       username: '',
+      full_name: '',
       bio: '',
       website: '',
       birthday: '',
@@ -68,6 +70,7 @@ export default function EditProfilePage() {
     if (userProfile) {
       form.reset({
         username: userProfile.username || '',
+        full_name: userProfile.full_name || '',
         bio: userProfile.bio || '',
         website: userProfile.website || '',
         birthday: userProfile.birthday ? new Date(userProfile.birthday).toISOString().split('T')[0] : '',
@@ -84,6 +87,7 @@ export default function EditProfilePage() {
       
       const payload: any = {
         username: data.username,
+        full_name: data.full_name || undefined,
         bio: data.bio || undefined,
         website: data.website || undefined,
         birthday: data.birthday ? new Date(data.birthday).toISOString() : undefined,
@@ -127,6 +131,14 @@ export default function EditProfilePage() {
           <Input id="username" {...form.register('username')} />
           {form.formState.errors.username && (
             <p className="text-sm text-destructive">{form.formState.errors.username.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="full_name">Họ và tên</Label>
+          <Input id="full_name" {...form.register('full_name')} />
+          {form.formState.errors.full_name && (
+            <p className="text-sm text-destructive">{form.formState.errors.full_name.message}</p>
           )}
         </div>
 

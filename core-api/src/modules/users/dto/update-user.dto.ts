@@ -11,6 +11,13 @@ export class UpdateUserDto {
   @ApiProperty({ example: 'Thành', description: 'Your last username' })
   username: string;
 
+  @MinLength(2)
+  @MaxLength(50)
+  @IsString()
+  @IsOptional()
+  @ApiProperty({ example: 'Nguyễn Tuấn Thành', description: 'Your full name' })
+  full_name: string;
+
   @ApiProperty({ example: 'Good boy', description: 'bio' })
   @MinLength(5, { message: 'Bio not less than 5 characters' })
   @MaxLength(100, { message: 'Bio not more than 100 characters' })
