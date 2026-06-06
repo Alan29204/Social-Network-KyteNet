@@ -20,6 +20,9 @@ import IdDto from 'src/common/dto/id.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member.dto';
 import { ChatMembersService } from './chat-members.service';
+import { UpdateChatRoomSettingsDto } from './dto/update-chat-room-settings.dto';
+import { UpdateChatRoomEmojiDto } from './dto/update-chat-room-emoji.dto';
+import { GatewayGateway } from 'src/modules/chats/gateway/gategate.gateway';
 
 @Injectable()
 export class ChatRoomsService {
@@ -32,6 +35,8 @@ export class ChatRoomsService {
     private readonly mediaService: MediaService,
     @Inject(forwardRef(() => ChatMembersService))
     private readonly chatMemberService: ChatMembersService,
+    @Inject(forwardRef(() => GatewayGateway))
+    private readonly gatewayGateway: GatewayGateway,
   ) {}
 
   // Find chat room by id
@@ -281,6 +286,9 @@ export class ChatRoomsService {
           'my_member.user_id = :userId',
           { userId: user.id },
         )
+        .andWhere(
+          '(my_member.deleted_at IS NULL OR room.last_message_at > my_member.deleted_at)',
+        )
         .leftJoinAndSelect('room.chat_members', 'members')
         .leftJoinAndSelect('members.user', 'memberUser')
         .orderBy('room.last_message_at', 'DESC', 'NULLS LAST')
@@ -297,6 +305,9 @@ export class ChatRoomsService {
           'my_member',
           'my_member.user_id = :userId',
           { userId: user.id },
+        )
+        .andWhere(
+          '(my_member.deleted_at IS NULL OR room.last_message_at > my_member.deleted_at)',
         )
         .getCount();
 
@@ -458,6 +469,8 @@ export class ChatRoomsService {
           type: room.type,
           avatar: room.avatar,
           unread_count: unreadCount,
+          is_muted: myMember?.is_muted || false,
+          quick_emoji: room.quick_emoji || '👍',
           members: membersWithStatus,
           is_blocked: isBlocked,
           is_request: isRequest,
@@ -491,6 +504,101 @@ export class ChatRoomsService {
       return { success: true };
     } catch {
       throw new InternalServerErrorException('Error marking room as read');
+    }
+  }
+
+  // Update chat room settings (e.g. is_muted)
+  async updateChatRoomSettings(roomId: string, userId: string, dto: UpdateChatRoomSettingsDto) {
+    const member = await this.chatMembersRepository.findOneBy({
+      chat_room_id: roomId,
+      user_id: userId,
+    });
+
+    if (!member) {
+      throw new NotFoundException('You are not a member of this chat room');
+    }
+
+    try {
+      await this.chatMembersRepository.update(
+        { chat_room_id: roomId, user_id: userId },
+        { is_muted: dto.is_muted },
+      );
+
+      // Cache mute status in Redis
+      const muteKey = `chat_room:mute:${roomId}:${userId}`;
+      if (dto.is_muted) {
+        await this.redisService.set(muteKey, '1');
+      } else {
+        await this.redisService.del(muteKey);
+      }
+
+      return { message: 'Chat room settings updated successfully', is_muted: dto.is_muted };
+    } catch (error) {
+      console.error('Error updating chat room settings:', error);
+      throw new BadRequestException('Update settings failed');
+    }
+  }
+
+  // Update chat room emoji
+  async updateChatRoomEmoji(roomId: string, userId: string, dto: UpdateChatRoomEmojiDto) {
+    const room = await this.findChatRoomByID(roomId);
+    const member = await this.chatMembersRepository.findOneBy({
+      chat_room_id: roomId,
+      user_id: userId,
+    });
+
+    if (!room || !member) {
+      throw new NotFoundException('Chat room not found or you are not a member');
+    }
+
+    try {
+      await this.chatRoomsRepository.update(
+        { id: roomId },
+        { quick_emoji: dto.emoji },
+      );
+
+      // Clear cache chat room in Redis
+      await this.redisService.del(`chat-room:${roomId}`);
+
+      // Broadcast emoji updated event to all members
+      await this.gatewayGateway.broadcastToMembers(
+        roomId,
+        'roomEmojiUpdated',
+        {
+          chat_room_id: roomId,
+          quick_emoji: dto.emoji,
+          updated_by: userId,
+        }
+      );
+
+      return { message: 'Chat room emoji updated successfully', emoji: dto.emoji };
+    } catch (error) {
+      console.error('Error updating chat room emoji:', error);
+      throw new BadRequestException('Update emoji failed');
+    }
+  }
+
+  // Soft delete history for a user
+  async softDeleteHistory(roomId: string, userId: string) {
+    const member = await this.chatMembersRepository.findOneBy({
+      chat_room_id: roomId,
+      user_id: userId,
+    });
+
+    if (!member) {
+      throw new NotFoundException('You are not a member of this chat room');
+    }
+
+    try {
+      await this.chatMembersRepository.update(
+        { chat_room_id: roomId, user_id: userId },
+        { deleted_at: () => 'CURRENT_TIMESTAMP' },
+      );
+
+      return { message: 'Chat history deleted successfully' };
+    } catch (error) {
+      console.error('Error soft deleting chat history:', error);
+      throw new BadRequestException('Delete chat history failed');
     }
   }
 }

@@ -22,6 +22,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import IdDto from 'src/common/dto/id.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member.dto';
+import { UpdateChatRoomSettingsDto } from './dto/update-chat-room-settings.dto';
+import { UpdateChatRoomEmojiDto } from './dto/update-chat-room-emoji.dto';
 
 @ApiTags('Chat Rooms')
 @Controller('chat-rooms')
@@ -101,5 +103,37 @@ export class ChatRoomsController {
   @ApiOperation({ summary: 'Delete chat room' })
   deleteChatRoom(@Body() dto: IdDto, @User() user: IUser) {
     return this.chatRoomsService.deleteChatRoom(dto, user);
+  }
+
+  @Patch(':id/settings')
+  @ResponseMessage('Update chat room settings success')
+  @ApiOperation({ summary: 'Update chat room settings (mute/unmute)' })
+  updateSettings(
+    @Param('id') id: string,
+    @Body() dto: UpdateChatRoomSettingsDto,
+    @User() user: IUser,
+  ) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.updateChatRoomSettings(id, user.id, dto);
+  }
+
+  @Patch(':id/emoji')
+  @ResponseMessage('Update chat room emoji success')
+  @ApiOperation({ summary: 'Update quick emoji for chat room' })
+  updateEmoji(
+    @Param('id') id: string,
+    @Body() dto: UpdateChatRoomEmojiDto,
+    @User() user: IUser,
+  ) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.updateChatRoomEmoji(id, user.id, dto);
+  }
+
+  @Delete(':id/history')
+  @ResponseMessage('Soft delete chat room history success')
+  @ApiOperation({ summary: 'Soft delete history of a chat room for current user' })
+  softDeleteHistory(@Param('id') id: string, @User() user: IUser) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.softDeleteHistory(id, user.id);
   }
 }

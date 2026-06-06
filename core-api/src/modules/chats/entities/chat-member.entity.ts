@@ -38,6 +38,12 @@ export class ChatMember {
   @Column({ default: true })
   allow_notification: boolean;
 
+  @Column({ default: false })
+  is_muted: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  deleted_at: Date;
+
   @Column({ default: 0 })
   unread_count: number;
 

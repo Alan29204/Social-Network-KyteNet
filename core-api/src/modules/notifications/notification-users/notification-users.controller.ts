@@ -6,7 +6,10 @@ import { DeleteNotificationUserDto } from './dto/delete-noti-user.dto';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { NotificationService } from '../notifications.service';
 import { ApiOkResponse } from '@nestjs/swagger';
-import { NotificationListResponseDto, UnreadCountResponseDto } from '../dto/notification-response.dto';
+import {
+  NotificationListResponseDto,
+  UnreadCountResponseDto,
+} from '../dto/notification-response.dto';
 import { forwardRef, Inject } from '@nestjs/common';
 
 @Controller('notification-users')
@@ -15,7 +18,7 @@ export class NotificationUsersController {
   constructor(
     private readonly notiUsersService: NotificationUsersService,
     @Inject(forwardRef(() => NotificationService))
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Get()

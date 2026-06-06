@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { RelationType } from 'src/common/enums/relation.enum';
 
 export class UpdateRelationDto {
@@ -10,6 +10,11 @@ export class UpdateRelationDto {
 
   @IsEnum(RelationType)
   @ApiProperty({ example: RelationType.FOLLOWING })
-  @IsNotEmpty()
-  relation: string;
+  @IsOptional()
+  relation?: RelationType;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({ example: 'restrict', description: 'Action to perform: restrict, unrestrict', required: false })
+  action?: 'restrict' | 'unrestrict';
 }

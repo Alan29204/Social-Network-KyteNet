@@ -334,7 +334,8 @@
               "enum": [
                 "following",
                 "block",
-                "none"
+                "none",
+                "pending"
               ],
               "type": "string"
             }
@@ -1007,6 +1008,98 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/{id}/settings": {
+      "patch": {
+        "operationId": "ChatRoomsController_updateSettings",
+        "summary": "Update chat room settings (mute/unmute)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatRoomSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/{id}/emoji": {
+      "patch": {
+        "operationId": "ChatRoomsController_updateEmoji",
+        "summary": "Update quick emoji for chat room",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatRoomEmojiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/{id}/history": {
+      "delete": {
+        "operationId": "ChatRoomsController_softDeleteHistory",
+        "summary": "Soft delete history of a chat room for current user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2532,8 +2625,15 @@
             "enum": [
               "following",
               "block",
-              "none"
+              "none",
+              "pending"
             ]
+          },
+          "is_restricted": {
+            "type": "boolean"
+          },
+          "is_mutual": {
+            "type": "boolean"
           },
           "created_at": {
             "format": "date-time",
@@ -2547,6 +2647,8 @@
           "request_side",
           "accept_side",
           "relation_type",
+          "is_restricted",
+          "is_mutual",
           "created_at"
         ]
       },
@@ -2669,6 +2771,13 @@
           "allow_notification": {
             "type": "boolean"
           },
+          "is_muted": {
+            "type": "boolean"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "unread_count": {
             "type": "number"
           },
@@ -2690,6 +2799,8 @@
           "member_type",
           "nickname",
           "allow_notification",
+          "is_muted",
+          "deleted_at",
           "unread_count",
           "created_at",
           "user",
@@ -3256,6 +3367,9 @@
             ],
             "type": "string"
           },
+          "quick_emoji": {
+            "type": "string"
+          },
           "end_to_end_encryption": {
             "type": "boolean"
           },
@@ -3303,6 +3417,7 @@
           "created_at",
           "last_message_at",
           "reaction_default",
+          "quick_emoji",
           "end_to_end_encryption",
           "user",
           "chat_members",
@@ -3864,13 +3979,23 @@
             "description": "ID user other"
           },
           "relation": {
+            "enum": [
+              "following",
+              "block",
+              "none",
+              "pending"
+            ],
             "type": "string",
             "example": "following"
+          },
+          "action": {
+            "type": "object",
+            "example": "restrict",
+            "description": "Action to perform: restrict, unrestrict"
           }
         },
         "required": [
-          "user_id",
-          "relation"
+          "user_id"
         ]
       },
       "NotificationActorDto": {
@@ -4151,6 +4276,32 @@
         },
         "required": [
           "id"
+        ]
+      },
+      "UpdateChatRoomSettingsDto": {
+        "type": "object",
+        "properties": {
+          "is_muted": {
+            "type": "boolean",
+            "example": true,
+            "description": "Trạng thái tắt thông báo"
+          }
+        },
+        "required": [
+          "is_muted"
+        ]
+      },
+      "UpdateChatRoomEmojiDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "example": "👍",
+            "description": "Biểu tượng cảm xúc nhanh của phòng chat"
+          }
+        },
+        "required": [
+          "emoji"
         ]
       },
       "RequestJoinChatRoomDto": {

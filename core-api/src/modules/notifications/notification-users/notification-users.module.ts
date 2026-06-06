@@ -7,7 +7,10 @@ import { NotificationModule } from '../notifications.module';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([NotificationUser]), forwardRef(() => NotificationModule)],
+  imports: [
+    TypeOrmModule.forFeature([NotificationUser]),
+    forwardRef(() => NotificationModule),
+  ],
   controllers: [NotificationUsersController],
   providers: [NotificationUsersService],
   exports: [NotificationUsersService],

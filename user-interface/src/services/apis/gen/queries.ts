@@ -41,6 +41,7 @@ export const RelationRelationType = {
   following: 'following',
   block: 'block',
   none: 'none',
+  pending: 'pending',
 } as const;
 
 export type UserGender = typeof UserGender[keyof typeof UserGender];
@@ -170,6 +171,8 @@ export type ChatMember = {
   member_type: ChatMemberMemberType;
   nickname: string;
   allow_notification: boolean;
+  is_muted: boolean;
+  deleted_at: string;
   unread_count: number;
   created_at: string;
   user: User;
@@ -357,6 +360,7 @@ export type ChatRoom = {
   created_at: string;
   last_message_at: string;
   reaction_default: ChatRoomReactionDefault;
+  quick_emoji: string;
   end_to_end_encryption: boolean;
   user: User;
   chat_members: ChatMember[];
@@ -413,6 +417,8 @@ export type Relation = {
   request_side: User;
   accept_side: User;
   relation_type: RelationRelationType;
+  is_restricted: boolean;
+  is_mutual: boolean;
   created_at: string;
 };
 
@@ -578,10 +584,27 @@ export type ResetPasswordDto = {
   new_password: string;
 };
 
+export type UpdateRelationDtoRelation = typeof UpdateRelationDtoRelation[keyof typeof UpdateRelationDtoRelation];
+
+
+export const UpdateRelationDtoRelation = {
+  following: 'following',
+  block: 'block',
+  none: 'none',
+  pending: 'pending',
+} as const;
+
+/**
+ * Action to perform: restrict, unrestrict
+ */
+export type UpdateRelationDtoAction = { [key: string]: unknown };
+
 export type UpdateRelationDto = {
   /** ID user other */
   user_id: string;
-  relation: string;
+  relation?: UpdateRelationDtoRelation;
+  /** Action to perform: restrict, unrestrict */
+  action?: UpdateRelationDtoAction;
 };
 
 export type NotificationActorDto = {
@@ -699,6 +722,16 @@ export type UpdatePermissionAddMemberDto = {
 
 export type IdDto = {
   id: string;
+};
+
+export type UpdateChatRoomSettingsDto = {
+  /** Trạng thái tắt thông báo */
+  is_muted: boolean;
+};
+
+export type UpdateChatRoomEmojiDto = {
+  /** Biểu tượng cảm xúc nhanh của phòng chat */
+  emoji: string;
 };
 
 export type RequestJoinChatRoomDto = {
@@ -942,6 +975,7 @@ export const RelationsControllerGetListRelationRelation = {
   following: 'following',
   block: 'block',
   none: 'none',
+  pending: 'pending',
 } as const;
 
 export type RelationsControllerGetListRelationMode = typeof RelationsControllerGetListRelationMode[keyof typeof RelationsControllerGetListRelationMode];
@@ -5165,6 +5199,254 @@ export const useChatRoomsControllerUpdatePermissionAddMember = <TError = unknown
         TContext
       > => {
       return useMutation(getChatRoomsControllerUpdatePermissionAddMemberMutationOptions(options), queryClient);
+    }
+
+export type chatRoomsControllerUpdateSettingsResponse200 = {
+  data: void
+  status: 200
+}
+
+export type chatRoomsControllerUpdateSettingsResponseSuccess = (chatRoomsControllerUpdateSettingsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerUpdateSettingsResponse = (chatRoomsControllerUpdateSettingsResponseSuccess)
+
+export const getChatRoomsControllerUpdateSettingsUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/settings`
+}
+
+/**
+ * @summary Update chat room settings (mute/unmute)
+ */
+export const chatRoomsControllerUpdateSettings = async (id: string,
+    updateChatRoomSettingsDto: UpdateChatRoomSettingsDto, options?: RequestInit): Promise<chatRoomsControllerUpdateSettingsResponse> => {
+
+  return orvalClient<chatRoomsControllerUpdateSettingsResponse>(getChatRoomsControllerUpdateSettingsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateChatRoomSettingsDto)
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerUpdateSettingsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>, TError,{id: string;data: UpdateChatRoomSettingsDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>, TError,{id: string;data: UpdateChatRoomSettingsDto}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerUpdateSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>, {id: string;data: UpdateChatRoomSettingsDto}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  chatRoomsControllerUpdateSettings(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerUpdateSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>>
+    export type ChatRoomsControllerUpdateSettingsMutationBody = UpdateChatRoomSettingsDto
+    export type ChatRoomsControllerUpdateSettingsMutationError = unknown
+
+    /**
+ * @summary Update chat room settings (mute/unmute)
+ */
+export const useChatRoomsControllerUpdateSettings = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>, TError,{id: string;data: UpdateChatRoomSettingsDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerUpdateSettings>>,
+        TError,
+        {id: string;data: UpdateChatRoomSettingsDto},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerUpdateSettingsMutationOptions(options), queryClient);
+    }
+
+export type chatRoomsControllerUpdateEmojiResponse200 = {
+  data: void
+  status: 200
+}
+
+export type chatRoomsControllerUpdateEmojiResponseSuccess = (chatRoomsControllerUpdateEmojiResponse200) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerUpdateEmojiResponse = (chatRoomsControllerUpdateEmojiResponseSuccess)
+
+export const getChatRoomsControllerUpdateEmojiUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/emoji`
+}
+
+/**
+ * @summary Update quick emoji for chat room
+ */
+export const chatRoomsControllerUpdateEmoji = async (id: string,
+    updateChatRoomEmojiDto: UpdateChatRoomEmojiDto, options?: RequestInit): Promise<chatRoomsControllerUpdateEmojiResponse> => {
+
+  return orvalClient<chatRoomsControllerUpdateEmojiResponse>(getChatRoomsControllerUpdateEmojiUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateChatRoomEmojiDto)
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerUpdateEmojiMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>, TError,{id: string;data: UpdateChatRoomEmojiDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>, TError,{id: string;data: UpdateChatRoomEmojiDto}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerUpdateEmoji'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>, {id: string;data: UpdateChatRoomEmojiDto}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  chatRoomsControllerUpdateEmoji(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerUpdateEmojiMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>>
+    export type ChatRoomsControllerUpdateEmojiMutationBody = UpdateChatRoomEmojiDto
+    export type ChatRoomsControllerUpdateEmojiMutationError = unknown
+
+    /**
+ * @summary Update quick emoji for chat room
+ */
+export const useChatRoomsControllerUpdateEmoji = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>, TError,{id: string;data: UpdateChatRoomEmojiDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerUpdateEmoji>>,
+        TError,
+        {id: string;data: UpdateChatRoomEmojiDto},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerUpdateEmojiMutationOptions(options), queryClient);
+    }
+
+export type chatRoomsControllerSoftDeleteHistoryResponse200 = {
+  data: void
+  status: 200
+}
+
+export type chatRoomsControllerSoftDeleteHistoryResponseSuccess = (chatRoomsControllerSoftDeleteHistoryResponse200) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerSoftDeleteHistoryResponse = (chatRoomsControllerSoftDeleteHistoryResponseSuccess)
+
+export const getChatRoomsControllerSoftDeleteHistoryUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/history`
+}
+
+/**
+ * @summary Soft delete history of a chat room for current user
+ */
+export const chatRoomsControllerSoftDeleteHistory = async (id: string, options?: RequestInit): Promise<chatRoomsControllerSoftDeleteHistoryResponse> => {
+
+  return orvalClient<chatRoomsControllerSoftDeleteHistoryResponse>(getChatRoomsControllerSoftDeleteHistoryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerSoftDeleteHistoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerSoftDeleteHistory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  chatRoomsControllerSoftDeleteHistory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerSoftDeleteHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>>
+
+    export type ChatRoomsControllerSoftDeleteHistoryMutationError = unknown
+
+    /**
+ * @summary Soft delete history of a chat room for current user
+ */
+export const useChatRoomsControllerSoftDeleteHistory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerSoftDeleteHistory>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerSoftDeleteHistoryMutationOptions(options), queryClient);
     }
 
 export type chatMembersControllerRequestJoinChatRoomResponse201 = {

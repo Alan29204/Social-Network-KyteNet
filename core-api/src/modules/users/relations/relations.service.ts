@@ -1,5 +1,6 @@
 import { RelationType } from '../../../common/enums/relation.enum';
 import { NotificationType } from '../../../common/enums/notification.enum';
+import { PrivacyType } from '../../../common/enums/privacy.enum';
 import {
   BadRequestException,
   forwardRef,
@@ -134,27 +135,76 @@ export class RelationsService {
     }
 
     // Relation requestUser -> acceptUser
-    const relationRequestAccept = await this.relationRepository.findOne({
+    let relationRequestAccept = await this.relationRepository.findOne({
       where: {
         request_side_id: user.id,
         accept_side_id: dto.user_id,
       },
     });
 
+    // Relation acceptUser -> requestUser (for checking mutual)
+    const relationAcceptRequest = await this.relationRepository.findOne({
+      where: {
+        request_side_id: dto.user_id,
+        accept_side_id: user.id,
+      },
+    });
+
+    if (dto.action) {
+      if (!relationRequestAccept) {
+        // Create an empty relation to hold the flags if it doesn't exist
+        relationRequestAccept = this.relationRepository.create({
+          request_side_id: user.id,
+          accept_side_id: dto.user_id,
+          relation_type: RelationType.NONE,
+        });
+      }
+      switch (dto.action) {
+        case 'restrict':
+          relationRequestAccept.is_restricted = true;
+          break;
+        case 'unrestrict':
+          relationRequestAccept.is_restricted = false;
+          break;
+      }
+      await this.relationRepository.save(relationRequestAccept);
+      return { message: `Action ${dto.action} performed successfully` };
+    }
+
     const relationNew = dto.relation;
+    if (!relationNew) {
+      throw new BadRequestException('Relation type is required if action is not provided');
+    }
 
     // Update relation requestUser -> acceptUser
     switch (true) {
       // RequestUser -> acceptUser relation following
-      case relationNew === RelationType.FOLLOWING && !relationRequestAccept:
-        await this.relationRepository.save({
-          request_side_id: user.id,
-          accept_side_id: dto.user_id,
-          relation_type: RelationType.FOLLOWING,
-        });
+      case relationNew === RelationType.FOLLOWING && (!relationRequestAccept || relationRequestAccept.relation_type !== RelationType.FOLLOWING):
+        const isPrivate = acceptUser.privacy === PrivacyType.PRIVATE;
+        const newType = isPrivate ? RelationType.PENDING : RelationType.FOLLOWING;
+        
+        if (!relationRequestAccept) {
+          relationRequestAccept = this.relationRepository.create({
+            request_side_id: user.id,
+            accept_side_id: dto.user_id,
+            relation_type: newType,
+          });
+        } else {
+          relationRequestAccept.relation_type = newType;
+        }
 
-        // Backfill feed with followed user's recent posts
-        await this.feedService.backfillFeedOnFollow(user.id, dto.user_id);
+        if (newType === RelationType.FOLLOWING && relationAcceptRequest && relationAcceptRequest.relation_type === RelationType.FOLLOWING) {
+          relationRequestAccept.is_mutual = true;
+          relationAcceptRequest.is_mutual = true;
+          await this.relationRepository.save([relationRequestAccept, relationAcceptRequest]);
+        } else {
+          await this.relationRepository.save(relationRequestAccept);
+        }
+
+        if (newType === RelationType.FOLLOWING) {
+          // Backfill feed with followed user's recent posts
+          await this.feedService.backfillFeedOnFollow(user.id, dto.user_id);
+        }
 
         // Notify the followed user
         try {
@@ -170,20 +220,29 @@ export class RelationsService {
         }
         break;
 
-      case relationNew === RelationType.FOLLOWING && !!relationRequestAccept:
+      case relationNew === RelationType.FOLLOWING && relationRequestAccept?.relation_type === RelationType.FOLLOWING:
         // Already following, do nothing to be idempotent
         break;
 
       // RequestUser -> acceptUser unfollow
       case relationNew === RelationType.NONE &&
-        relationRequestAccept?.relation_type === RelationType.FOLLOWING:
-        await this.relationRepository.delete({
-          request_side_id: user.id,
-          accept_side_id: dto.user_id,
-        });
+        relationRequestAccept && relationRequestAccept.relation_type !== RelationType.NONE:
+        
+        const oldType = relationRequestAccept.relation_type;
+        relationRequestAccept.relation_type = RelationType.NONE;
+        relationRequestAccept.is_mutual = false;
+        
+        if (relationAcceptRequest) {
+          relationAcceptRequest.is_mutual = false;
+          await this.relationRepository.save([relationRequestAccept, relationAcceptRequest]);
+        } else {
+          await this.relationRepository.save(relationRequestAccept);
+        }
 
-        // Cleanup feed: remove unfollowed user's posts
-        await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
+        if (oldType === RelationType.FOLLOWING) {
+          // Cleanup feed: remove unfollowed user's posts
+          await this.feedService.cleanupFeedOnUnfollow(user.id, dto.user_id);
+        }
 
         try {
           await this.notificationService.undoNotification(
@@ -198,21 +257,27 @@ export class RelationsService {
         }
         break;
 
-      case relationNew === RelationType.NONE && !relationRequestAccept:
+      case relationNew === RelationType.NONE && (!relationRequestAccept || relationRequestAccept.relation_type === RelationType.NONE):
         // Already unfollowed, do nothing
         break;
 
       // RequestUser -> acceptUser relation block
       case relationNew === RelationType.BLOCK:
-        await this.relationRepository.update(
-          { request_side_id: user.id, accept_side_id: dto.user_id },
-          { relation_type: RelationType.BLOCK },
-        );
+        if (!relationRequestAccept) {
+          relationRequestAccept = this.relationRepository.create({
+            request_side_id: user.id,
+            accept_side_id: dto.user_id,
+          });
+        }
+        relationRequestAccept.relation_type = RelationType.BLOCK;
+        relationRequestAccept.is_mutual = false;
+        await this.relationRepository.save(relationRequestAccept);
 
-        await this.relationRepository.delete({
-          request_side_id: dto.user_id,
-          accept_side_id: user.id,
-        });
+        if (relationAcceptRequest) {
+          relationAcceptRequest.is_mutual = false;
+          relationAcceptRequest.relation_type = RelationType.NONE;
+          await this.relationRepository.save(relationAcceptRequest);
+        }
 
         try {
           await this.notificationService.purgeNotifications(user.id, dto.user_id);
@@ -227,74 +292,44 @@ export class RelationsService {
     }
 
     return {
-      message: `Update relation ${relationNew} successfully`,
+      message: `Update relation successfully`,
     };
   }
 
   async getSuggestedUsers(userId: string, limit: number) {
-    // Truy vấn SQL tối ưu (Raw Query) để tìm Bạn chung
-    const query = `
-      SELECT 
-          u.id, u.username, u.full_name, u.avatar,
-          CAST(COUNT(r2.request_side_id) AS INTEGER) as mutual_count,
-          COALESCE(
-              json_agg(
-                  json_build_object('id', mutual_user.id, 'username', mutual_user.username, 'avatar', mutual_user.avatar)
-              ) FILTER (WHERE mutual_user.id IS NOT NULL), 
-              '[]'
-          ) as mutual_friends
+    // 1. Try to get pre-calculated suggestions from Redis (set by CronJob)
+    const cached = await this.redisService.get(`suggested:${userId}`);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.slice(0, limit);
+        }
+      } catch (e) {
+        console.error('Error parsing cached suggestions:', e);
+      }
+    }
+
+    // 2. Fallback: If no cache (e.g., new user or cron hasn't run), return random users
+    const fallbackQuery = `
+      SELECT u.id, u.username, u.full_name, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
       FROM "user" u
-      INNER JOIN relation r2 ON r2.accept_side_id = u.id AND r2.relation_type = 'following'
-      INNER JOIN relation r1 ON r1.accept_side_id = r2.request_side_id AND r1.request_side_id = $1 AND r1.relation_type = 'following'
-      LEFT JOIN "user" mutual_user ON mutual_user.id = r2.request_side_id
       WHERE u.id != $1
       AND u.id NOT IN (
-          SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type = 'following'
+          SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type IN ('following', 'pending', 'block')
       )
-      GROUP BY u.id
-      ORDER BY mutual_count DESC, RANDOM()
+      AND u.id NOT IN (
+          SELECT request_side_id FROM relation WHERE accept_side_id = $1 AND relation_type = 'block'
+      )
+      ORDER BY RANDOM()
       LIMIT $2
     `;
 
-    const suggestedUsers = await this.relationRepository.query(query, [
-      userId,
-      limit,
-    ]);
-
-    // Fallback: Nếu không đủ gợi ý, lấy thêm random các user chưa theo dõi
-    if (suggestedUsers.length < limit) {
-      const fallbackLimit = limit - suggestedUsers.length;
-      const existingIds = suggestedUsers.map((u: any) => u.id);
-
-      const existingIdsClause =
-        existingIds.length > 0
-          ? `AND u.id NOT IN (${existingIds.map((_, i) => `$${i + 3}`).join(',')})`
-          : '';
-
-      const fallbackQuery = `
-        SELECT u.id, u.username, u.full_name, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
-        FROM "user" u
-        WHERE u.id != $1
-        AND u.id NOT IN (
-            SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type = 'following'
-        )
-        ${existingIdsClause}
-        ORDER BY RANDOM()
-        LIMIT $2
-      `;
-
-      const params: any[] = [userId, fallbackLimit];
-      if (existingIds.length > 0) {
-        params.push(...existingIds);
-      }
-
-      const fallbackUsers = await this.relationRepository.query(
-        fallbackQuery,
-        params,
-      );
-      return [...suggestedUsers, ...fallbackUsers];
-    }
-
-    return suggestedUsers;
+    const fallbackUsers = await this.relationRepository.query(
+      fallbackQuery,
+      [userId, limit],
+    );
+    
+    return fallbackUsers;
   }
 }

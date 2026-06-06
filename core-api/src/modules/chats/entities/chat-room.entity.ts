@@ -51,6 +51,9 @@ export class ChatRoom {
   @Column({ type: 'enum', enum: ReactionType, default: ReactionType.LIKE })
   reaction_default: ReactionType;
 
+  @Column({ type: 'varchar', nullable: true, default: '👍' })
+  quick_emoji: string;
+
   @Column({ default: false })
   end_to_end_encryption: boolean;
 

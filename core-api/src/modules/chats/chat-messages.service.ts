@@ -146,7 +146,7 @@ export class ChatMessagesService {
 
       // Update room's last_message_at for sorting
       await this.chatRoomsRepository.update(dto.chat_room_id, {
-        last_message_at: new Date(),
+        last_message_at: () => 'CURRENT_TIMESTAMP',
       });
 
       // Increment unread_count for all other members in the room
@@ -201,6 +201,12 @@ export class ChatMessagesService {
       if (cursor) {
         query.andWhere('msg.created_at < :cursor', {
           cursor: new Date(Number(cursor)),
+        });
+      }
+
+      if (member.deleted_at) {
+        query.andWhere('msg.created_at > :deletedAt', {
+          deletedAt: member.deleted_at,
         });
       }
 

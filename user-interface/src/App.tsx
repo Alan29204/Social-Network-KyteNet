@@ -38,6 +38,7 @@ function App() {
               <Route path="explore" element={<ExplorePage />} />
               <Route path="explore/people" element={<SuggestedPeoplePage />} />
               <Route path="messages" element={<MessagesPage />} />
+              <Route path="messages/:roomId" element={<MessagesPage />} />
             </Route>
           </Route>
         </Routes>

@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/components/theme-provider';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
-import { useMessagingStore } from '@/features/chats/stores/messaging-store';
 import { socketService } from '@/services/socket.service';
 import {
   Home,
@@ -53,7 +52,9 @@ export function SidebarLeft() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { selectedRoomId } = useMessagingStore();
+
+  const match = location.pathname.match(/^\/messages\/([^/]+)/);
+  const selectedRoomId = match ? match[1] : null;
 
   const { data: chatRoomsResponse } = useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50 }, {
     query: {

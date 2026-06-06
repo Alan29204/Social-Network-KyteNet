@@ -12,6 +12,7 @@ import {
 
 @Entity()
 @Index(['request_side_id', 'accept_side_id'], { unique: true })
+@Index(['request_side_id', 'relation_type', 'is_restricted'])
 export class Relation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -34,6 +35,12 @@ export class Relation {
 
   @Column({ type: 'enum', enum: RelationType })
   relation_type: RelationType;
+
+  @Column({ default: false })
+  is_restricted: boolean;
+
+  @Column({ default: false })
+  is_mutual: boolean;
 
   @Index()
   @CreateDateColumn()

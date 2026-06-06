@@ -22,7 +22,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -30,7 +30,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useMessagingStore } from '../stores/messaging-store';
 import {
   useChatRoomsControllerGetListChatRoom,
   useChatMessagesControllerGetMessageHistory,
@@ -47,8 +46,9 @@ import { socketService } from '@/services/socket.service';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MessagePostCard } from '../components/message-post-card';
+import ChatDetailsDrawer from '../components/ChatDetailsDrawer';
 
 /** 6 fixed reaction emojis (Messenger-style) */
 const REACTION_EMOJIS: Record<string, string> = {
@@ -74,9 +74,7 @@ export default function MessagesPage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
-  const { setActiveChats, selectedRoomId, setSelectedRoomId } =
-    useMessagingStore();
+  const { roomId: selectedRoomId } = useParams<{ roomId: string }>();
 
   // Custom states for premium features
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -93,6 +91,7 @@ export default function MessagesPage() {
   const [isPinnedExpanded, setIsPinnedExpanded] = useState(false);
   const [forwardTargets, setForwardTargets] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
 
   // Focus input when replying
   useEffect(() => {
@@ -101,17 +100,17 @@ export default function MessagesPage() {
     }
   }, [replyingTo]);
 
+  // Auto clear virtual chat when selecting a real room
+  useEffect(() => {
+    if (selectedRoomId) {
+      setVirtualRecipient(null);
+    }
+  }, [selectedRoomId]);
+
   // 1. Fetch Chat Rooms
   const { data: chatRoomsResponse, isLoading: isLoadingRooms } =
-    useChatRoomsControllerGetListChatRoom();
+    useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50 });
   const chatRooms: any[] = (chatRoomsResponse as any)?.data?.data || [];
-
-  // Populate Zustand store
-  useEffect(() => {
-    if (chatRooms.length) {
-      setActiveChats(chatRooms);
-    }
-  }, [chatRooms, setActiveChats]);
 
   // 2. Fetch Message History (Query Cache as Source of Truth)
   const { data: messagesResponse, isFetching: isFetchingMessages } =
@@ -127,6 +126,7 @@ export default function MessagesPage() {
     );
 
   const messages: any[] = (messagesResponse as any)?.data?.data || [];
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
   const hasMore: boolean = (messagesResponse as any)?.data?.meta?.has_more || false;
 
   const createMessageMutation = useChatMessagesControllerCreateMessage();
@@ -264,9 +264,13 @@ export default function MessagesPage() {
             ...old,
             data: {
               ...old.data,
-              data: currentList.map((m: any) =>
-                m.id === data.tempId ? savedMsg : m,
-              ),
+              data: currentList.some((m: any) => m.id === data.tempId)
+                ? currentList.map((m: any) =>
+                    m.id === data.tempId ? savedMsg : m,
+                  )
+                : currentList.some((m: any) => m.id === savedMsg.id)
+                  ? currentList
+                  : [...currentList, savedMsg],
             },
           };
         },
@@ -365,7 +369,7 @@ export default function MessagesPage() {
     const handleUserStatusChanged = ({ user_id, is_online, last_active }: any) => {
       // Update room list cache
       queryClient.setQueriesData(
-        { queryKey: getChatRoomsControllerGetListChatRoomQueryKey() },
+        { queryKey: getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }) },
         (old: any) => {
           if (!old || !old.data) return old;
           const data = old.data?.data || old.data;
@@ -450,6 +454,26 @@ export default function MessagesPage() {
       );
     };
 
+    const handleRoomEmojiUpdated = (data: { chat_room_id: string; quick_emoji: string }) => {
+      queryClient.setQueriesData(
+        { queryKey: getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }) },
+        (old: any) => {
+          if (!old || !old.data) return old;
+          const list = old.data?.data || old.data;
+          if (!Array.isArray(list)) return old;
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: list.map((room: any) =>
+                room.id === data.chat_room_id ? { ...room, quick_emoji: data.quick_emoji } : room
+              ),
+            },
+          };
+        },
+      );
+    };
+
     // Register all listeners
     socket.on('newMessage', handleNewMessage);
     socket.on('messageSaved', handleMessageSaved);
@@ -460,6 +484,7 @@ export default function MessagesPage() {
     socket.on('messageReactionUpdated', handleReactionUpdated);
     socket.on('messagePinned', handleMessagePinned);
     socket.on('messageUnpinned', handleMessageUnpinned);
+    socket.on('roomEmojiUpdated', handleRoomEmojiUpdated);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
@@ -471,6 +496,7 @@ export default function MessagesPage() {
       socket.off('messageReactionUpdated', handleReactionUpdated);
       socket.off('messagePinned', handleMessagePinned);
       socket.off('messageUnpinned', handleMessageUnpinned);
+      socket.off('roomEmojiUpdated', handleRoomEmojiUpdated);
     };
   }, [token, queryClient, toast]);
 
@@ -479,31 +505,10 @@ export default function MessagesPage() {
   const hasScrolledForRoom = useRef<string | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    // Use rAF + timeout to ensure DOM has fully rendered
     requestAnimationFrame(() => {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior });
-      }, 0);
-      // Run again after a short delay in case images load and shift layout
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior });
-      }, 300);
+      messagesEndRef.current?.scrollIntoView({ behavior });
     });
   }, []);
-
-  // Instant scroll when entering a room and messages finish loading
-  useEffect(() => {
-    if (
-      selectedRoomId &&
-      !isFetchingMessages &&
-      messages.length > 0 &&
-      hasScrolledForRoom.current !== selectedRoomId
-    ) {
-      scrollToBottom('instant');
-      hasScrolledForRoom.current = selectedRoomId;
-      prevMessagesLenRef.current = messages.length;
-    }
-  }, [selectedRoomId, isFetchingMessages, messages.length, scrollToBottom]);
 
   // Reset scroll flag and reply state when switching rooms
   useEffect(() => {
@@ -529,19 +534,22 @@ export default function MessagesPage() {
         }
       );
     }
-  }, [selectedRoomId, user, queryClient]);
+  }, [selectedRoomId, user?.id, queryClient]);
 
-  // Smooth scroll when NEW messages arrive (not loading older ones)
+  // Smooth scroll to bottom if new messages arrive AND user is already near bottom
   useEffect(() => {
     if (
       messages.length > prevMessagesLenRef.current &&
-      !isLoadingMore &&
-      hasScrolledForRoom.current === selectedRoomId
+      !isLoadingMore
     ) {
-      scrollToBottom('smooth');
+      const container = messagesContainerRef.current;
+      if (container && container.scrollTop < 150) {
+        scrollToBottom('smooth');
+      }
     }
     prevMessagesLenRef.current = messages.length;
-  }, [messages.length, isLoadingMore, selectedRoomId, scrollToBottom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, isLoadingMore, selectedRoomId]);
 
   /**
    * Optimistic sidebar update: move room to top + update last_message preview.
@@ -549,7 +557,7 @@ export default function MessagesPage() {
    */
   const updateSidebarWithMessage = useCallback((roomId: string, msg: any) => {
     queryClient.setQueryData(
-      getChatRoomsControllerGetListChatRoomQueryKey(),
+      getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
       (old: any) => {
         if (!old?.data?.data) return old;
         const rooms = [...old.data.data];
@@ -557,7 +565,7 @@ export default function MessagesPage() {
         if (idx === -1) {
           // Room not in list — fallback to refetch
           queryClient.invalidateQueries({
-            queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+            queryKey: getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
           });
           return old;
         }
@@ -567,10 +575,9 @@ export default function MessagesPage() {
           last_message: msg,
           last_message_at: msg.created_at,
         };
-        // If the message is for the currently selected room, mark as read immediately
+        // If the message is for the currently selected room, mark as read immediately in UI
         if (roomId === selectedRoomId) {
           updatedRoom.unread_count = 0;
-          orvalClient({ url: `/chat-rooms/${roomId}/read`, method: 'POST' }).catch(console.error);
         }
         rooms.splice(idx, 1);
         rooms.unshift(updatedRoom);
@@ -666,12 +673,15 @@ export default function MessagesPage() {
    *
    * Both paths use Optimistic Updates for instant UI feedback.
    */
-    const handleSendMessage = async () => {
-    if (!messageInput.trim() && selectedFiles.length === 0) return;
+  const handleSendMessage = async (customMsg?: any) => {
+    const isCustomText = typeof customMsg === 'string';
+    const msgToUse = isCustomText ? customMsg : messageInput.trim();
+    const filesToSend = isCustomText ? [] : [...selectedFiles];
+
+    if (!msgToUse && filesToSend.length === 0) return;
     if (!selectedRoomId && !virtualRecipient) return;
 
-    const msg = messageInput.trim();
-    const filesToSend = [...selectedFiles];
+    const msg = msgToUse;
     const hasMedia = filesToSend.length > 0;
     const replyToId = replyingTo?.id;
     const currentReplyTo = replyingTo;
@@ -681,6 +691,7 @@ export default function MessagesPage() {
     setReplyingTo(null);
 
     // If in virtual chat mode → create room first, then send
+    let targetRoomId = selectedRoomId;
     if (!selectedRoomId && virtualRecipient) {
       try {
         const res = await getOrCreateRoomMutation.mutateAsync({
@@ -688,21 +699,16 @@ export default function MessagesPage() {
         });
         const newRoomId = (res as any)?.data?.room_id || (res as any)?.room_id;
         if (newRoomId) {
-          setSelectedRoomId(newRoomId);
+          targetRoomId = newRoomId;
           setVirtualRecipient(null);
           // Refetch room list to include the new room
-          await queryClient.invalidateQueries({
-            queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+          queryClient.invalidateQueries({
+            queryKey: getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
           });
-          // Now send the message via WebSocket
-          const socket = socketService.getSocket();
-          if (socket?.connected) {
-            socket.emit('sendMessage', {
-              chat_room_id: newRoomId,
-              message: msg,
-              tempId: 'temp-' + Date.now(),
-            });
-          }
+          navigate(`/messages/${newRoomId}`);
+          // Fall through to the optimistic update + WebSocket send below
+        } else {
+          return;
         }
       } catch (error: any) {
         console.error(error);
@@ -712,16 +718,16 @@ export default function MessagesPage() {
           variant: 'destructive',
         });
         setMessageInput(msg); // Restore input
+        return;
       }
-      return;
     }
 
-    if (!selectedRoomId) return;
+    if (!targetRoomId) return;
 
     const tempId = 'temp-' + Date.now();
     const tempMsg = {
       id: tempId,
-      chat_room_id: selectedRoomId,
+      chat_room_id: targetRoomId,
       created_by: user?.id,
       message: msg,
       medias: filesToSend.map((file) => URL.createObjectURL(file)),
@@ -733,7 +739,7 @@ export default function MessagesPage() {
 
     // Step 1: Optimistically write temp message to query cache
     queryClient.setQueryData(
-      getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+      getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
       (old: any) => {
         if (!old) {
           return {
@@ -758,7 +764,7 @@ export default function MessagesPage() {
       createMessageMutation.mutate(
         {
           data: {
-            chat_room_id: selectedRoomId,
+            chat_room_id: targetRoomId,
             message: msg,
             'medias-messages': filesToSend as any,
             reply_to_id: replyToId,
@@ -769,26 +775,30 @@ export default function MessagesPage() {
             const savedMsg = res?.data || res;
             // Replace temp message with real saved message
             queryClient.setQueryData(
-              getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+              getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
               (old: any) => {
                 if (!old) return old;
                 return {
                   ...old,
                   data: {
                     ...old.data,
-                    data: (old.data?.data || []).map((m: any) =>
-                      m.id === tempId ? savedMsg : m,
-                    ),
+                    data: (old.data?.data || []).some((m: any) => m.id === tempId)
+                      ? (old.data?.data || []).map((m: any) =>
+                          m.id === tempId ? savedMsg : m,
+                        )
+                      : (old.data?.data || []).some((m: any) => m.id === savedMsg.id)
+                        ? old.data?.data
+                        : [...(old.data?.data || []), savedMsg],
                   },
                 };
               },
             );
-            updateSidebarWithMessage(selectedRoomId, savedMsg);
+            updateSidebarWithMessage(targetRoomId, savedMsg);
           },
           onError: () => {
             // Mark temp message as failed
             queryClient.setQueryData(
-              getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+              getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
               (old: any) => {
                 if (!old) return old;
                 return {
@@ -818,7 +828,7 @@ export default function MessagesPage() {
       const socket = socketService.getSocket();
       if (socket?.connected) {
           socket.emit('sendMessage', {
-            chat_room_id: selectedRoomId,
+            chat_room_id: targetRoomId,
             message: msg,
             tempId,
             reply_to_id: replyToId,
@@ -828,7 +838,7 @@ export default function MessagesPage() {
         createMessageMutation.mutate(
           {
             data: {
-              chat_room_id: selectedRoomId,
+              chat_room_id: targetRoomId,
               message: msg,
               reply_to_id: replyToId,
             } as any,
@@ -837,7 +847,7 @@ export default function MessagesPage() {
             onSuccess: (res: any) => {
               const savedMsg = res?.data || res;
               queryClient.setQueryData(
-                getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+                getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
                 (old: any) => {
                   if (!old) return old;
                   return {
@@ -854,7 +864,7 @@ export default function MessagesPage() {
             },
             onError: () => {
               queryClient.setQueryData(
-                getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
+                getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
                 (old: any) => {
                   if (!old) return old;
                   return {
@@ -960,87 +970,9 @@ export default function MessagesPage() {
     }
   };
 
-  const handleSendHeart = () => {
-    if (!selectedRoomId) return;
-
-    const tempId = 'temp-' + Date.now();
-    const tempMsg = {
-      id: tempId,
-      chat_room_id: selectedRoomId,
-      created_by: user?.id,
-      message: '❤️',
-      created_at: new Date().toISOString(),
-      user: user,
-      is_sending: true,
-    };
-
-    // Optimistically write to query cache
-    queryClient.setQueryData(
-      getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
-      (old: any) => {
-        if (!old) {
-          return {
-            data: {
-              data: [tempMsg],
-              meta: { has_more: false, next_cursor: null },
-            },
-          };
-        }
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            data: [...(old.data?.data || []), tempMsg],
-          },
-        };
-      },
-    );
-
-    createMessageMutation.mutate(
-      {
-        data: {
-          chat_room_id: selectedRoomId,
-          message: '❤️',
-        },
-      },
-      {
-        onSuccess: (res: any) => {
-          const savedMsg = res?.data || res;
-          queryClient.setQueryData(
-            getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
-            (old: any) => {
-              if (!old) return old;
-              const currentList = old.data?.data || [];
-              return {
-                ...old,
-                data: {
-                  ...old.data,
-                  data: currentList.map((m: any) =>
-                    m.id === tempId ? savedMsg : m
-                  ),
-                },
-              };
-            },
-          );
-        },
-        onError: () => {
-          queryClient.setQueryData(
-            getChatMessagesControllerGetMessageHistoryQueryKey(selectedRoomId),
-            (old: any) => {
-              if (!old) return old;
-              const currentList = old.data?.data || [];
-              return {
-                ...old,
-                data: {
-                  ...old.data,
-                  data: currentList.filter((m: any) => m.id !== tempId),
-                },
-              };
-            },
-          );
-        },
-      },
-    );
+  const handleSendQuickEmoji = () => {
+    const emoji = activeRoom?.quick_emoji || '👍';
+    handleSendMessage(emoji);
   };
 
   // Selecting a Suggested/Search User — Virtual Room pattern
@@ -1051,12 +983,12 @@ export default function MessagesPage() {
     );
 
     if (existingRoom) {
-      // Room exists → just select it
-      setSelectedRoomId(existingRoom.id);
+      // Room exists → just navigate to it
+      navigate(`/messages/${existingRoom.id}`);
       setVirtualRecipient(null);
     } else {
-      // No room yet → enter virtual chat mode (no DB call)
-      setSelectedRoomId(null as any);
+      // No room yet → enter virtual chat mode (no DB call, clear URL roomId)
+      navigate('/messages');
       setVirtualRecipient(targetUser);
     }
     setSearchTerm('');
@@ -1169,7 +1101,7 @@ export default function MessagesPage() {
                 return (
                   <div
                     key={room.id}
-                    onClick={() => setSelectedRoomId(room.id)}
+                    onClick={() => navigate(`/messages/${room.id}`)}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? 'bg-muted/80' : 'hover:bg-muted/50'}`}
                   >
                     <div className="relative shrink-0">
@@ -1178,7 +1110,7 @@ export default function MessagesPage() {
                           src={
                             targetUser?.profile_picture_url ||
                             targetUser?.avatar ||
-                            'https://github.com/shadcn.png'
+                            '/default-avatar.png'
                           }
                         />
                         <AvatarFallback>
@@ -1223,7 +1155,7 @@ export default function MessagesPage() {
                     <div className="relative shrink-0">
                       <Avatar className="w-14 h-14">
                         <AvatarImage
-                          src={u.avatar || 'https://github.com/shadcn.png'}
+                          src={u.avatar || '/default-avatar.png'}
                         />
                         <AvatarFallback>
                           {u.username?.[0]?.toUpperCase()}
@@ -1258,9 +1190,11 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Right Column - Chat View */}
-      <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
-        {(selectedRoomId && otherUser) || isVirtualChat ? (
+      {/* Main & Right column wrapper */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Right Column - Chat View */}
+        <div className="flex-1 flex flex-col bg-background relative overflow-hidden border-r">
+          {(selectedRoomId && otherUser) || isVirtualChat ? (
           <>
             {/* Chat Header */}
             <div className="h-[75px] border-b border-border/40 flex items-center justify-between px-6 shrink-0">
@@ -1274,7 +1208,7 @@ export default function MessagesPage() {
                       src={
                         otherUser.profile_picture_url ||
                         otherUser.avatar ||
-                        'https://github.com/shadcn.png'
+                        '/default-avatar.png'
                       }
                     />
                     <AvatarFallback>
@@ -1296,7 +1230,11 @@ export default function MessagesPage() {
               </div>
 
               <div className="flex items-center gap-4 text-foreground">
-                <button className="hover:opacity-70">
+                <button 
+                  onClick={() => setShowInfo((prev) => !prev)}
+                  className={`hover:opacity-75 p-2 rounded-full transition-colors ${showInfo ? 'bg-muted text-[#0084ff]' : ''}`}
+                  title="Thông tin chi tiết"
+                >
                   <Info className="w-6 h-6" />
                 </button>
               </div>
@@ -1383,51 +1321,17 @@ export default function MessagesPage() {
               );
             })()}
 
-            {/* Chat Messages — no gap, grouping handled per-message */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col">
-              {/* Infinite scroll sentinel — triggers auto-load when visible */}
-              <div ref={loadMoreSentinelRef} className="h-1 shrink-0" />
-              {isLoadingMore && (
-                <div className="flex justify-center py-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-
-              {/* Avatar introduction */}
-              {!hasMore && (
-                <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage
-                      src={
-                        otherUser.profile_picture_url ||
-                        otherUser.avatar ||
-                        'https://github.com/shadcn.png'
-                      }
-                    />
-                    <AvatarFallback>
-                      {otherUser.username?.[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h2 className="text-xl font-bold">
-                    {otherUser.full_name || otherUser.username}
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    {otherUser.username}
-                  </p>
-                  <button
-                    className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors"
-                    onClick={() => otherUser?.id && navigate(`/profile/${otherUser.id}`)}
-                  >
-                    Xem trang cá nhân
-                  </button>
-                </div>
-              )}
-
+            {/* Chat Messages Container — Native column-reverse infinite scroll */}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col-reverse">
+              <div ref={messagesEndRef} className="h-1 shrink-0" />
+              
               {/* Messages Mapping — Instagram/Messenger-style connected bubbles */}
-              {messages.map((msg: any, idx: number) => {
+              {reversedMessages.map((msg: any, idx: number) => {
                 const isMine = msg.created_by === user?.id;
-                const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
+                // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
+                const prevMsg = idx < reversedMessages.length - 1 ? reversedMessages[idx + 1] : null; 
+                const nextMsg = idx > 0 ? reversedMessages[idx - 1] : null;
                 const isSameSenderAsPrev = prevMsg && prevMsg.created_by === msg.created_by;
                 const isSameSenderAsNext = nextMsg && nextMsg.created_by === msg.created_by;
                 const showAvatar = !isMine && !isSameSenderAsNext;
@@ -1523,7 +1427,7 @@ export default function MessagesPage() {
                                 msg.user?.avatar ||
                                 otherUser.profile_picture_url ||
                                 otherUser.avatar ||
-                                'https://github.com/shadcn.png'
+                                '/default-avatar.png'
                               }
                             />
                             <AvatarFallback>
@@ -1648,7 +1552,7 @@ export default function MessagesPage() {
 
                       {/* Message content */}
                       <div
-                        onDoubleClick={handleSendHeart}
+                        onDoubleClick={handleSendQuickEmoji}
                         className="relative flex flex-col max-w-[60%] select-none cursor-pointer"
                       >
                         {/* Pinned badge */}
@@ -1911,7 +1815,43 @@ export default function MessagesPage() {
                   </div>
                 );
               })}
-              <div ref={messagesEndRef} />
+              {/* Avatar introduction — shown at the visual TOP (end of list) */}
+              {!hasMore && (
+                <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3 mt-auto">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage
+                      src={
+                        otherUser.profile_picture_url ||
+                        otherUser.avatar ||
+                        '/default-avatar.png'
+                      }
+                    />
+                    <AvatarFallback>
+                      {otherUser.username?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h2 className="text-xl font-bold">
+                    {otherUser.full_name || otherUser.username}
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    {otherUser.username}
+                  </p>
+                  <button
+                    className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors"
+                    onClick={() => otherUser?.id && navigate(`/profile/${otherUser.id}`)}
+                  >
+                    Xem trang cá nhân
+                  </button>
+                </div>
+              )}
+
+              {/* Infinite scroll sentinel — triggers auto-load when visible (visually AT TOP) */}
+              <div ref={loadMoreSentinelRef} className="h-1 shrink-0" />
+              {isLoadingMore && (
+                <div className="flex justify-center py-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
 
             {/* Previews of selected files */}
@@ -2073,9 +2013,9 @@ export default function MessagesPage() {
                       </button>
                       <button
                         className="p-2 hover:opacity-70 text-red-500 hover:text-red-600 transition-colors"
-                        onClick={handleSendHeart}
+                        onClick={handleSendQuickEmoji}
                       >
-                        <Heart className="w-6 h-6 fill-current" />
+                        <span className="text-2xl leading-none">{activeRoom?.quick_emoji || '👍'}</span>
                       </button>
                     </>
                   )}
@@ -2098,6 +2038,19 @@ export default function MessagesPage() {
           </div>
         )}
       </div>
+
+      {/* Chat Details Drawer */}
+      {showInfo && selectedRoomId && activeRoom && (
+        <div className="w-[320px] border-l border-border/40 shrink-0 bg-background flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+          <ChatDetailsDrawer 
+            roomId={selectedRoomId} 
+            activeRoom={activeRoom}
+            currentUser={user}
+            onClose={() => setShowInfo(false)}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Media Preview Dialog */}
       <Dialog open={!!previewMedia} onOpenChange={(open) => !open && setPreviewMedia(null)}>
@@ -2175,7 +2128,7 @@ export default function MessagesPage() {
                     }}
                   >
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={tgtUser?.profile_picture_url || tgtUser?.avatar || 'https://github.com/shadcn.png'} />
+                      <AvatarImage src={tgtUser?.profile_picture_url || tgtUser?.avatar || '/default-avatar.png'} />
                       <AvatarFallback>{tgtUser?.username?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">

@@ -249,10 +249,14 @@ export class FeedService {
   async fanoutPost(postId: string, authorId: string, createdAt: Date) {
     const timestamp = new Date(createdAt).getTime();
 
-    // Get all follower IDs (users who follow this author)
+    // Get all follower IDs (users who follow this author and have not muted them)
     const followers = await this.relationRepository.find({
       where: [
-        { accept_side_id: authorId, relation_type: RelationType.FOLLOWING },
+        {
+          accept_side_id: authorId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
       ],
       select: ['request_side_id'],
     });
@@ -406,7 +410,11 @@ export class FeedService {
   private async getFollowingIds(userId: string): Promise<string[]> {
     const relations = await this.relationRepository.find({
       where: [
-        { request_side_id: userId, relation_type: RelationType.FOLLOWING },
+        {
+          request_side_id: userId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
       ],
       select: ['accept_side_id'],
     });

@@ -4,7 +4,7 @@ import * as path from 'path';
 
 const getInfiniteOverrides = () => {
   const operations: Record<string, any> = {};
-  const inputPath = path.resolve(process.cwd(), '../.open-api/open-api.json');
+  const inputPath = path.resolve(process.cwd(), '../core-api/.open-api/open-api.json');
 
   if (!fs.existsSync(inputPath)) {
     console.warn('OpenAPI file not found at:', inputPath);
@@ -68,7 +68,7 @@ export default defineConfig({
       },
     },
     input: {
-      target: '../.open-api/open-api.json',
+      target: '../core-api/.open-api/open-api.json',
     },
   },
 });
