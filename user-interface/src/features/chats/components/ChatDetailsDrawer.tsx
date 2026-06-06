@@ -277,7 +277,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
         </Avatar>
         <div className="text-center">
           <h3 className="font-bold text-lg leading-tight truncate max-w-[240px]">
-            {isDirect ? (otherMember?.full_name || otherMember?.username) : activeRoom.name}
+            {isDirect ? (otherMember?.username || 'Người dùng') : activeRoom.name}
           </h3>
           {isDirect && (
             <p className="text-xs text-muted-foreground mt-0.5">@{otherMember?.username}</p>
@@ -361,7 +361,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                       <AvatarFallback>{member.username?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate max-w-[130px]">{member.full_name || member.username}</p>
+                      <p className="text-xs font-semibold truncate max-w-[130px]">{member.username}</p>
                       <p className="text-[10px] text-muted-foreground capitalize">
                         {member.member_type || 'Thành viên'}
                       </p>

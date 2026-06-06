@@ -134,21 +134,6 @@ export function SidebarRight() {
         )}
       </div>
 
-      {/* Footer Links */}
-      <div className="mt-8 flex flex-col gap-4">
-        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground/60">
-          <a href="#" className="hover:underline">Giới thiệu</a> • 
-          <a href="#" className="hover:underline">Trợ giúp</a> • 
-          <a href="#" className="hover:underline">Báo chí</a> • 
-          <a href="#" className="hover:underline">API</a> • 
-          <a href="#" className="hover:underline">Việc làm</a> • 
-          <a href="#" className="hover:underline">Quyền riêng tư</a> • 
-          <a href="#" className="hover:underline">Điều khoản</a>
-        </div>
-        <span className="text-[11px] text-muted-foreground/60 uppercase tracking-wider">
-          © 2026 SNET FROM ALAN29204
-        </span>
-      </div>
     </aside>
   );
 }

@@ -111,6 +111,13 @@ export class ChatMessagesService {
           files,
           `chats/${dto.chat_room_id}`,
         );
+      } else if (dto.medias) {
+        try {
+          const parsed = JSON.parse(dto.medias);
+          medias = Array.isArray(parsed) ? parsed : [dto.medias];
+        } catch (e) {
+          medias = typeof dto.medias === 'string' && dto.medias.length > 0 ? [dto.medias] : [];
+        }
       }
 
       // Create and save message to DB

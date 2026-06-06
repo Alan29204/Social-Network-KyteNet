@@ -782,13 +782,18 @@ export default function MessagesPage() {
                   ...old,
                   data: {
                     ...old.data,
-                    data: (old.data?.data || []).some((m: any) => m.id === tempId)
-                      ? (old.data?.data || []).map((m: any) =>
-                          m.id === tempId ? savedMsg : m,
-                        )
-                      : (old.data?.data || []).some((m: any) => m.id === savedMsg.id)
-                        ? old.data?.data
-                        : [...(old.data?.data || []), savedMsg],
+                    data: (() => {
+                      const list = old.data?.data || [];
+                      const alreadyHasReal = list.some((m: any) => m.id === savedMsg.id);
+                      if (alreadyHasReal) {
+                        // WebSocket arrived first, just remove the optimistic temp message
+                        return list.filter((m: any) => m.id !== tempId);
+                      }
+                      // REST arrived first, replace temp message with real message
+                      return list.some((m: any) => m.id === tempId)
+                        ? list.map((m: any) => (m.id === tempId ? savedMsg : m))
+                        : [...list, savedMsg];
+                    })(),
                   },
                 };
               },
@@ -1123,9 +1128,9 @@ export default function MessagesPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[15px] truncate">
-                        {targetUser?.full_name || targetUser?.username}
+                        {targetUser?.username || 'Người dùng'}
                       </p>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className={`text-sm truncate ${room.unread_count > 0 ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
                         {room.last_message
                           ? `${room.last_message.created_by === user?.id ? 'Bạn: ' : ''}${room.last_message.message} · ${formatRelativeTime(room.last_message_at)}`
                           : 'Bắt đầu cuộc trò chuyện'}
@@ -1167,7 +1172,7 @@ export default function MessagesPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[15px] truncate">
-                        {u.full_name || u.username}
+                        {u.username || 'Người dùng'}
                       </p>
                       <p className="text-sm text-muted-foreground truncate">
                         @{u.username}
@@ -1221,7 +1226,7 @@ export default function MessagesPage() {
                 </div>
                 <div>
                   <p className="font-bold text-base">
-                    {otherUser.full_name || otherUser.username}
+                    {otherUser.username || 'Người dùng'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {getStatusText(otherUser)}
@@ -1569,12 +1574,12 @@ export default function MessagesPage() {
                             {/* Reply Header */}
                             <span className={`text-[11px] text-muted-foreground/80 mb-0.5 ${isMine ? 'self-end text-right' : 'self-start text-left'}`}>
                               {isMine ? (
-                                `Bạn đã trả lời ${msg.reply_to.user?.full_name || msg.reply_to.user?.username || 'người dùng'}`
+                                msg.reply_to.created_by === user?.id ? 'Bạn đã trả lời chính bạn' : `Bạn đã trả lời ${msg.reply_to.user?.username || 'người dùng'}`
                               ) : (
-                                `${msg.user?.full_name || msg.user?.username || 'người dùng'} đã trả lời ${
+                                `${msg.user?.username || 'Người dùng'} đã trả lời ${
                                   msg.reply_to.created_by === user?.id
                                     ? 'bạn'
-                                    : (msg.reply_to.user?.full_name || msg.reply_to.user?.username || 'người dùng')
+                                    : (msg.reply_to.user?.username || 'người dùng')
                                 }`
                               )}
                             </span>
@@ -1609,15 +1614,15 @@ export default function MessagesPage() {
                                   )}
                                 </>
                               ) : msg.reply_to.medias && msg.reply_to.medias.length > 0 && !msg.reply_to.message ? (
-                                <>
-                                  <ImageIcon className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Hình ảnh/Video</span>
-                                  <img 
-                                    src={msg.reply_to.medias[0].startsWith('http') || msg.reply_to.medias[0].startsWith('blob:') ? msg.reply_to.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${msg.reply_to.medias[0]}`} 
-                                    alt="thumbnail" 
-                                    className="w-6 h-6 object-cover rounded shrink-0"
-                                  />
-                                </>
+                                (() => {
+                                  const rawUrl = msg.reply_to.medias[0];
+                                  const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('blob:') ? rawUrl : `${import.meta.env.VITE_MEDIA_URL}/${rawUrl}`;
+                                  return isVideo(rawUrl) ? (
+                                    <video src={fullUrl} className="w-10 h-10 object-cover rounded shrink-0" />
+                                  ) : (
+                                    <img src={fullUrl} alt="thumbnail" className="w-10 h-10 object-cover rounded shrink-0" />
+                                  );
+                                })()
                               ) : (
                                 <span className="truncate line-clamp-2">{msg.reply_to.message}</span>
                               )}
@@ -1658,6 +1663,7 @@ export default function MessagesPage() {
                                   key={mediaIdx}
                                   src={fullUrl}
                                   alt="attachment"
+                                  loading="lazy"
                                   className="max-h-60 w-full object-cover hover:opacity-90 transition-opacity"
                                   onClick={() => setPreviewMedia({ url: fullUrl, type: isVideoMedia ? 'video' : 'image' })}
                                 />
@@ -1675,10 +1681,10 @@ export default function MessagesPage() {
                             </div>
                           ) : (
                             <div
-                              className={`px-3 py-2 text-[15px] leading-[20px] relative ${
+                              className={`px-3 py-2 text-[15px] leading-[20px] relative w-fit ${
                                 isMine
-                                  ? 'bg-[#0084ff] text-white'
-                                  : 'bg-muted text-foreground'
+                                  ? 'bg-[#0084ff] text-white self-end'
+                                  : 'bg-muted text-foreground self-start'
                               } ${msg.is_sending ? 'opacity-70' : ''} ${
                                 msg.is_failed ? 'bg-red-500 text-white' : ''
                               }`}
@@ -1831,7 +1837,7 @@ export default function MessagesPage() {
                     </AvatarFallback>
                   </Avatar>
                   <h2 className="text-xl font-bold">
-                    {otherUser.full_name || otherUser.username}
+                    {}
                   </h2>
                   <p className="text-muted-foreground text-sm">
                     {otherUser.username}
@@ -1901,7 +1907,7 @@ export default function MessagesPage() {
                 <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
                   <div className="flex flex-col min-w-0">
                     <p className="text-xs font-semibold text-[#0084ff]">
-                      Đang trả lời {replyingTo.user?.full_name || replyingTo.user?.username || 'người dùng'}
+                      Đang trả lời {replyingTo.user?.id === user?.id ? 'chính bạn' : replyingTo.user?.username || 'người dùng'}
                     </p>
                     {replyingTo.shared_post_id ? (
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -1911,7 +1917,9 @@ export default function MessagesPage() {
                     ) : replyingTo.medias && replyingTo.medias.length > 0 && !replyingTo.message ? (
                       <div className="flex items-center gap-1.5 mt-0.5">
                          <ImageIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-                         <span className="text-xs text-muted-foreground truncate">Hình ảnh/Video</span>
+                         <span className="text-xs text-muted-foreground truncate">
+                           {isVideo(replyingTo.medias[0]) ? 'Video' : 'Hình ảnh'}
+                         </span>
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground truncate">
@@ -1926,11 +1934,15 @@ export default function MessagesPage() {
                       alt="reply-thumb"
                     />
                   ) : replyingTo.medias && replyingTo.medias.length > 0 && (
-                    <img 
-                      src={replyingTo.medias[0].startsWith('http') || replyingTo.medias[0].startsWith('blob:') ? replyingTo.medias[0] : `${import.meta.env.VITE_MEDIA_URL}/${replyingTo.medias[0]}`} 
-                      className="w-9 h-9 object-cover rounded shrink-0" 
-                      alt="reply-thumb"
-                    />
+                    (() => {
+                      const rawUrl = replyingTo.medias[0];
+                      const fullUrl = rawUrl.startsWith('http') || rawUrl.startsWith('blob:') ? rawUrl : `${import.meta.env.VITE_MEDIA_URL}/${rawUrl}`;
+                      return isVideo(rawUrl) ? (
+                        <video src={fullUrl} className="w-9 h-9 object-cover rounded shrink-0" />
+                      ) : (
+                        <img src={fullUrl} alt="reply-thumb" className="w-9 h-9 object-cover rounded shrink-0" />
+                      );
+                    })()
                   )}
                 </div>
                 <button
@@ -2089,7 +2101,7 @@ export default function MessagesPage() {
               const tgtUser = room?.members?.find((m: any) => m.id !== user?.id);
               return (
                 <span key={roomId} className="inline-flex items-center gap-1 bg-[#0084ff]/10 text-[#0084ff] text-xs font-semibold px-2 py-1 rounded-full">
-                  {tgtUser?.full_name || tgtUser?.username}
+                  {tgtUser?.username || 'Người dùng'}
                   <button onClick={() => setForwardTargets((prev) => prev.filter((id) => id !== roomId))}>
                     <X className="w-3 h-3" />
                   </button>
@@ -2111,7 +2123,7 @@ export default function MessagesPage() {
               .filter((room: any) => {
                 if (!forwardSearch) return true;
                 const tgtUser = room.members?.find((m: any) => m.id !== user?.id);
-                const name = (tgtUser?.full_name || tgtUser?.username || '').toLowerCase();
+                const name = (tgtUser?.username || '').toLowerCase();
                 return name.includes(forwardSearch.toLowerCase());
               })
               .map((room: any) => {
@@ -2132,7 +2144,7 @@ export default function MessagesPage() {
                       <AvatarFallback>{tgtUser?.username?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{tgtUser?.full_name || tgtUser?.username}</p>
+                      <p className="font-semibold text-sm truncate">{tgtUser?.username || 'Người dùng'}</p>
                       <p className="text-xs text-muted-foreground truncate">{tgtUser?.username}</p>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#0084ff] bg-[#0084ff]' : 'border-muted-foreground/30'}`}>
@@ -2149,21 +2161,64 @@ export default function MessagesPage() {
               disabled={forwardTargets.length === 0}
               className="w-full py-2.5 bg-[#0084ff] text-white font-semibold rounded-xl hover:bg-[#0084ff]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               onClick={async () => {
+                const socket = socketService.getSocket();
                 for (const targetRoomId of forwardTargets) {
                   try {
-                    await createMessageMutation.mutateAsync({
-                      data: {
+                    const tempId = 'forward-' + Date.now() + Math.random();
+                    const hasMedia = forwardingMsg.medias && forwardingMsg.medias.length > 0;
+                    
+                    // Optimistic update
+                    const tempMsg = {
+                      id: tempId,
+                      chat_room_id: targetRoomId,
+                      created_by: user?.id,
+                      message: forwardingMsg.message || '',
+                      medias: forwardingMsg.medias || [],
+                      created_at: new Date().toISOString(),
+                      user: user,
+                      is_sending: true,
+                    };
+                    
+                    queryClient.setQueryData(
+                      getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
+                      (old: any) => {
+                        if (!old) return old;
+                        return {
+                          ...old,
+                          data: {
+                            ...old.data,
+                            data: [...(old.data?.data || []), tempMsg],
+                          },
+                        };
+                      }
+                    );
+
+                    if (socket?.connected) {
+                      socket.emit('sendMessage', {
                         chat_room_id: targetRoomId,
                         message: forwardingMsg.message || '',
-                      },
-                    });
+                        medias: hasMedia ? JSON.stringify(forwardingMsg.medias) : '',
+                        tempId,
+                      });
+                    } else {
+                      await createMessageMutation.mutateAsync({
+                        data: {
+                          chat_room_id: targetRoomId,
+                          message: forwardingMsg.message || '',
+                          medias: hasMedia ? JSON.stringify(forwardingMsg.medias) : '',
+                        } as any,
+                      });
+                      
+                      // For REST, if we successfully mutate, we don't get 'messageSaved' so we should invalidate
+                      queryClient.invalidateQueries({
+                        queryKey: getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
+                      });
+                    }
+                    
                     updateSidebarWithMessage(targetRoomId, {
-                      message: forwardingMsg.message || '📷 Ảnh',
+                      message: forwardingMsg.message || (hasMedia ? '📷 Ảnh' : ''),
                       created_by: user?.id,
                       created_at: new Date().toISOString(),
-                    });
-                    queryClient.invalidateQueries({
-                      queryKey: getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId),
                     });
                   } catch (error) {
                     console.error('Forward failed:', error);

@@ -177,7 +177,7 @@ export class GatewayGateway
   async handleSendMessage(
     @ConnectedSocket() socket: Socket,
     @MessageBody()
-    body: { chat_room_id: string; message: string; tempId: string; reply_to_id?: string; shared_post_id?: string },
+    body: { chat_room_id: string; message: string; tempId: string; reply_to_id?: string; shared_post_id?: string; medias?: string },
   ) {
     try {
       console.log('--- GATEWAY RECEIVED sendMessage BODY ---', body);
@@ -188,7 +188,7 @@ export class GatewayGateway
         {
           chat_room_id: body.chat_room_id,
           message: body.message,
-          medias: '',
+          medias: body.medias || '',
           reply_to_id: body.reply_to_id,
           shared_post_id: body.shared_post_id,
         },

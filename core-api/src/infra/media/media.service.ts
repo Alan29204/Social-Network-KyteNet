@@ -50,20 +50,41 @@ export class MediaService {
 
   /**
    * Uploads a file to SeaweedFS via S3 API.
-   * @param file - The Multer file object (using memoryStorage)
-   * @param folder - The folder path (e.g. 'posts', 'avatars', 'chats')
+   * Images are processed with sharp (resized, compressed, converted to webp).
+   * @param file - The Multer file object
+   * @param folder - The folder path
    * @returns The public URL of the uploaded file
    */
   async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
-    const key = `${folder}/${Date.now()}-${file.originalname}`;
+    const isImage = file.mimetype.startsWith('image/') && !file.mimetype.includes('svg') && !file.mimetype.includes('gif');
+    let buffer = file.buffer;
+    let mimetype = file.mimetype;
+    let extension = file.originalname.split('.').pop() || '';
+    
+    try {
+      if (isImage) {
+        // dynamic import of sharp
+        const sharp = (await import('sharp')).default;
+        buffer = await sharp(file.buffer)
+          .resize({ width: 1080, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        mimetype = 'image/webp';
+        extension = 'webp';
+      }
+    } catch (err) {
+      console.warn('Sharp processing failed, falling back to original buffer', err);
+    }
+
+    const key = `${folder}/${Date.now()}-${file.originalname.split('.')[0]}.${extension}`;
 
     try {
       await this.s3.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
+          Body: buffer,
+          ContentType: mimetype,
         }),
       );
 
