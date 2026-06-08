@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Info, 
   Bell, 
   BellOff, 
   Users, 
@@ -101,7 +100,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             description: `Bạn sẽ ${checked ? 'không nhận' : 'nhận'} thông báo đẩy từ cuộc trò chuyện này.`,
           });
         },
-        onError: (err) => {
+        onError: () => {
           // Revert cache
           queryClient.setQueryData(roomListKey, previousRooms);
           toast({

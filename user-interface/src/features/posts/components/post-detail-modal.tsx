@@ -51,17 +51,19 @@ interface PostDetailModalProps {
   post: PostResponse;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultCommentId?: string | null;
 }
 
 export function PostDetailModal({
   post: initialPost,
   open,
   onOpenChange,
+  defaultCommentId,
 }: PostDetailModalProps) {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
   const [searchParams] = useSearchParams();
-  const targetCommentId = searchParams.get('commentId');
+  const targetCommentId = defaultCommentId || searchParams.get('commentId');
   const { toast } = useToast();
   const [showEmoji, setShowEmoji] = useState(false);
   const [commentText, setCommentText] = useState('');

@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { usePostModalStore } from '@/features/posts/stores/post-modal-store';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -40,11 +41,12 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
     fetchNextPage,
     hasNextPage,
   } = useNotificationControllerGetUserNotificationsInfinite(
-    { limit: 20, is_read: filter === 'unread' ? 'false' : undefined },
+    { limit: 20, is_read: filter === 'unread' ? false : undefined },
     { 
       query: { 
         enabled: isOpen,
         initialPageParam: 1,
+        staleTime: 60000, // Optimize API call cache
         getNextPageParam: (lastPage: any) => {
           const meta = lastPage?.data?.meta || lastPage?.meta;
           if (meta && meta.page < meta.totalPages) {
@@ -219,6 +221,9 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
   });
 
   const handleClick = async () => {
+    console.log('[NOTI-DEBUG] FULL notification object:', JSON.stringify(notification, null, 2));
+    console.log('[NOTI-DEBUG] ALL KEYS:', Object.keys(notification));
+    console.log('[NOTI-DEBUG] handleClick called', { isHandling, target_type: notification.target_type, target_id: notification.target_id });
     if (isHandling) return;
     setIsHandling(true);
 
@@ -235,21 +240,27 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
     }
 
     const { target_type, target_id, metadata } = notification;
+    console.log('[NOTI-DEBUG] target_type:', target_type, 'target_id:', target_id, 'metadata:', metadata);
 
     if (target_type === 'POST') {
       try {
+        console.log('[NOTI-DEBUG] Fetching post...');
         await queryClient.fetchQuery({
            queryKey: ['postDetail', target_id],
            queryFn: () => orvalClient({ url: `/posts/${target_id}`, method: 'GET' })
         });
+        console.log('[NOTI-DEBUG] Post fetched. Opening modal...');
         
-        onClose();
-        
+        // IMPORTANT: Set store state BEFORE closing drawer to avoid React batching issues
         if (metadata?.commentId) {
-          navigate(`/post/${target_id}?commentId=${metadata.commentId}`);
+          usePostModalStore.getState().openPost(target_id, metadata.commentId);
         } else {
-          navigate(`/post/${target_id}`);
+          usePostModalStore.getState().openPost(target_id);
         }
+        console.log('[NOTI-DEBUG] Store state after openPost:', usePostModalStore.getState());
+
+        // Close drawer AFTER store is updated
+        onClose();
       } catch (error: any) {
         if (error.response?.status === 404) {
            toast({ title: "Bài viết này không còn khả dụng hoặc đã bị xóa" });
@@ -337,7 +348,7 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
     >
       {/* Left: Avatar */}
       <Avatar className="w-11 h-11 border bg-muted shrink-0">
-        <AvatarImage src={primaryActor?.avatar || ''} alt={primaryActor?.username || 'User'} className="object-cover" />
+        <AvatarImage src={primaryActor?.avatar ? (primaryActor.avatar.startsWith('http') ? primaryActor.avatar : `${import.meta.env.VITE_MEDIA_URL}/${primaryActor.avatar}`) : '/default-avatar.png'} alt={primaryActor?.username || 'User'} className="object-cover" />
         <AvatarFallback>{primaryActor?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
       </Avatar>
 
@@ -345,8 +356,8 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       <div className="flex-1 min-w-0 flex flex-col justify-center text-[14px]">
         <span className="text-foreground leading-tight">
           {formatNotificationMessage(notification.message, actors)}
-          <span className="text-muted-foreground text-[13px] ml-1">{timeAgo}</span>
         </span>
+        <span className="text-muted-foreground text-[12px] mt-0.5 leading-none">{timeAgo}</span>
       </div>
 
       {/* Right Actions */}

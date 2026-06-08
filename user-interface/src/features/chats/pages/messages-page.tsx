@@ -9,7 +9,6 @@ import {
   Smile,
   Image as ImageIcon,
   Send,
-  Heart,
   Forward,
   Copy,
   Pin,
@@ -22,7 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -113,7 +112,7 @@ export default function MessagesPage() {
   const chatRooms: any[] = (chatRoomsResponse as any)?.data?.data || [];
 
   // 2. Fetch Message History (Query Cache as Source of Truth)
-  const { data: messagesResponse, isFetching: isFetchingMessages } =
+  const { data: messagesResponse } =
     useChatMessagesControllerGetMessageHistory(
       selectedRoomId as string,
       undefined, // parameters are kept undefined so the cache is keyed solely by room ID

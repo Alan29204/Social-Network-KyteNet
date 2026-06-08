@@ -31,7 +31,13 @@ import {
   RefreshCw,
   LogOut,
 } from 'lucide-react';
-import { getChatRoomsControllerGetListChatRoomQueryKey, useChatRoomsControllerGetListChatRoom, useNotificationControllerGetUnreadCount, getNotificationControllerGetUnreadCountQueryKey, getNotificationControllerGetUserNotificationsInfiniteQueryKey } from '@/services/apis/gen/queries';
+import {
+  getChatRoomsControllerGetListChatRoomQueryKey,
+  useChatRoomsControllerGetListChatRoom,
+  useNotificationControllerGetUnreadCount,
+  getNotificationControllerGetUnreadCountQueryKey,
+  getNotificationControllerGetUserNotificationsInfiniteQueryKey,
+} from '@/services/apis/gen/queries';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -56,27 +62,34 @@ export function SidebarLeft() {
   const match = location.pathname.match(/^\/messages\/([^/]+)/);
   const selectedRoomId = match ? match[1] : null;
 
-  const { data: chatRoomsResponse } = useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50 }, {
-    query: {
-      enabled: !!user && !!accessToken,
-    }
-  });
+  const { data: chatRoomsResponse } = useChatRoomsControllerGetListChatRoom(
+    { page: 1, limit: 50 },
+    {
+      query: {
+        enabled: !!user && !!accessToken,
+      },
+    },
+  );
 
-  const { data: unreadNotificationsRes } = useNotificationControllerGetUnreadCount({
-    query: {
-      enabled: !!user && !!accessToken,
-      refetchInterval: 30000, // Optional fallback, but WebSockets are better
-    }
-  });
+  const { data: unreadNotificationsRes } =
+    useNotificationControllerGetUnreadCount({
+      query: {
+        enabled: !!user && !!accessToken,
+        refetchInterval: 30000, // Optional fallback, but WebSockets are better
+      },
+    });
 
-  const unreadNotificationCount = (unreadNotificationsRes as any)?.data?.data?.unread_count || (unreadNotificationsRes as any)?.data?.unread_count || 0;
+  const unreadNotificationCount =
+    (unreadNotificationsRes as any)?.data?.data?.unread_count ||
+    (unreadNotificationsRes as any)?.data?.unread_count ||
+    0;
 
   useEffect(() => {
     // Update browser title
     if (unreadNotificationCount > 0) {
-      document.title = `(${unreadNotificationCount}) Instagram`;
+      document.title = `(${unreadNotificationCount}) SNet`;
     } else {
-      document.title = 'Instagram';
+      document.title = 'SNet';
     }
   }, [unreadNotificationCount]);
 
@@ -95,8 +108,9 @@ export function SidebarLeft() {
       // Optmistically increment unread count for the specific room in React Query cache
       // if we aren't currently viewing it.
       if (
-        newMsg.created_by !== user.id && 
-        (location.pathname !== '/messages' || selectedRoomId !== newMsg.chat_room_id)
+        newMsg.created_by !== user.id &&
+        (location.pathname !== '/messages' ||
+          selectedRoomId !== newMsg.chat_room_id)
       ) {
         queryClient.setQueryData(
           getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
@@ -109,19 +123,26 @@ export function SidebarLeft() {
               return r;
             });
             return { ...old, data: { ...old.data, data: updatedRooms } };
-          }
+          },
         );
       }
     };
 
     const handleReceiveMessage = () => {
       // Refresh chat list
-      queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+      });
     };
 
     const handleReceiveNotification = () => {
-      queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUnreadCountQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getNotificationControllerGetUnreadCountQueryKey(),
+      });
+      queryClient.invalidateQueries({
+        queryKey:
+          getNotificationControllerGetUserNotificationsInfiniteQueryKey(),
+      });
     };
 
     socket.on('newMessage', handleNewMessage);
@@ -146,22 +167,28 @@ export function SidebarLeft() {
       {/* Spacer to prevent content from going under the fixed sidebar */}
       <div className="hidden md:block w-[72px] shrink-0 min-h-screen" />
 
-      <aside className={cn(
-        "group hidden md:flex flex-col fixed top-0 left-0 z-40 min-h-screen bg-background border-r border-border transition-all duration-300 shadow-none hover:shadow-xl",
-        isNotificationOpen ? "w-[72px]" : "w-[72px] hover:w-[244px]"
-      )}>
+      <aside
+        className={cn(
+          'group hidden md:flex flex-col fixed top-0 left-0 z-40 min-h-screen bg-background border-r border-border transition-all duration-300 shadow-none hover:shadow-xl',
+          isNotificationOpen ? 'w-[72px]' : 'w-[72px] hover:w-[244px]',
+        )}
+      >
         {/* Logo */}
         <div className="px-4 h-[72px] flex items-center group-hover:px-6 transition-all mt-4 mb-4">
-          <span className={cn(
-            "text-2xl font-bold text-foreground shrink-0 select-none mx-auto tracking-tighter",
-            !isNotificationOpen && "group-hover:hidden"
-          )}>
+          <span
+            className={cn(
+              'text-2xl font-bold shrink-0 select-none mx-auto tracking-tighter bg-gradient-to-r from-snet-purple to-snet-pink bg-clip-text text-transparent',
+              !isNotificationOpen && 'group-hover:hidden',
+            )}
+          >
             S
           </span>
-          <span className={cn(
-            "hidden text-2xl font-bold text-foreground select-none tracking-tight",
-            !isNotificationOpen && "group-hover:block"
-          )}>
+          <span
+            className={cn(
+              'hidden text-2xl font-bold select-none tracking-tight bg-gradient-to-r from-snet-purple via-snet-pink to-snet-blue bg-clip-text text-transparent',
+              !isNotificationOpen && 'group-hover:block',
+            )}
+          >
             SNet
           </span>
         </div>
@@ -177,12 +204,18 @@ export function SidebarLeft() {
                   className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none"
                 >
                   <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
-                    <item.icon strokeWidth={2} className="w-6 h-6 text-foreground/80" />
+                    <item.icon
+                      strokeWidth={2}
+                      className="w-6 h-6 text-foreground/80"
+                    />
                   </div>
-                  <span className={cn(
-                    "hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100",
-                    !isNotificationOpen && "group-hover:block group-hover:opacity-100"
-                  )}>
+                  <span
+                    className={cn(
+                      'hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100',
+                      !isNotificationOpen &&
+                        'group-hover:block group-hover:opacity-100',
+                    )}
+                  >
                     {item.label}
                   </span>
                 </button>
@@ -195,26 +228,36 @@ export function SidebarLeft() {
                   key={item.label}
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                   className={cn(
-                    "flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none",
-                    isNotificationOpen && "font-bold"
+                    'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none',
+                    isNotificationOpen && 'font-bold',
                   )}
                 >
                   <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
-                    <item.icon strokeWidth={isNotificationOpen ? 2.5 : 2} className={cn("w-6 h-6", isNotificationOpen ? "text-foreground" : "text-foreground/80")} />
-                    {unreadNotificationCount > 0 && (
-                      unreadNotificationCount > 9 ? (
+                    <item.icon
+                      strokeWidth={isNotificationOpen ? 2.5 : 2}
+                      className={cn(
+                        'w-6 h-6',
+                        isNotificationOpen
+                          ? 'text-foreground'
+                          : 'text-foreground/80',
+                      )}
+                    />
+                    {unreadNotificationCount > 0 &&
+                      (unreadNotificationCount > 9 ? (
                         <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-[2px] border-background" />
                       ) : (
                         <div className="absolute -top-1 -right-1.5 min-w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm border border-background">
                           {unreadNotificationCount}
                         </div>
-                      )
-                    )}
+                      ))}
                   </div>
-                  <span className={cn(
-                    "hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100",
-                    !isNotificationOpen && "group-hover:block group-hover:opacity-100"
-                  )}>
+                  <span
+                    className={cn(
+                      'hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100',
+                      !isNotificationOpen &&
+                        'group-hover:block group-hover:opacity-100',
+                    )}
+                  >
                     {item.label}
                   </span>
                 </button>
@@ -235,15 +278,20 @@ export function SidebarLeft() {
                     e.preventDefault();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     // Determine which queries to invalidate based on route
-                    if (href === '/') queryClient.invalidateQueries({ queryKey: ['feed'] });
-                    if (href === '/explore') queryClient.invalidateQueries({ queryKey: ['feed', 'foryou'] });
-                    if (href.startsWith('/profile')) queryClient.invalidateQueries({ queryKey: ['profile'] });
+                    if (href === '/')
+                      queryClient.invalidateQueries({ queryKey: ['feed'] });
+                    if (href === '/explore')
+                      queryClient.invalidateQueries({
+                        queryKey: ['feed', 'foryou'],
+                      });
+                    if (href.startsWith('/profile'))
+                      queryClient.invalidateQueries({ queryKey: ['profile'] });
                   }
                 }}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',
-                    isActive ? 'font-bold' : 'font-medium'
+                    isActive ? 'font-bold' : 'font-medium',
                   )
                 }
               >
@@ -254,7 +302,7 @@ export function SidebarLeft() {
                         strokeWidth={isActive ? 2.5 : 2}
                         className={cn(
                           'w-6 h-6',
-                          isActive ? 'text-foreground' : 'text-foreground/80'
+                          isActive ? 'text-foreground' : 'text-foreground/80',
                         )}
                       />
                       {item.label === 'Tin nhắn' && unreadCount > 0 && (
@@ -263,10 +311,13 @@ export function SidebarLeft() {
                         </div>
                       )}
                     </div>
-                    <span className={cn(
-                      "hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100",
-                      !isNotificationOpen && "group-hover:block group-hover:opacity-100"
-                    )}>
+                    <span
+                      className={cn(
+                        'hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100',
+                        !isNotificationOpen &&
+                          'group-hover:block group-hover:opacity-100',
+                      )}
+                    >
                       {item.label}
                     </span>
                   </>
@@ -282,12 +333,18 @@ export function SidebarLeft() {
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium outline-none">
                 <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
-                  <Menu strokeWidth={2} className="w-6 h-6 text-foreground/80" />
+                  <Menu
+                    strokeWidth={2}
+                    className="w-6 h-6 text-foreground/80"
+                  />
                 </div>
-                <span className={cn(
-                  "hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100",
-                  !isNotificationOpen && "group-hover:block group-hover:opacity-100"
-                )}>
+                <span
+                  className={cn(
+                    'hidden text-[15px] leading-snug whitespace-nowrap opacity-0 transition-opacity duration-300 delay-100',
+                    !isNotificationOpen &&
+                      'group-hover:block group-hover:opacity-100',
+                  )}
+                >
                   Xem thêm
                 </span>
               </button>
@@ -310,7 +367,7 @@ export function SidebarLeft() {
                 <Bookmark className="mr-3 h-5 w-5" />
                 <span>Đã lưu</span>
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
@@ -325,17 +382,17 @@ export function SidebarLeft() {
                 <MessageSquareWarning className="mr-3 h-5 w-5" />
                 <span>Báo cáo sự cố</span>
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator className="my-1" />
-              
+
               <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
                 <RefreshCw className="mr-3 h-5 w-5" />
                 <span>Chuyển tài khoản</span>
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator className="my-1" />
-              
-              <DropdownMenuItem 
+
+              <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-lg text-[15px] text-destructive focus:text-destructive"
                 onClick={handleLogout}
               >
@@ -348,14 +405,14 @@ export function SidebarLeft() {
       </aside>
 
       {/* Modals */}
-      <CreatePostModal 
-        open={isCreateModalOpen} 
-        onOpenChange={setIsCreateModalOpen} 
+      <CreatePostModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
       />
-      
-      <NotificationDrawer 
-        isOpen={isNotificationOpen} 
-        onClose={() => setIsNotificationOpen(false)} 
+
+      <NotificationDrawer
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
       />
     </>
   );

@@ -12,6 +12,7 @@ import ExplorePage from '@/features/explore/pages/explore-page';
 import SuggestedPeoplePage from '@/features/explore/pages/suggested-people-page';
 import MessagesPage from '@/features/chats/pages/messages-page';
 import PostPage from '@/features/posts/pages/post-page';
+import SearchPage from '@/features/search/pages/search-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollToTop } from '@/components/scroll-to-top';
 
@@ -27,7 +28,7 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
             </Route>
           </Route>
-          
+
           <Route element={<AuthGuard />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
@@ -35,6 +36,7 @@ function App() {
               <Route path="/profile/edit" element={<EditProfilePage />} />
               <Route path="/post/:id" element={<PostPage />} />
               {/* Add other routes like /explore here later */}
+              <Route path="search" element={<SearchPage />} />
               <Route path="explore" element={<ExplorePage />} />
               <Route path="explore/people" element={<SuggestedPeoplePage />} />
               <Route path="messages" element={<MessagesPage />} />
