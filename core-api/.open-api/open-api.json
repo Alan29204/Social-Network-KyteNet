@@ -1764,6 +1764,63 @@
         ]
       }
     },
+    "/save-posts/me/list": {
+      "get": {
+        "operationId": "SavePostsController_getMySavedPosts",
+        "summary": "Get current user saved posts (default list)",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Save Posts"
+        ]
+      }
+    },
+    "/save-posts/me/ids": {
+      "get": {
+        "operationId": "SavePostsController_getMySavedPostIds",
+        "summary": "Get current user saved post ids (default list)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Save Posts"
+        ]
+      }
+    },
     "/save-posts/{saveListId}": {
       "get": {
         "operationId": "SavePostsController_getSavedPosts",
@@ -4638,12 +4695,11 @@
           },
           "save_list_id": {
             "type": "string",
-            "description": "ID bộ sưu tập muốn lưu vào"
+            "description": "ID bộ sưu tập muốn lưu vào. Nếu bỏ trống, hệ thống dùng bộ sưu tập mặc định \"Đã lưu\"."
           }
         },
         "required": [
-          "post_id",
-          "save_list_id"
+          "post_id"
         ]
       },
       "CreateCommentDto": {

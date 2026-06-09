@@ -36,6 +36,26 @@ export class SavePostsController {
     );
   }
 
+  @Get('me/list')
+  @ResponseMessage('Get my saved posts successfully')
+  @ApiOperation({ summary: 'Get current user saved posts (default list)' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  getMySavedPosts(
+    @User() user: IUser,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.savePostsService.getMySavedPosts(user, page || 1, limit || 10);
+  }
+
+  @Get('me/ids')
+  @ResponseMessage('Get my saved post ids successfully')
+  @ApiOperation({ summary: 'Get current user saved post ids (default list)' })
+  getMySavedPostIds(@User() user: IUser) {
+    return this.savePostsService.getMySavedPostIds(user);
+  }
+
   @Get(':saveListId')
   @ResponseMessage('Get saved posts successfully')
   @ApiOperation({ summary: 'Get saved posts in a list' })

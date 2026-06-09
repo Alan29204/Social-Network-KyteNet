@@ -13,30 +13,33 @@ AXIOS_INSTANCE.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 AXIOS_INSTANCE.interceptors.response.use(
   (response) => response,
   async (error) => {
     // Handle 401 and refresh token logic here if needed
-    if (error.response?.status === 401 && !error.config?.url?.includes('/login')) {
+    if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes('/login')
+    ) {
       const { logout } = useAuthStore.getState();
       logout();
       window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export const orvalClient = <T>(
   config: string | AxiosRequestConfig,
-  options?: any
+  options?: any,
 ): Promise<T> => {
   const source = axios.CancelToken.source();
-  
+
   let axiosConfig: AxiosRequestConfig;
-  
+
   if (typeof config === 'string') {
     const { body, ...restOptions } = options || {};
     axiosConfig = {
@@ -52,8 +55,6 @@ export const orvalClient = <T>(
       ...options,
     };
   }
-
-  console.log('AXIOS_REQUEST:', axiosConfig);
 
   const promise = AXIOS_INSTANCE({
     ...axiosConfig,

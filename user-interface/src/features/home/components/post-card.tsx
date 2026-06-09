@@ -70,13 +70,22 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
 
   const [localLiked, setLocalLiked] = useState(post.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(post.likesCount);
+  const [localSaved, setLocalSaved] = useState(post.isSaved);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLocalReposted(post.isReposted);
     setLocalRepostsCount(post.repostsCount);
     setLocalLiked(post.isLiked);
     setLocalLikesCount(post.likesCount);
-  }, [post.isReposted, post.repostsCount, post.isLiked, post.likesCount]);
+    setLocalSaved(post.isSaved);
+  }, [
+    post.isReposted,
+    post.repostsCount,
+    post.isLiked,
+    post.likesCount,
+    post.isSaved,
+  ]);
 
   const queryClient = useQueryClient();
 
@@ -133,6 +142,28 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
         repostMutation.mutate();
       }
     }, 500);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: (save: boolean) =>
+      orvalClient({
+        url: '/save-posts',
+        method: save ? 'POST' : 'DELETE',
+        data: { post_id: displayPost.id },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+    },
+  });
+
+  const handleToggleSave = () => {
+    const newStatus = !localSaved;
+    setLocalSaved(newStatus);
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveMutation.mutate(newStatus);
+    }, 400);
   };
 
   const displayPost = post.shared_post || post;
@@ -431,10 +462,14 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
               <Share2 className="w-5 h-5 text-foreground/70 group-hover:text-snet-blue transition-colors" />
             </button>
           </div>
-          <button className="group transition-all">
+          <button
+            className="group transition-all"
+            onClick={handleToggleSave}
+            aria-label={localSaved ? 'Bỏ lưu' : 'Lưu bài viết'}
+          >
             <Bookmark
               className={`w-5 h-5 transition-colors ${
-                post.isSaved
+                localSaved
                   ? 'fill-snet-purple text-snet-purple'
                   : 'text-foreground/70 group-hover:text-snet-purple'
               }`}

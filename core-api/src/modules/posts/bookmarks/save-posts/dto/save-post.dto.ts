@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID } from 'class-validator';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class SavePostDto {
   @IsUUID()
@@ -8,7 +8,10 @@ export class SavePostDto {
   post_id: string;
 
   @IsUUID()
-  @IsNotEmpty()
-  @ApiProperty({ description: 'ID bộ sưu tập muốn lưu vào' })
-  save_list_id: string;
+  @IsOptional()
+  @ApiPropertyOptional({
+    description:
+      'ID bộ sưu tập muốn lưu vào. Nếu bỏ trống, hệ thống dùng bộ sưu tập mặc định "Đã lưu".',
+  })
+  save_list_id?: string;
 }

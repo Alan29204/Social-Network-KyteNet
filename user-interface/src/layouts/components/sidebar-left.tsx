@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
 import { NotificationDrawer } from '@/features/notifications/components/notification-drawer';
@@ -365,9 +365,14 @@ export function SidebarLeft() {
                 <Activity className="mr-3 h-5 w-5" />
                 <span>Hoạt động của bạn</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
-                <Bookmark className="mr-3 h-5 w-5" />
-                <span>Đã lưu</span>
+              <DropdownMenuItem
+                asChild
+                className="p-3 cursor-pointer rounded-lg text-[15px]"
+              >
+                <Link to="/saved">
+                  <Bookmark className="mr-3 h-5 w-5" />
+                  <span>Đã lưu</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-lg text-[15px]"

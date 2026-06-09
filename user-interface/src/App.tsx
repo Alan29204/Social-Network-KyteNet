@@ -14,6 +14,7 @@ import MessagesPage from '@/features/chats/pages/messages-page';
 import PostPage from '@/features/posts/pages/post-page';
 import SearchPage from '@/features/search/pages/search-page';
 import ReelsPage from '@/features/reels/pages/reels-page';
+import SavedPage from '@/features/saved/pages/saved-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollToTop } from '@/components/scroll-to-top';
 
@@ -39,6 +40,7 @@ function App() {
               {/* Add other routes like /explore here later */}
               <Route path="search" element={<SearchPage />} />
               <Route path="reels" element={<ReelsPage />} />
+              <Route path="saved" element={<SavedPage />} />
               <Route path="explore" element={<ExplorePage />} />
               <Route path="explore/people" element={<SuggestedPeoplePage />} />
               <Route path="messages" element={<MessagesPage />} />
