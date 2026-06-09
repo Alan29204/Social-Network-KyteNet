@@ -13,7 +13,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useToast } from '@/hooks/use-toast';
 
 export interface ReelData {
   id: string;
@@ -29,7 +28,7 @@ export interface ReelData {
 interface ReelItemProps {
   reel: ReelData;
   muted: boolean;
-  onToggleMute: (force?: boolean) => void;
+  onToggleMute: () => void;
   onOpenComments: (postId: string) => void;
   onShare: (reel: ReelData) => void;
   onSave: (reel: ReelData) => void;
@@ -50,7 +49,6 @@ export function ReelItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const { toast } = useToast();
 
   // Trạng thái tương tác (optimistic)
   const [liked, setLiked] = useState(reel.isLiked);
@@ -66,13 +64,6 @@ export function ReelItem({
     setSaved(!!reel.isSaved);
   }, [reel.isLiked, reel.likesCount, reel.isSaved]);
 
-  // Đảm bảo đồng bộ thuộc tính muted thực tế của DOM với state của React
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = muted;
-    }
-  }, [muted]);
-
   useEffect(() => {
     const video = videoRef.current;
     const container = containerRef.current;
@@ -81,14 +72,7 @@ export function ReelItem({
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-          video.play().catch((err) => {
-            console.warn('Autoplay failed:', err);
-            if (err.name === 'NotAllowedError' && !video.muted) {
-              video.muted = true;
-              video.play().catch(() => {});
-              onToggleMute(true);
-            }
-          });
+          video.play().catch(() => {});
         } else {
           video.pause();
         }
@@ -136,18 +120,11 @@ export function ReelItem({
         method: 'POST',
         data: { post_id: reel.id },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['postDetail', reel.id] });
-    },
   });
 
   const handleRepost = () => {
     if (reposted) return;
     setReposted(true);
-    toast({
-      title: 'Đã chia sẻ lại bài viết',
-    });
     repostMutation.mutate();
   };
 
@@ -181,10 +158,7 @@ export function ReelItem({
 
         {/* Nút tắt/bật tiếng */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleMute();
-          }}
+          onClick={onToggleMute}
           className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white z-10"
           aria-label={muted ? 'Bật tiếng' : 'Tắt tiếng'}
         >

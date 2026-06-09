@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { Bookmark, Loader2, FolderPlus } from 'lucide-react';
 import { CreateSaveListModal } from '@/features/saved/components/create-save-list-modal';
 
 export function SavedCollections({ userId: _userId }: { userId: string }) {
-  const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
 
   // Danh sách bộ sưu tập
@@ -65,10 +63,7 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
         ) : (
           <>
             {/* Bộ sưu tập "Tất cả bài đã lưu" */}
-            <div 
-              className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
-              onClick={() => navigate('/saved')}
-            >
+            <div className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted">
               {getFirstMedia() ? (
                 <img
                   src={getFirstMedia()!}
@@ -90,7 +85,6 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
             {(lists || []).map((list) => (
               <div
                 key={list.id}
-                onClick={() => navigate(`/saved?listId=${list.id}&listName=${encodeURIComponent(list.name)}`)}
                 className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
               >
                 <div className="absolute inset-0 flex items-center justify-center">
