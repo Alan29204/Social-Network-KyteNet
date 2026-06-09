@@ -3,6 +3,7 @@ import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
 import { useFeedControllerGetFollowingFeedInfinite } from '@/services/apis/gen/queries';
 import { PostCard } from '@/features/home/components/post-card';
+import { StoryBar } from '@/features/stories/components/story-bar';
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2, Compass, RefreshCw } from 'lucide-react';
@@ -42,26 +43,8 @@ export default function HomePage() {
     <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
       {/* Center Feed Area */}
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6 px-0 sm:px-0">
-        {/* Stories Bar (placeholder) */}
-        <div className="px-4 sm:px-0 mb-4">
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div
-                key={i}
-                className="flex flex-col items-center gap-1 shrink-0"
-              >
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-snet-purple to-snet-pink p-[2px]">
-                  <div className="w-full h-full rounded-full bg-background flex items-center justify-center">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-snet-purple/20 to-snet-pink/20 animate-pulse" />
-                  </div>
-                </div>
-                <span className="text-[10px] text-muted-foreground">
-                  user_{i}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Stories Bar */}
+        <StoryBar />
 
         {/* Feed Tabs */}
         <div className="flex items-center gap-1 px-4 sm:px-0 mb-4">

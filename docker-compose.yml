@@ -52,7 +52,11 @@ services:
       - "${SEAWEEDFS_FILER_PORT:-8888}:8888"
       - "${SEAWEEDFS_S3_PORT:-8333}:8333"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9333/cluster/status >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9333/cluster/status >/dev/null || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5

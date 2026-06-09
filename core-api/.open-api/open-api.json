@@ -2571,6 +2571,189 @@
           "Search"
         ]
       }
+    },
+    "/stories": {
+      "post": {
+        "operationId": "StoriesController_create",
+        "summary": "Tạo story (ảnh/video hoặc text)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "background": {
+                    "type": "string"
+                  },
+                  "privacy": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "follower",
+                      "private"
+                    ]
+                  },
+                  "media-story": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Story"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
+    },
+    "/stories/feed": {
+      "get": {
+        "operationId": "StoriesController_getFeed",
+        "summary": "Lấy story của bản thân + người đang follow",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
+    },
+    "/stories/user/{userId}": {
+      "get": {
+        "operationId": "StoriesController_getUserStories",
+        "summary": "Lấy story còn hạn của một user",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Story"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
+    },
+    "/stories/{id}/view": {
+      "post": {
+        "operationId": "StoriesController_markViewed",
+        "summary": "Đánh dấu đã xem story",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
+    },
+    "/stories/{id}/viewers": {
+      "get": {
+        "operationId": "StoriesController_getViewers",
+        "summary": "Lấy danh sách người đã xem (chỉ chủ story)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
+    },
+    "/stories/{id}": {
+      "delete": {
+        "operationId": "StoriesController_remove",
+        "summary": "Xóa story",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Stories"
+        ]
+      }
     }
   },
   "info": {
@@ -4647,6 +4830,104 @@
         "required": [
           "type",
           "reason"
+        ]
+      },
+      "Story": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "image",
+              "video",
+              "text"
+            ],
+            "type": "string"
+          },
+          "media_url": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "background": {
+            "type": "string"
+          },
+          "privacy": {
+            "enum": [
+              "public",
+              "follower",
+              "private"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "views": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoryView"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "type",
+          "media_url",
+          "content",
+          "background",
+          "privacy",
+          "created_at",
+          "expires_at",
+          "user",
+          "views"
+        ]
+      },
+      "StoryView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "story_id": {
+            "type": "string"
+          },
+          "viewer_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "story": {
+            "$ref": "#/components/schemas/Story"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "story_id",
+          "viewer_id",
+          "created_at",
+          "story",
+          "viewer"
         ]
       }
     }

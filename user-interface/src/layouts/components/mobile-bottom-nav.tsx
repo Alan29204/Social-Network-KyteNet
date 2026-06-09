@@ -2,14 +2,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useState } from 'react';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
-import { Home, Search, Compass, PlusSquare, User } from 'lucide-react';
+import { Home, Search, Film, PlusSquare, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { icon: Home, label: 'Trang chủ', href: '/' },
   { icon: Search, label: 'Tìm kiếm', href: '/search' },
   { icon: PlusSquare, label: 'Tạo', href: '/create' },
-  { icon: Compass, label: 'Khám phá', href: '/explore' },
+  { icon: Film, label: 'Reels', href: '/reels' },
   { icon: User, label: 'Hồ sơ', href: '/profile' },
 ];
 
