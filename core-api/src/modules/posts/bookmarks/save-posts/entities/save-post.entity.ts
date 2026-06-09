@@ -6,11 +6,12 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity()
+@Unique(['save_list_id', 'post_id'])
 export class SavePost {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -27,7 +28,7 @@ export class SavePost {
   @JoinColumn({ name: 'save_list_id' })
   save_list: SaveList;
 
-  @OneToOne(() => Post, (post) => post.save_posts)
+  @ManyToOne(() => Post, (post) => post.save_posts)
   @JoinColumn({ name: 'post_id' })
   post: Post;
 }

@@ -3397,7 +3397,10 @@
             "$ref": "#/components/schemas/Post"
           },
           "save_posts": {
-            "$ref": "#/components/schemas/SavePost"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavePost"
+            }
           },
           "comments": {
             "type": "array",

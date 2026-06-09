@@ -10,7 +10,6 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
@@ -60,8 +59,8 @@ export class Post {
   @JoinColumn({ name: 'shared_post_id' })
   shared_post: Post;
 
-  @OneToOne(() => SavePost, (savePost) => savePost.post)
-  save_posts: SavePost;
+  @OneToMany(() => SavePost, (savePost) => savePost.post)
+  save_posts: SavePost[];
 
   @OneToMany(() => Comment, (comment) => comment.post)
   comments: Comment[];

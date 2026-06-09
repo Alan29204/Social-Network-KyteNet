@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { SharePostModal } from '@/features/posts/components/share-post-modal';
+import { SaveToListModal } from '@/features/saved/components/save-to-list-modal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
@@ -52,14 +53,58 @@ interface PostCardProps {
   showFollowButton?: boolean;
 }
 
+/** Video trong feed: tự phát khi cuộn vào viewport, dừng khi rời đi. Click mở chế độ Reels. */
+function FeedVideo({
+  url,
+  postId,
+  onOpenReels,
+}: {
+  url: string;
+  postId: string;
+  onOpenReels: (id: string) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={videoRef}
+      src={url}
+      className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
+      loop
+      muted
+      playsInline
+      onClick={() => onOpenReels(postId)}
+    />
+  );
+}
+
 export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const { user: currentUser } = useAuthStore();
+  const navigate = useNavigate();
   const isMyPost = currentUser?.id === post.user.id;
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
 
   // Local state for debounced optimistic repost
   const [localReposted, setLocalReposted] = useState(post.isReposted);
@@ -144,11 +189,14 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
     }, 500);
   };
 
-  const saveMutation = useMutation({
-    mutationFn: (save: boolean) =>
+  const displayPost = post.shared_post || post;
+  const isRepost = !!post.shared_post;
+
+  const unsaveMutation = useMutation({
+    mutationFn: () =>
       orvalClient({
         url: '/save-posts',
-        method: save ? 'POST' : 'DELETE',
+        method: 'DELETE',
         data: { post_id: displayPost.id },
       }),
     onSuccess: () => {
@@ -157,17 +205,18 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   });
 
   const handleToggleSave = () => {
-    const newStatus = !localSaved;
-    setLocalSaved(newStatus);
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveMutation.mutate(newStatus);
-    }, 400);
+    if (!localSaved) {
+      // Chưa lưu -> mở modal chọn bộ sưu tập
+      setSaveModalOpen(true);
+    } else {
+      // Đã lưu -> bỏ lưu
+      setLocalSaved(false);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        unsaveMutation.mutate();
+      }, 300);
+    }
   };
-
-  const displayPost = post.shared_post || post;
-  const isRepost = !!post.shared_post;
 
   const { optimisticFollows, setOptimisticFollow } = useFollowStore();
   const isFollowing = optimisticFollows[displayPost.user.id] ?? false;
@@ -337,11 +386,10 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                         className="flex items-center justify-center"
                       >
                         {isVideo ? (
-                          <video
-                            src={url}
-                            controls
-                            className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
-                            onClick={() => setIsDetailOpen(true)}
+                          <FeedVideo
+                            url={url}
+                            postId={displayPost.id}
+                            onOpenReels={(id) => navigate(`/reels?start=${id}`)}
                           />
                         ) : (
                           <img
@@ -365,11 +413,10 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                 const isVideo =
                   url.match(/\.(mp4|webm|mov|mkv)$/i) || url.includes('video');
                 return isVideo ? (
-                  <video
-                    src={url}
-                    controls
-                    className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
-                    onClick={() => setIsDetailOpen(true)}
+                  <FeedVideo
+                    url={url}
+                    postId={displayPost.id}
+                    onOpenReels={(id) => navigate(`/reels?start=${id}`)}
                   />
                 ) : (
                   <div className="overflow-hidden">
@@ -545,6 +592,15 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
           post={displayPost}
           open={shareOpen}
           onOpenChange={setShareOpen}
+        />
+      )}
+
+      {saveModalOpen && (
+        <SaveToListModal
+          postId={displayPost.id}
+          open={saveModalOpen}
+          onOpenChange={setSaveModalOpen}
+          onSaved={() => setLocalSaved(true)}
         />
       )}
     </article>
