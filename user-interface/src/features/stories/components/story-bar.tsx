@@ -23,13 +23,13 @@ export function StoryBar() {
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
           {/* Ô tạo story / story của mình */}
           <div className="flex flex-col items-center gap-1 shrink-0">
-            <button
+            <div
               onClick={() =>
                 myGroup
                   ? setViewerIndex(groups.indexOf(myGroup))
                   : setCreateOpen(true)
               }
-              className="relative"
+              className="relative cursor-pointer"
             >
               <div
                 className={`w-16 h-16 rounded-full p-[2px] ${
@@ -58,7 +58,7 @@ export function StoryBar() {
               >
                 <Plus className="w-3 h-3" />
               </button>
-            </button>
+            </div>
             <span className="text-[10px] text-muted-foreground">
               Tin của bạn
             </span>

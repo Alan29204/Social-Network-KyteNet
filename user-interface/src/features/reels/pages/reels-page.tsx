@@ -25,7 +25,7 @@ export default function ReelsPage() {
   const [searchParams] = useSearchParams();
   const startId = searchParams.get('start');
   const { ref, inView } = useInView();
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
 
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [shareReel, setShareReel] = useState<ReelData | null>(null);
@@ -135,7 +135,7 @@ export default function ReelsPage() {
                 <ReelItem
                   reel={reel}
                   muted={muted}
-                  onToggleMute={() => setMuted((m) => !m)}
+                  onToggleMute={(force?: boolean | React.MouseEvent) => setMuted((m) => typeof force === 'boolean' ? force : !m)}
                   onOpenComments={(postId) => setCommentPostId(postId)}
                   onShare={(r) => setShareReel(r)}
                   onSave={(r) => setSaveReel(r)}

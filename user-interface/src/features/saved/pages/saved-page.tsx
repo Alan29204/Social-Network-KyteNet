@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
-import { Bookmark, Loader2 } from 'lucide-react';
+import { Bookmark, Loader2, ArrowLeft } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { PostCard } from '@/features/home/components/post-card';
 import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
@@ -12,13 +13,18 @@ function unwrap(res: any) {
 
 export default function SavedPage() {
   const { ref, inView } = useInView();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const listId = searchParams.get('listId');
+  const listName = searchParams.get('listName');
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
-      queryKey: ['saved-posts'],
+      queryKey: ['saved-posts', listId],
       initialPageParam: 1,
       queryFn: async ({ pageParam }) => {
-        const res = await AXIOS_INSTANCE.get('/save-posts/me/list', {
+        const url = listId ? `/save-posts/${listId}` : '/save-posts/me/list';
+        const res = await AXIOS_INSTANCE.get(url, {
           params: { page: pageParam, limit: 10 },
         });
         return unwrap(res);
@@ -43,8 +49,16 @@ export default function SavedPage() {
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 sm:px-0 mb-4">
+          {listId && (
+            <button
+              onClick={() => navigate(-1)}
+              className="p-1 -ml-1 rounded-full hover:bg-muted transition-colors mr-1"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <Bookmark className="w-6 h-6 text-snet-purple" />
-          <h1 className="text-xl font-bold">Đã lưu</h1>
+          <h1 className="text-xl font-bold">{listName || 'Đã lưu'}</h1>
         </div>
 
         {status === 'pending' ? (
