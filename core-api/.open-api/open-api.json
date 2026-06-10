@@ -1474,6 +1474,30 @@
         ]
       }
     },
+    "/feed/recommended": {
+      "get": {
+        "operationId": "FeedController_getRecommendedFeed",
+        "summary": "Get AI-personalized recommended feed",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Feed"
+        ]
+      }
+    },
     "/posts": {
       "get": {
         "operationId": "PostsController_findAll",

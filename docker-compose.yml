@@ -68,19 +68,19 @@ services:
       - app-network
     restart: unless-stopped
 
-  # backend-fastapi:
-  #   build:
-  #     context: ./fastapi-ai
-  #     dockerfile: Dockerfile
-  #   container_name: backend_fastapi
-  #   ports:
-  #     - '8000:8000'
-  #   depends_on:
-  #     - chromadb
-  #   networks:
-  #     - app-network
-  #   env_file:
-  #     - .env
+  backend-fastapi:
+    build:
+      context: ./ai-services
+      dockerfile: Dockerfile
+    container_name: backend_fastapi
+    ports:
+      - '8000:8000'
+    depends_on:
+      - chromadb
+    networks:
+      - app-network
+    env_file:
+      - .env
 
   # backend-nestjs:
   #   container_name: backend_nestjs

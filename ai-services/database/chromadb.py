@@ -19,16 +19,33 @@ class ChromaDb:
         self.collection = collection
         self.embeddings = Embeddings()
 
+    @staticmethod
+    def _normalize_type(value) -> Optional[str]:
+        """Chấp nhận type là Enum, str hoặc None."""
+        if value is None:
+            return None
+        return value.value if hasattr(value, "value") else str(value)
+
+    @staticmethod
+    def _build_metadata(metadata_type: Optional[str], extra: Optional[dict] = None) -> dict:
+        meta = {}
+        if metadata_type:
+            meta["type"] = metadata_type
+        if extra:
+            meta.update({k: v for k, v in extra.items() if v is not None})
+        # Chroma yêu cầu metadata không rỗng -> thêm cờ mặc định
+        return meta or {"type": "post"}
+
     # Add data with text
     async def create_with_text(self, metadata: dict):
         try:
             embedding = self.embeddings.get_embedding_text(metadata['text'])
-            metadata_type = metadata['type'].value if metadata.get('type') else None
-            self.collection.add(
+            metadata_type = self._normalize_type(metadata.get('type')) or "post"
+            self.collection.upsert(
                 ids=[metadata['id']],
                 embeddings=[embedding],
-                metadatas=[{"type": metadata_type} if metadata_type else {}],
-                documents=None 
+                metadatas=[self._build_metadata(metadata_type, metadata.get('extra'))],
+                documents=[metadata['text']],
             )
             return {"message": f"Created embedding {metadata['id']} successfully"}
         except Exception as e:
@@ -84,40 +101,97 @@ class ChromaDb:
             raise HTTPException(status_code=500, detail=f"Error updating with embedding: {str(e)}")
 
     # Suggest 
-    async def suggest_posts(self, query: PaginatedQuery) -> dict:
+    async def suggest_posts(self, query: PaginatedQuery, max_distance: float = 1.5) -> dict:
         try:
             query_embedding = self.embeddings.get_embedding_text(query.query)
-            
-            # Add filter
-            where_filter = {"type": query.type} if query.type else None
-            
-            fetch_limit = query.page_size * query.page * 5  
-            
+
+            # Add filter (chuẩn hóa Enum -> str)
+            type_str = self._normalize_type(query.type)
+            where_filter = {"type": type_str} if type_str else None
+
+            # Lấy vừa đủ cho tới trang hiện tại (tránh fetch quá nhiều)
+            fetch_limit = max(query.page_size * query.page, query.page_size)
+
             results = self.collection.query(
                 query_embeddings=[query_embedding],
                 n_results=fetch_limit,
                 where=where_filter,
-                include=["metadatas", "distances"]  # Get not documents
+                include=["metadatas", "distances"],  # Không cần documents
             )
 
-            total_results = len(results['ids'][0]) if results['ids'] and len(results['ids']) > 0 else 0
+            ids = results['ids'][0] if results.get('ids') and len(results['ids']) > 0 else []
+            metadatas = results['metadatas'][0] if results.get('metadatas') and len(results['metadatas']) > 0 else []
+            distances = results['distances'][0] if results.get('distances') and len(results['distances']) > 0 else []
+
+            # Lọc bỏ kết quả ít liên quan theo ngưỡng khoảng cách
+            filtered = [
+                (i, m, d)
+                for i, m, d in zip(ids, metadatas, distances)
+                if d is None or d <= max_distance
+            ]
+
+            total_results = len(filtered)
             start_idx = (query.page - 1) * query.page_size
             end_idx = min(start_idx + query.page_size, total_results)
-            
-            paginated_results = {
-                "ids": results['ids'][0][start_idx:end_idx] if total_results > 0 else [],
-                "metadatas": results['metadatas'][0][start_idx:end_idx] if total_results > 0 else [],
-                "distances": results['distances'][0][start_idx:end_idx] if total_results > 0 else [],
+            page_slice = filtered[start_idx:end_idx] if total_results > 0 else []
+
+            return {
+                "ids": [x[0] for x in page_slice],
+                "metadatas": [x[1] for x in page_slice],
+                "distances": [x[2] for x in page_slice],
                 "pagination": {
                     "current_page": query.page,
                     "page_size": query.page_size,
                     "total_results": total_results,
-                    "total_pages": (total_results + query.page_size - 1) // query.page_size if total_results > 0 else 0
-                }
+                    "total_pages": (total_results + query.page_size - 1) // query.page_size if total_results > 0 else 0,
+                },
             }
-            return paginated_results
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error querying: {str(e)}")
+
+    async def recommend_by_embedding(
+        self,
+        embedding: list,
+        limit: int = 20,
+        exclude_ids: Optional[List[str]] = None,
+    ) -> dict:
+        """Gợi ý bài viết tương tự một vector (trung bình sở thích người dùng)."""
+        try:
+            exclude_ids = exclude_ids or []
+            # Lấy dư để bù số bài bị loại (đã xem / của chính user)
+            fetch_limit = limit + len(exclude_ids) + 10
+
+            results = self.collection.query(
+                query_embeddings=[embedding],
+                n_results=fetch_limit,
+                where={"type": "post"},
+                include=["metadatas", "distances"],
+            )
+
+            ids = results['ids'][0] if results.get('ids') and len(results['ids']) > 0 else []
+            distances = results['distances'][0] if results.get('distances') and len(results['distances']) > 0 else []
+
+            exclude_set = set(exclude_ids)
+            ranked = [
+                (i, d) for i, d in zip(ids, distances) if i not in exclude_set
+            ][:limit]
+
+            return {
+                "ids": [x[0] for x in ranked],
+                "distances": [x[1] for x in ranked],
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error recommending: {str(e)}")
+
+    async def get_embeddings_by_ids(self, ids: List[str]) -> list:
+        """Lấy danh sách vector theo nhiều id (để tính trung bình sở thích)."""
+        if not ids:
+            return []
+        try:
+            results = self.collection.get(ids=ids, include=["embeddings"])
+            return results.get("embeddings", []) or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error getting embeddings: {str(e)}")
 
     # Find by embedding
     async def search_by_embedding(self, query: EmbeddingSearchQuery) -> dict:

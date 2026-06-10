@@ -89,23 +89,32 @@ export function PostDetailModal({
     enabled: open,
   });
 
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
   useEffect(() => {
     if (open) {
-      window.history.pushState({ isModal: true }, '', `/post/${initialPost.id}`);
+      const isAlreadyOnRoute = window.location.pathname.startsWith(`/post/${initialPost.id}`);
+      
+      if (!isAlreadyOnRoute) {
+        window.history.pushState({ isModal: true }, '', `/post/${initialPost.id}`);
+      }
       
       const handlePopState = () => {
-         onOpenChange(false);
+         onOpenChangeRef.current(false);
       };
       window.addEventListener('popstate', handlePopState);
       
       return () => {
          window.removeEventListener('popstate', handlePopState);
-         if (window.history.state?.isModal) {
+         if (!isAlreadyOnRoute && window.history.state?.isModal) {
             window.history.back();
          }
       };
     }
-  }, [open, initialPost.id, onOpenChange]);
+  }, [open, initialPost.id]);
 
 
   const post = queryData?.data || initialPost;

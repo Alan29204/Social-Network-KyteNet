@@ -7,10 +7,22 @@ from schemas.user_interface import IUser
 from services.auth import AuthService
 from core.settings import settings
 
-# API public
-public_routes = {"/docs", "/openapi.json", "/token"}
-# API backend nestjs call
-system_routes = {"/posts/check-policy-for-post"}
+# API public (so khớp chính xác)
+public_routes = {"/docs", "/re-docs", "/openapi.json", "/token"}
+
+# API backend NestJS gọi (so khớp theo prefix vì có path động)
+system_route_prefixes = (
+    "/posts/check-policy-for-post",
+    "/posts/embed",            # POST /posts/embed, DELETE /posts/embed/{id}
+    "/posts/semantic-search",
+    "/posts/recommend",
+    "/posts/reindex",
+)
+
+
+def _is_system_route(path: str) -> bool:
+    return any(path == p or path.startswith(p + "/") or path.startswith(p) for p in system_route_prefixes)
+
 
 # Middleware authorization
 async def auth_middleware(request: Request, call_next):
@@ -23,8 +35,8 @@ async def auth_middleware(request: Request, call_next):
   if path in public_routes:
       return await call_next(request)
 
-  # Check if the request is for a system route
-  if path in system_routes:
+  # Check if the request is for a system route (NestJS -> FastAPI)
+  if _is_system_route(path):
       if key_auth == valid_key:
           return await call_next(request)
       else:
@@ -32,9 +44,11 @@ async def auth_middleware(request: Request, call_next):
               status_code=status.HTTP_403_FORBIDDEN,
               content={"detail": "Your request is not access"}
           )
-  
-  # Get token from header
-  token = request.headers.get("authorization").split(" ")[1]
+
+  # Get token from header (an toàn khi thiếu header)
+  auth_header = request.headers.get("authorization") or ""
+  parts = auth_header.split(" ")
+  token = parts[1] if len(parts) == 2 else None
 
   if not token:
       return JSONResponse(

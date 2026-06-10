@@ -6,19 +6,25 @@ import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { PostCard } from '@/features/home/components/post-card';
 import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
+import { useSearchParams } from 'react-router-dom';
+
 function unwrap(res: any) {
   return res?.data?.data ?? res?.data;
 }
 
 export default function SavedPage() {
   const { ref, inView } = useInView();
+  const [searchParams] = useSearchParams();
+  const listId = searchParams.get('listId');
+  const listName = searchParams.get('name') || 'Đã lưu';
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
-      queryKey: ['saved-posts'],
+      queryKey: ['saved-posts', listId],
       initialPageParam: 1,
       queryFn: async ({ pageParam }) => {
-        const res = await AXIOS_INSTANCE.get('/save-posts/me/list', {
+        const url = listId ? `/save-posts/${listId}` : '/save-posts/me/list';
+        const res = await AXIOS_INSTANCE.get(url, {
           params: { page: pageParam, limit: 10 },
         });
         return unwrap(res);
@@ -44,7 +50,7 @@ export default function SavedPage() {
         {/* Header */}
         <div className="flex items-center gap-2 px-4 sm:px-0 mb-4">
           <Bookmark className="w-6 h-6 text-snet-purple" />
-          <h1 className="text-xl font-bold">Đã lưu</h1>
+          <h1 className="text-xl font-bold">{listName}</h1>
         </div>
 
         {status === 'pending' ? (

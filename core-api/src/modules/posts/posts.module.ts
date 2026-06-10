@@ -18,6 +18,6 @@ import { FeedModule } from 'src/feed/feed.module';
   ],
   controllers: [PostsController],
   providers: [PostsService],
-  exports: [],
+  exports: [PostsService],
 })
 export class PostsModule {}

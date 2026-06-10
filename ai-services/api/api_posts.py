@@ -13,6 +13,11 @@ class EmbedPostRequest(BaseModel):
     content: str
 
 
+class RecommendRequest(BaseModel):
+    user_id: str
+    limit: int = 20
+
+
 @router.post("/check-policy-for-post")
 async def check_policy_for_post(dto: IDRequest):
     return await postService.check_policy_for_posts(dto.id)
@@ -38,3 +43,15 @@ async def semantic_search(
 async def delete_post_embedding(post_id: str):
     """Remove a post embedding from ChromaDB (e.g., when post is deleted)."""
     return await postService.delete_embedding(post_id)
+
+
+@router.post("/recommend")
+async def recommend_posts(dto: RecommendRequest):
+    """Gợi ý bài viết cá nhân hóa dựa trên lịch sử tương tác của người dùng."""
+    return await postService.recommend_posts(dto.user_id, dto.limit)
+
+
+@router.post("/reindex")
+async def reindex_posts():
+    """Embed lại toàn bộ bài viết cũ vào ChromaDB (chạy 1 lần để backfill)."""
+    return await postService.reindex_all()

@@ -238,6 +238,37 @@ export class NotificationService {
     return { message: 'System notification created' };
   }
 
+  async notifySystemWarning(userId: string, title: string, message: string) {
+    const notification = new Notification();
+    notification.id = uuidv4();
+    notification.title = title;
+    notification.message = message;
+    notification.notification_type = NotificationType.SYSTEM;
+    notification.target_type = 'SYSTEM_WARNING';
+    notification.target_id = userId;
+
+    await this.notificationRepo.save(notification);
+
+    const notiUser = new NotificationUser();
+    notiUser.notification_id = notification.id;
+    notiUser.user_id = userId;
+    notiUser.is_read = false;
+    notiUser.is_sent = true;
+    await this.notiUserRepo.save(notiUser);
+
+    const payload = {
+      noti_user_id: notiUser.id,
+      user_id: userId,
+      title: notification.title,
+      message: notification.message,
+      notification_type: NotificationType.SYSTEM,
+      created_at: notification.created_at,
+      is_read: false,
+      metadata: null,
+    };
+    this.gateway.server.to(userId).emit('notification', payload);
+  }
+
   // ═══════════════════════════════════════════
   //  Undo / Retract Logic
   // ═══════════════════════════════════════════

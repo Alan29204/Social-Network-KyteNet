@@ -97,10 +97,10 @@ export default function ReelsPage() {
       {/* Khu vực video */}
       <div className="relative flex-1 h-full">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 p-4 bg-gradient-to-b from-black/60 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-white/10 text-white"
+            className="p-2 rounded-full hover:bg-white/10 text-white pointer-events-auto"
             aria-label="Quay lại"
           >
             <ArrowLeft className="w-6 h-6" />

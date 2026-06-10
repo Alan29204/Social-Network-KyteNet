@@ -48,4 +48,19 @@ export class FeedController {
     const cursorNum = cursor ? Number(cursor) : undefined;
     return this.feedService.getForYouFeed(user.id, cursorNum, limit);
   }
+
+  /**
+   * Get the AI-personalized "Recommended" feed ("Dành cho bạn").
+   * Uses ChromaDB embedding similarity based on the user's interaction history.
+   * Falls back to the "For You" feed when the AI service has no suggestions.
+   */
+  @Get('recommended')
+  @ApiOperation({ summary: 'Get AI-personalized recommended feed' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  getRecommendedFeed(
+    @User() user: IUser,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
+  ) {
+    return this.feedService.getRecommendedFeed(user.id, limit);
+  }
 }

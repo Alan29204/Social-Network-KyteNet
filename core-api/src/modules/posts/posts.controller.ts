@@ -112,7 +112,7 @@ export class PostsController {
     @UploadedFiles(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
-          fileType: /(jpg|jpeg|png|gif|mp4|mov|webm)$/,
+          fileType: /(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/,
         })
         .addMaxSizeValidator({
           maxSize: 1024 * 1024 * 10, // 10MB

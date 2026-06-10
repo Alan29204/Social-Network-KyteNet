@@ -16,6 +16,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { FeedService } from 'src/feed/feed.service';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Injectable()
 export class PostsService {
@@ -25,9 +27,62 @@ export class PostsService {
     private readonly redisService: RedisService,
     private readonly mediaService: MediaService,
     private readonly feedService: FeedService,
+    private readonly configService: ConfigService,
     @InjectQueue('create-posts')
     private mediasPostsQueue: Queue,
   ) {}
+
+  /** Base URL + headers cho các call nội bộ tới ai-services. */
+  private get aiBaseUrl(): string {
+    return this.configService.get<string>(
+      'AI_SERVICE_URL',
+      'http://localhost:8000',
+    );
+  }
+  private get aiHeaders() {
+    return {
+      key_auth: this.configService.get<string>('AI_SERVICE_KEY', 'key_auth'),
+    };
+  }
+
+  /** Xóa embedding của bài viết khỏi ChromaDB (best-effort, không chặn xóa bài). */
+  private async deletePostEmbedding(postId: string): Promise<void> {
+    try {
+      await axios.delete(`${this.aiBaseUrl}/posts/embed/${postId}`, {
+        headers: this.aiHeaders,
+        timeout: 5000,
+      });
+    } catch (err) {
+      console.warn(
+        `[Embedding] Failed to delete embedding for post ${postId}:`,
+        (err as Error)?.message,
+      );
+    }
+  }
+
+  /** Cập nhật/embed lại nội dung bài viết trong ChromaDB (best-effort). */
+  private async upsertPostEmbedding(
+    postId: string,
+    content: string,
+  ): Promise<void> {
+    if (!content?.trim()) {
+      // Nội dung trống -> xóa embedding cũ nếu có
+      await this.deletePostEmbedding(postId);
+      return;
+    }
+    try {
+      await axios.post(
+        `${this.aiBaseUrl}/posts/embed`,
+        { post_id: postId, content },
+        { headers: this.aiHeaders, timeout: 5000 },
+      );
+    } catch (err) {
+      console.warn(
+        `[Embedding] Failed to upsert embedding for post ${postId}:`,
+        (err as Error)?.message,
+      );
+    }
+  }
 
   async findPostByID(id: string, currentUser?: IUser): Promise<any> {
     try {
@@ -402,6 +457,12 @@ export class PostsService {
         privacy: dto.privacy,
       });
       await this.redisService.del(`post:${dto.id}`);
+
+      // Đồng bộ embedding khi nội dung thay đổi (best-effort)
+      if (dto.content !== undefined) {
+        await this.upsertPostEmbedding(dto.id, dto.content || '');
+      }
+
       return { message: 'Update post successfully' };
     } catch {
       throw new InternalServerErrorException('Error when updating post');
@@ -454,6 +515,9 @@ export class PostsService {
 
       // Remove from all followers' feeds (async)
       await this.feedService.removePostFromFeeds(id, user.id);
+
+      // Đồng bộ: xóa embedding khỏi ChromaDB (best-effort)
+      await this.deletePostEmbedding(id);
 
       return { message: 'Delete post successfully' };
     } catch (err) {

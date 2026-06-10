@@ -62,7 +62,14 @@ export function ReelItem({
     setLiked(reel.isLiked);
     setLikesCount(reel.likesCount);
     setSaved(!!reel.isSaved);
-  }, [reel.isLiked, reel.likesCount, reel.isSaved]);
+    setReposted(false);
+  }, [reel.id]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -87,10 +94,16 @@ export function ReelItem({
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
-    // Lần chạm đầu cũng bật tiếng nếu đang tắt
-    if (muted) onToggleMute();
-    if (video.paused) video.play();
-    else video.pause();
+    
+    if (muted) {
+      onToggleMute();
+    }
+    
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
+    }
   };
 
   // --- Mutations ---
@@ -141,24 +154,29 @@ export function ReelItem({
           loop
           muted={muted}
           playsInline
-          onClick={togglePlay}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
         />
 
+        {/* Lớp overlay ẩn bắt sự kiện click cho toàn bộ video */}
+        <div 
+          className="absolute inset-0 z-0 cursor-pointer" 
+          onClick={togglePlay} 
+        />
+
         {/* Biểu tượng play khi tạm dừng */}
         {!isPlaying && (
-          <button
-            onClick={togglePlay}
-            className="absolute inset-0 flex items-center justify-center"
-          >
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
             <Play className="w-16 h-16 text-white/80 fill-white/80" />
-          </button>
+          </div>
         )}
 
         {/* Nút tắt/bật tiếng */}
         <button
-          onClick={onToggleMute}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMute();
+          }}
           className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white z-10"
           aria-label={muted ? 'Bật tiếng' : 'Tắt tiếng'}
         >
@@ -170,10 +188,10 @@ export function ReelItem({
         </button>
 
         {/* Overlay thông tin + hành động */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-black/70 to-transparent rounded-b-lg">
+        <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-black/70 to-transparent rounded-b-lg pointer-events-none">
           <div className="flex items-end justify-between gap-4">
             {/* Thông tin tác giả */}
-            <div className="flex-1 min-w-0 text-white">
+            <div className="flex-1 min-w-0 text-white pointer-events-auto">
               <Link
                 to={`/profile/${reel.user.id}`}
                 className="flex items-center gap-2 mb-2"
@@ -202,7 +220,7 @@ export function ReelItem({
             </div>
 
             {/* Cột hành động */}
-            <div className="flex flex-col items-center gap-4 text-white">
+            <div className="flex flex-col items-center gap-4 text-white pointer-events-auto">
               <button
                 onClick={handleLike}
                 className="flex flex-col items-center gap-1"

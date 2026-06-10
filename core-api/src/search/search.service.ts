@@ -11,6 +11,7 @@ import axios from 'axios';
 @Injectable()
 export class SearchService {
   private readonly aiServiceUrl: string;
+  private readonly aiServiceKey: string;
 
   constructor(
     @InjectRepository(Post)
@@ -25,6 +26,15 @@ export class SearchService {
       'AI_SERVICE_URL',
       'http://localhost:8000',
     );
+    this.aiServiceKey = this.configService.get<string>(
+      'AI_SERVICE_KEY',
+      'key_auth',
+    );
+  }
+
+  /** Header dùng cho các call nội bộ tới ai-services. */
+  private get aiHeaders() {
+    return { key_auth: this.aiServiceKey };
   }
 
   /** Search users by username/email using PostgreSQL ILIKE. */
@@ -37,19 +47,33 @@ export class SearchService {
         .createQueryBuilder('user')
         .where('user.username ILIKE :q', { q: searchTerm })
         .orWhere('user.email ILIKE :q', { q: searchTerm })
-        .select(['user.id', 'user.username', 'user.email', 'user.avatar', 'user.privacy'])
+        .select([
+          'user.id',
+          'user.username',
+          'user.email',
+          'user.avatar',
+          'user.privacy',
+        ])
         .skip(skip)
         .take(limit)
         .getManyAndCount();
 
-      return { data: users, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
+      return {
+        data: users,
+        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+      };
     } catch {
       throw new InternalServerErrorException('Error searching users');
     }
   }
 
   /** Search posts by content using PostgreSQL ILIKE. Only returns PUBLIC posts. */
-  async searchPosts(query: string, userId: string, page: number = 1, limit: number = 10) {
+  async searchPosts(
+    query: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
     try {
       const skip = (page - 1) * limit;
       const searchTerm = `%${query}%`;
@@ -73,7 +97,9 @@ export class SearchService {
         .andWhere('post.privacy = :privacy', { privacy: 'public' });
 
       if (blockedIds.length > 0) {
-        qb.andWhere('post.user_id NOT IN (:...blocked)', { blocked: blockedIds });
+        qb.andWhere('post.user_id NOT IN (:...blocked)', {
+          blocked: blockedIds,
+        });
       }
 
       const [posts, total] = await qb
@@ -82,7 +108,10 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
-      return { data: posts, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
+      return {
+        data: posts,
+        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+      };
     } catch {
       throw new InternalServerErrorException('Error searching posts');
     }
@@ -104,7 +133,10 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
-      return { data: posts, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
+      return {
+        data: posts,
+        meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+      };
     } catch {
       throw new InternalServerErrorException('Error searching by hashtag');
     }
@@ -114,17 +146,30 @@ export class SearchService {
    * Semantic search using AI service (ChromaDB vector similarity).
    * Falls back to ILIKE keyword search if AI service is unavailable.
    */
-  async semanticSearchPosts(query: string, userId: string, page: number = 1, limit: number = 10) {
+  async semanticSearchPosts(
+    query: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
     try {
-      const response = await axios.get(`${this.aiServiceUrl}/posts/semantic-search`, {
-        params: { q: query, page, page_size: limit },
-        timeout: 5000,
-      });
+      const response = await axios.get(
+        `${this.aiServiceUrl}/posts/semantic-search`,
+        {
+          params: { q: query, page, page_size: limit },
+          headers: this.aiHeaders,
+          timeout: 5000,
+        },
+      );
 
       const postIds: string[] = response.data?.post_ids || [];
 
       if (postIds.length === 0) {
-        return { data: [], meta: { page, limit, total: 0, total_pages: 0 }, source: 'semantic' };
+        return {
+          data: [],
+          meta: { page, limit, total: 0, total_pages: 0 },
+          source: 'semantic',
+        };
       }
 
       const posts = await this.postRepository.find({
@@ -144,7 +189,10 @@ export class SearchService {
         source: 'semantic',
       };
     } catch (error) {
-      console.warn('[Search] AI service unavailable, falling back to ILIKE:', error.message);
+      console.warn(
+        '[Search] AI service unavailable, falling back to ILIKE:',
+        (error as Error)?.message,
+      );
       const fallback = await this.searchPosts(query, userId, page, limit);
       return { ...fallback, source: 'keyword_fallback' };
     }
@@ -157,5 +205,61 @@ export class SearchService {
       this.searchPosts(query, userId, 1, 5),
     ]);
     return { users: users.data, posts: posts.data };
+  }
+
+  /**
+   * Gợi ý bài viết cá nhân hóa qua AI service (ChromaDB).
+   * Trả về danh sách bài đã hydrate từ Postgres, giữ đúng thứ tự xếp hạng của AI.
+   * Trả về data rỗng khi AI không có gợi ý (caller sẽ fallback feed mặc định).
+   */
+  async getRecommendedPosts(userId: string, limit: number = 20) {
+    try {
+      const response = await axios.post(
+        `${this.aiServiceUrl}/posts/recommend`,
+        { user_id: userId, limit },
+        { headers: this.aiHeaders, timeout: 8000 },
+      );
+
+      const postIds: string[] = response.data?.post_ids || [];
+      const source: string = response.data?.source || 'personalized';
+
+      if (postIds.length === 0) {
+        return { data: [], source };
+      }
+
+      const posts = await this.postRepository.find({
+        where: { id: In(postIds), privacy: 'public' as any },
+        relations: ['user'],
+      });
+
+      // Giữ đúng thứ tự xếp hạng do AI trả về
+      const orderMap = new Map(postIds.map((id, idx) => [id, idx]));
+      posts.sort(
+        (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+      );
+
+      return { data: posts, source };
+    } catch (error) {
+      console.warn(
+        '[Recommend] AI service unavailable:',
+        (error as Error)?.message,
+      );
+      return { data: [], source: 'unavailable' };
+    }
+  }
+
+  /** Xóa embedding của bài viết khỏi ChromaDB (gọi khi xóa bài). */
+  async deletePostEmbedding(postId: string): Promise<void> {
+    try {
+      await axios.delete(`${this.aiServiceUrl}/posts/embed/${postId}`, {
+        headers: this.aiHeaders,
+        timeout: 5000,
+      });
+    } catch (error) {
+      console.warn(
+        `[Embedding] Failed to delete embedding for post ${postId}:`,
+        (error as Error)?.message,
+      );
+    }
   }
 }

@@ -1,6 +1,8 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { Relation } from 'src/modules/users/relations/entities/relation.entity';
 import { RedisService } from 'src/infra/redis/redis.service';
@@ -14,13 +16,26 @@ const CELEBRITY_THRESHOLD = 1000;
 
 @Injectable()
 export class FeedService {
+  private readonly aiServiceUrl: string;
+  private readonly aiServiceKey: string;
+
   constructor(
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(Relation)
     private readonly relationRepository: Repository<Relation>,
     private readonly redisService: RedisService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.aiServiceUrl = this.configService.get<string>(
+      'AI_SERVICE_URL',
+      'http://localhost:8000',
+    );
+    this.aiServiceKey = this.configService.get<string>(
+      'AI_SERVICE_KEY',
+      'key_auth',
+    );
+  }
 
   // ═══════════════════════════════════════════
   //  PUBLIC: Feed Endpoints
@@ -234,6 +249,71 @@ export class FeedService {
     } catch (error) {
       console.error('Error fetching for-you feed:', error);
       throw new InternalServerErrorException('Error fetching feed');
+    }
+  }
+
+  /**
+   * Gợi ý cá nhân hóa qua AI (ChromaDB): lấy danh sách post_ids đã xếp hạng
+   * theo sở thích người dùng, hydrate + enrich.
+   * Nếu AI không có gợi ý (người dùng mới / AI sập) -> fallback "For You".
+   *
+   * @param userId - Current user ID
+   * @param limit - Số bài muốn lấy
+   */
+  async getRecommendedFeed(userId: string, limit: number = 10) {
+    try {
+      let postIds: string[] = [];
+      let source = 'personalized';
+
+      try {
+        const response = await axios.post(
+          `${this.aiServiceUrl}/posts/recommend`,
+          { user_id: userId, limit },
+          { headers: { key_auth: this.aiServiceKey }, timeout: 8000 },
+        );
+        postIds = response.data?.post_ids || [];
+        source = response.data?.source || 'personalized';
+      } catch (err) {
+        console.warn(
+          '[Recommend] AI service unavailable, fallback to ForYou:',
+          (err as Error)?.message,
+        );
+      }
+
+      // Không có gợi ý -> dùng feed "For You" mặc định
+      if (postIds.length === 0) {
+        const fallback = await this.getForYouFeed(userId, undefined, limit);
+        return {
+          ...fallback,
+          meta: { ...fallback.meta, source: 'foryou_fallback' },
+        };
+      }
+
+      // Loại bài của người bị chặn
+      const blockedUserIds = await this.getBlockedUserIds(userId);
+
+      const posts = await this.getPostsByIds(postIds);
+      const visible = posts.filter(
+        (p) =>
+          p.privacy === PrivacyType.PUBLIC &&
+          !blockedUserIds.includes(p.user_id),
+      );
+
+      // Giữ đúng thứ tự xếp hạng AI trả về
+      const orderMap = new Map(postIds.map((id, idx) => [id, idx]));
+      visible.sort(
+        (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+      );
+
+      const enriched = await this.enrichInteractions(visible, userId);
+
+      return {
+        data: enriched,
+        meta: { next_cursor: null, has_more: false, source },
+      };
+    } catch (error) {
+      console.error('Error fetching recommended feed:', error);
+      throw new InternalServerErrorException('Error fetching recommended feed');
     }
   }
 

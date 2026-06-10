@@ -1,43 +1,84 @@
 import { SidebarRight } from '@/layouts/components/sidebar-right';
 import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
-import { useFeedControllerGetFollowingFeedInfinite } from '@/services/apis/gen/queries';
-import { PostCard } from '@/features/home/components/post-card';
+import {
+  useFeedControllerGetFollowingFeedInfinite,
+  useFeedControllerGetForYouFeedInfinite,
+} from '@/services/apis/gen/queries';
+import { useRecommendedFeed } from '@/features/home/hooks/use-recommended-feed';
+import { FeedPostItem } from '@/features/home/components/feed-post-item';
 import { StoryBar } from '@/features/stories/components/story-bar';
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { Loader2, Compass, RefreshCw } from 'lucide-react';
+import { Loader2, Compass, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+type FeedTab = 'following' | 'foryou' | 'recommended';
+
+/** Trích danh sách post từ 1 page (xử lý các kiểu bọc response khác nhau). */
+function extractPosts(page: any): any[] {
+  if (Array.isArray(page)) return page;
+  if (Array.isArray(page?.data)) return page.data;
+  if (Array.isArray(page?.data?.data)) return page.data.data;
+  return [];
+}
 
 export default function HomePage() {
   const { ref, inView } = useInView();
-  const [activeTab, setActiveTab] = useState<'following' | 'foryou'>(
-    'following',
-  );
+  const [activeTab, setActiveTab] = useState<FeedTab>('following');
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useFeedControllerGetFollowingFeedInfinite(
-      {
-        limit: 10,
-      },
-      {
-        query: {
-          getNextPageParam: (lastPage: any) => {
-            const meta = lastPage.meta || lastPage.data?.meta;
-            if (meta && meta.has_more && meta.next_cursor) {
-              return meta.next_cursor;
-            }
-            return undefined;
-          },
+  // ── Following feed (infinite) ──
+  const followingQuery = useFeedControllerGetFollowingFeedInfinite(
+    { limit: 10 },
+    {
+      query: {
+        enabled: activeTab === 'following',
+        getNextPageParam: (lastPage: any) => {
+          const meta = lastPage.meta || lastPage.data?.meta;
+          return meta?.has_more && meta?.next_cursor
+            ? meta.next_cursor
+            : undefined;
         },
       },
-    );
+    },
+  );
+
+  // ── For You feed (infinite, theo engagement) ──
+  const forYouQuery = useFeedControllerGetForYouFeedInfinite(
+    { limit: 10 },
+    {
+      query: {
+        enabled: activeTab === 'foryou',
+        getNextPageParam: (lastPage: any) => {
+          const meta = lastPage.meta || lastPage.data?.meta;
+          return meta?.has_more && meta?.next_cursor
+            ? meta.next_cursor
+            : undefined;
+        },
+      },
+    },
+  );
+
+  // ── Recommended feed (AI cá nhân hóa) ──
+  const recommendedQuery = useRecommendedFeed(20, activeTab === 'recommended');
+
+  const infiniteQuery = activeTab === 'foryou' ? forYouQuery : followingQuery;
+  const isInfinite = activeTab !== 'recommended';
+
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
 
   useEffect(() => {
-    if (inView && hasNextPage) {
+    if (isInfinite && inView && hasNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, fetchNextPage]);
+  }, [isInfinite, inView, hasNextPage, fetchNextPage]);
+
+  // Trạng thái + dữ liệu chung theo tab
+  const status = isInfinite ? infiniteQuery.status : recommendedQuery.status;
+  const posts: any[] = isInfinite
+    ? (infiniteQuery.data?.pages ?? []).flatMap(extractPosts)
+    : (recommendedQuery.data?.data ?? []);
+  const recommendedSource = recommendedQuery.data?.meta?.source;
 
   return (
     <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
@@ -47,10 +88,10 @@ export default function HomePage() {
         <StoryBar />
 
         {/* Feed Tabs */}
-        <div className="flex items-center gap-1 px-4 sm:px-0 mb-4">
+        <div className="flex items-center gap-1 px-4 sm:px-0 mb-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('following')}
-            className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all ${
+            className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
               activeTab === 'following'
                 ? 'bg-gradient-to-r from-snet-purple to-snet-pink text-white shadow-lg shadow-snet-purple/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
@@ -62,8 +103,21 @@ export default function HomePage() {
             </span>
           </button>
           <button
+            onClick={() => setActiveTab('recommended')}
+            className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
+              activeTab === 'recommended'
+                ? 'bg-gradient-to-r from-snet-pink to-snet-purple text-white shadow-lg shadow-snet-pink/20'
+                : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              Dành cho bạn
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('foryou')}
-            className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all ${
+            className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
               activeTab === 'foryou'
                 ? 'bg-gradient-to-r from-snet-purple to-snet-blue text-white shadow-lg shadow-snet-purple/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
@@ -122,150 +176,75 @@ export default function HomePage() {
                 Thử lại
               </Button>
             </div>
+          ) : posts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4 animate-fade-in">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center mb-4 animate-float">
+                {activeTab === 'recommended' ? (
+                  <Sparkles className="w-10 h-10 text-snet-purple" />
+                ) : (
+                  <Compass className="w-10 h-10 text-snet-purple" />
+                )}
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-heading">
+                {activeTab === 'recommended'
+                  ? 'Chưa có gợi ý cho bạn'
+                  : 'Chào mừng bạn đến với SNet!'}
+              </h3>
+              <p className="text-sm text-muted-foreground text-center max-w-xs">
+                {activeTab === 'recommended'
+                  ? 'Hãy tương tác (thích, lưu) với một vài bài viết để chúng tôi hiểu sở thích của bạn hơn.'
+                  : 'Hãy theo dõi mọi người để thấy bài viết của họ trên bảng tin của bạn.'}
+              </p>
+            </div>
           ) : (
             <>
-              {data.pages.every((page: any) => {
-                const posts = Array.isArray(page)
-                  ? page
-                  : Array.isArray(page.data)
-                    ? page.data
-                    : Array.isArray(page.data?.data)
-                      ? page.data.data
-                      : [];
-                return posts.length === 0;
-              }) ? (
-                <div className="flex flex-col items-center justify-center py-20 px-4 animate-fade-in">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center mb-4 animate-float">
-                    <Compass className="w-10 h-10 text-snet-purple" />
+              {/* Banner gợi ý AI */}
+              {activeTab === 'recommended' &&
+                recommendedSource === 'personalized' && (
+                  <div className="mx-4 sm:mx-0 mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-snet-purple/10 to-snet-pink/10 px-4 py-2.5">
+                    <Sparkles className="w-4 h-4 text-snet-purple shrink-0" />
+                    <span className="text-xs text-muted-foreground">
+                      Gợi ý dựa trên sở thích và lịch sử tương tác của bạn.
+                    </span>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 font-heading">
-                    Chào mừng bạn đến với SNet!
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-center max-w-xs">
-                    Hãy theo dõi mọi người để thấy bài viết của họ trên bảng tin
-                    của bạn.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {data.pages.map((page: any, i) => {
-                    const posts = Array.isArray(page)
-                      ? page
-                      : Array.isArray(page.data)
-                        ? page.data
-                        : Array.isArray(page.data?.data)
-                          ? page.data.data
-                          : [];
-                    return (
-                      <div key={i} className="flex flex-col">
-                        {posts.map((post: any, index: number) => (
-                          <div
-                            key={post.id}
-                            style={{ animationDelay: `${index * 0.05}s` }}
-                          >
-                            <PostCard
-                              post={{
-                                id: post.id,
-                                user: {
-                                  id: post.user?.id || '',
-                                  username: post.user?.username || 'User',
-                                  avatarUrl:
-                                    post.user?.avatar ||
-                                    post.user?.profilePicture ||
-                                    '',
-                                },
-                                createdAt:
-                                  post.created_at ||
-                                  post.createdAt ||
-                                  new Date().toISOString(),
-                                images: post.medias || post.mediaUrls || [],
-                                caption: post.content || '',
-                                likesCount:
-                                  post.likesCount ||
-                                  post.interactions?.likes ||
-                                  0,
-                                commentsCount:
-                                  post.commentsCount ||
-                                  post.interactions?.comments ||
-                                  0,
-                                repostsCount: post.interactions?.reposts || 0,
-                                isLiked:
-                                  post.isLiked ||
-                                  post.interactions?.is_liked ||
-                                  false,
-                                isSaved: post.isSaved || false,
-                                isReposted:
-                                  post.interactions?.is_reposted || false,
-                                repostedBy:
-                                  post.reposted_by ||
-                                  (post.shared_post
-                                    ? [
-                                        {
-                                          id: post.user?.id,
-                                          username: post.user?.username,
-                                        },
-                                      ]
-                                    : undefined),
-                                shared_post: post.shared_post
-                                  ? {
-                                      id: post.shared_post.id,
-                                      user: {
-                                        id: post.shared_post.user?.id || '',
-                                        username:
-                                          post.shared_post.user?.username ||
-                                          'User',
-                                        avatarUrl:
-                                          post.shared_post.user?.avatar ||
-                                          post.shared_post.user
-                                            ?.profilePicture ||
-                                          '',
-                                      },
-                                      createdAt:
-                                        post.shared_post.created_at ||
-                                        post.shared_post.createdAt ||
-                                        new Date().toISOString(),
-                                      images:
-                                        post.shared_post.medias ||
-                                        post.shared_post.mediaUrls ||
-                                        [],
-                                      caption: post.shared_post.content || '',
-                                    }
-                                  : undefined,
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                )}
 
-                  {/* Load more spinner */}
+              <div className="flex flex-col">
+                {posts.map((post: any, index: number) => (
                   <div
-                    ref={ref}
-                    className="py-8 flex flex-col items-center justify-center"
+                    key={`${post.id}-${index}`}
+                    style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    {isFetchingNextPage && (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="w-5 h-5 animate-spin text-snet-purple" />
-                        <span className="text-sm text-muted-foreground">
-                          Đang tải thêm...
-                        </span>
-                      </div>
-                    )}
-                    {!hasNextPage &&
-                      !isFetchingNextPage &&
-                      (data?.pages?.[0] as any)?.data?.length > 0 && (
-                        <div className="flex flex-col items-center gap-2 py-4">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
-                            <RefreshCw className="w-4 h-4 text-snet-purple/60" />
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            Bạn đã xem hết tin
-                          </span>
-                        </div>
-                      )}
+                    <FeedPostItem post={post} />
                   </div>
-                </>
+                ))}
+              </div>
+
+              {/* Load more spinner (chỉ với feed infinite) */}
+              {isInfinite && (
+                <div
+                  ref={ref}
+                  className="py-8 flex flex-col items-center justify-center"
+                >
+                  {isFetchingNextPage && (
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 animate-spin text-snet-purple" />
+                      <span className="text-sm text-muted-foreground">
+                        Đang tải thêm...
+                      </span>
+                    </div>
+                  )}
+                  {!hasNextPage && !isFetchingNextPage && posts.length > 0 && (
+                    <div className="flex flex-col items-center gap-2 py-4">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
+                        <RefreshCw className="w-4 h-4 text-snet-purple/60" />
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        Bạn đã xem hết tin
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
             </>
           )}
