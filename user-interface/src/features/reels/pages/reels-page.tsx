@@ -27,7 +27,9 @@ export default function ReelsPage() {
   const { ref, inView } = useInView();
   const [muted, setMuted] = useState(true);
 
-  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
+
   const [shareReel, setShareReel] = useState<ReelData | null>(null);
   const [saveReel, setSaveReel] = useState<ReelData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -136,9 +138,10 @@ export default function ReelsPage() {
                   reel={reel}
                   muted={muted}
                   onToggleMute={() => setMuted((m) => !m)}
-                  onOpenComments={(postId) => setCommentPostId(postId)}
+                  onOpenComments={() => setIsCommentOpen(true)}
                   onShare={(r) => setShareReel(r)}
                   onSave={(r) => setSaveReel(r)}
+                  onActive={() => setActiveReelId(reel.id)}
                 />
               </div>
             ))}
@@ -154,11 +157,12 @@ export default function ReelsPage() {
       </div>
 
       {/* Cột bình luận (desktop: cột bên / mobile: phủ toàn màn) */}
-      {commentPostId && (
+      {isCommentOpen && activeReelId && (
         <div className="absolute inset-0 sm:static sm:inset-auto sm:w-[400px] sm:h-full sm:border-l sm:border-border z-30 bg-background">
           <ReelCommentPanel
-            postId={commentPostId}
-            onClose={() => setCommentPostId(null)}
+            key={activeReelId}
+            postId={activeReelId}
+            onClose={() => setIsCommentOpen(false)}
           />
         </div>
       )}
