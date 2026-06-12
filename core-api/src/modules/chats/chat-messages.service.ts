@@ -84,14 +84,18 @@ export class ChatMessagesService {
         // Query other user's message privacy
         const otherUser = await this.dataSource.query(
           `SELECT message_privacy FROM "user" WHERE id = $1`,
-          [otherMember.user_id]
+          [otherMember.user_id],
         );
 
-        if (otherUser && otherUser.length > 0 && otherUser[0].message_privacy === 'following') {
+        if (
+          otherUser &&
+          otherUser.length > 0 &&
+          otherUser[0].message_privacy === 'following'
+        ) {
           // Check if other user is following the current user
           const isFollowing = await this.dataSource.query(
             `SELECT id FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'following'`,
-            [otherMember.user_id, user.id]
+            [otherMember.user_id, user.id],
           );
 
           if (!isFollowing || isFollowing.length === 0) {
@@ -115,7 +119,7 @@ export class ChatMessagesService {
         try {
           const parsed = JSON.parse(dto.medias);
           medias = Array.isArray(parsed) ? parsed : [dto.medias];
-        } catch (e) {
+        } catch {
           medias = typeof dto.medias === 'string' && dto.medias.length > 0 ? [dto.medias] : [];
         }
       }
@@ -140,16 +144,25 @@ export class ChatMessagesService {
       // Load message with user relation for response
       const fullMessage = await this.chatMessagesRepository.findOne({
         where: { id: savedMessage.id },
-        relations: ['user', 'reply_to', 'reply_to.user', 'shared_post', 'shared_post.user'],
+        relations: [
+          'user',
+          'reply_to',
+          'reply_to.user',
+          'shared_post',
+          'shared_post.user',
+        ],
       });
 
       // Cache last_message in Redis Hash (for room list preview)
       const lastMsgKey = `chat_room:last_msg:${dto.chat_room_id}`;
-      await this.redisService.set(lastMsgKey, JSON.stringify({
-        message: fullMessage.message,
-        created_by: fullMessage.created_by,
-        created_at: fullMessage.created_at,
-      }));
+      await this.redisService.set(
+        lastMsgKey,
+        JSON.stringify({
+          message: fullMessage.message,
+          created_by: fullMessage.created_by,
+          created_at: fullMessage.created_at,
+        }),
+      );
 
       // Update room's last_message_at for sorting
       await this.chatRoomsRepository.update(dto.chat_room_id, {
@@ -159,7 +172,7 @@ export class ChatMessagesService {
       // Increment unread_count for all other members in the room
       await this.dataSource.query(
         `UPDATE chat_member SET unread_count = unread_count + 1 WHERE chat_room_id = $1 AND user_id != $2`,
-        [dto.chat_room_id, user.id]
+        [dto.chat_room_id, user.id],
       );
 
       // Return saved message — caller is responsible for broadcasting
@@ -340,18 +353,31 @@ export class ChatMessagesService {
     }
 
     // Soft delete: change status and clear content
-    message.message = 'Tin nhắn đã bị thu hồi';
+    message.message = '';
     message.message_status = MessageStatusType.DELETED;
     message.medias = [];
+    message.reply_to_id = null;
+    message.shared_post_id = null;
     await this.chatMessagesRepository.save(message);
+
+    // Delete associated reactions
+    await this.reactionRepository.delete({ chat_message_id: messageId });
+    // Delete associated pins
+    await this.dataSource.query(
+      `DELETE FROM chat_message_pin WHERE chat_message_id = $1`,
+      [messageId],
+    );
 
     // Update last_message cache if this was the last message
     const lastMsgKey = `chat_room:last_msg:${message.chat_room_id}`;
-    await this.redisService.set(lastMsgKey, JSON.stringify({
-      message: message.message,
-      created_by: message.created_by,
-      created_at: message.created_at,
-    }));
+    await this.redisService.set(
+      lastMsgKey,
+      JSON.stringify({
+        message: '', // Let frontend display "Tin nhắn đã thu hồi"
+        created_by: message.created_by,
+        created_at: message.created_at,
+      }),
+    );
 
     // Return delete payload for caller to broadcast
     return {
@@ -360,9 +386,11 @@ export class ChatMessagesService {
       deleted_data: {
         id: message.id,
         chat_room_id: message.chat_room_id,
-        message: message.message,
+        message: '',
         message_status: message.message_status,
         medias: [],
+        reply_to_id: null,
+        shared_post_id: null,
       },
     };
   }
