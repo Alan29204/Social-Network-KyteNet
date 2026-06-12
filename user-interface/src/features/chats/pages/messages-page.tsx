@@ -612,8 +612,8 @@ export default function MessagesPage() {
    */
   const updateSidebarWithMessage = useCallback(
     (roomId: string, msg: any) => {
-      queryClient.setQueryData(
-        getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
+      queryClient.setQueriesData(
+        { queryKey: ['/chat-rooms'] },
         (old: any) => {
           if (!old?.data?.data) return old;
           const rooms = [...old.data.data];
@@ -763,14 +763,63 @@ export default function MessagesPage() {
         const newRoomId = (res as any)?.data?.room_id || (res as any)?.room_id;
         if (newRoomId) {
           targetRoomId = newRoomId;
-          setVirtualRecipient(null);
-          // Refetch room list to include the new room
-          queryClient.invalidateQueries({
-            queryKey: getChatRoomsControllerGetListChatRoomQueryKey({
+
+          // Optimistically add the new room to the chatRooms cache
+          queryClient.setQueryData(
+            getChatRoomsControllerGetListChatRoomQueryKey({
               page: 1,
               limit: 50,
             }),
-          });
+            (old: any) => {
+              const currentRooms = old?.data?.data || [];
+              // Prevent duplicates if already added
+              if (currentRooms.some((r: any) => r.id === newRoomId)) return old;
+
+              const optimisticRoom = {
+                id: newRoomId,
+                type: 'direct',
+                name: virtualRecipient.username,
+                avatar: virtualRecipient.avatar,
+                unread_count: 0,
+                is_muted: false,
+                quick_emoji: '👍',
+                is_blocked: false,
+                is_request: false,
+                last_message: null,
+                last_message_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                members: [
+                  {
+                    id: user?.id,
+                    username: user?.username,
+                    full_name: user?.full_name,
+                    avatar: user?.avatar,
+                    member_type: 'ADMIN',
+                    is_online: true,
+                  },
+                  {
+                    id: virtualRecipient.id,
+                    username: virtualRecipient.username,
+                    full_name: virtualRecipient.full_name,
+                    avatar: virtualRecipient.avatar,
+                    member_type: 'ADMIN',
+                    is_online: virtualRecipient.is_online,
+                    last_active: virtualRecipient.last_active,
+                  },
+                ],
+              };
+
+              return {
+                ...old,
+                data: {
+                  ...(old?.data || {}),
+                  data: [optimisticRoom, ...currentRooms],
+                },
+              };
+            },
+          );
+
+          setVirtualRecipient(null);
           navigate(`/messages/${newRoomId}`);
           // Fall through to the optimistic update + WebSocket send below
         } else {
@@ -801,6 +850,7 @@ export default function MessagesPage() {
       user: user,
       is_sending: true,
       reply_to: currentReplyTo || undefined,
+      message_status: 'NORMAL',
     };
 
     // Step 1: Optimistically write temp message to query cache
@@ -827,6 +877,7 @@ export default function MessagesPage() {
 
     if (hasMedia) {
       // ── REST PATH (media upload via multipart/form-data) ──
+      updateSidebarWithMessage(targetRoomId, tempMsg);
       createMessageMutation.mutate(
         {
           data: {
@@ -906,8 +957,10 @@ export default function MessagesPage() {
           tempId,
           reply_to_id: replyToId,
         });
+        updateSidebarWithMessage(targetRoomId, tempMsg);
       } else {
         // Fallback to REST if socket is disconnected
+        updateSidebarWithMessage(targetRoomId, tempMsg);
         createMessageMutation.mutate(
           {
             data: {
