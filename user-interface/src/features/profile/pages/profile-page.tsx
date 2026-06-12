@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { ProfileHeader } from '../components/profile-header';
 import { ProfileTabs } from '../components/profile-tabs';
+import { ProfileSkeleton } from '../components/profile-skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 
@@ -33,7 +34,7 @@ export default function ProfilePage() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading profile...</div>;
+    return <ProfileSkeleton />;
   }
 
   if (error || !userProfile) {
@@ -41,7 +42,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <ProfileHeader user={userProfile} />
       <div className="mt-8 border-t">
         <ProfileTabs userId={userProfile.id} />

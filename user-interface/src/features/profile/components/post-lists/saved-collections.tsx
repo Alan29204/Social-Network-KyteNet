@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
-import { Bookmark, Loader2, FolderPlus } from 'lucide-react';
+import { Bookmark, FolderPlus } from 'lucide-react';
 import { CreateSaveListModal } from '@/features/saved/components/create-save-list-modal';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SavedCollections({ userId: _userId }: { userId: string }) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -44,6 +45,20 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto py-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <Skeleton className="aspect-square w-full rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 py-4">
@@ -58,52 +73,44 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
           </span>
         </button>
 
-        {isLoading ? (
-          <div className="aspect-square rounded-xl flex items-center justify-center border bg-muted">
-            <Loader2 className="w-6 h-6 animate-spin text-snet-purple" />
-          </div>
-        ) : (
-          <>
-            {/* Bộ sưu tập "Tất cả bài đã lưu" */}
-            <div 
-              className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
-              onClick={() => navigate('/saved')}
-            >
-              {getFirstMedia() ? (
-                <img
-                  src={getFirstMedia()!}
-                  alt="Đã lưu"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Bookmark className="w-10 h-10 text-muted-foreground/40" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-              <div className="absolute bottom-3 left-3 z-20 text-white font-medium">
-                Tất cả ({savedPosts?.length || 0})
-              </div>
+        {/* Bộ sưu tập "Tất cả bài đã lưu" */}
+        <div 
+          className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
+          onClick={() => navigate('/saved')}
+        >
+          {getFirstMedia() ? (
+            <img
+              src={getFirstMedia()!}
+              alt="Đã lưu"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Bookmark className="w-10 h-10 text-muted-foreground/40" />
             </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+          <div className="absolute bottom-3 left-3 z-20 text-white font-medium">
+            Tất cả ({savedPosts?.length || 0})
+          </div>
+        </div>
 
-            {/* Các bộ sưu tập của user */}
-            {(lists || []).map((list) => (
-              <div
-                key={list.id}
-                className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
-                onClick={() => navigate(`/saved?listId=${list.id}&name=${encodeURIComponent(list.name)}`)}
-              >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Bookmark className="w-10 h-10 text-muted-foreground/40" />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                <div className="absolute bottom-3 left-3 z-20 text-white font-medium truncate max-w-[80%]">
-                  {list.name}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
+        {/* Các bộ sưu tập của user */}
+        {(lists || []).map((list) => (
+          <div
+            key={list.id}
+            className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border bg-muted"
+            onClick={() => navigate(`/saved?listId=${list.id}&name=${encodeURIComponent(list.name)}`)}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Bookmark className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+            <div className="absolute bottom-3 left-3 z-20 text-white font-medium truncate max-w-[80%]">
+              {list.name}
+            </div>
+          </div>
+        ))}
       </div>
 
       <CreateSaveListModal open={createOpen} onOpenChange={setCreateOpen} />

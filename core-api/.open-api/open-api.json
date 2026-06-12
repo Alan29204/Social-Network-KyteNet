@@ -215,6 +215,21 @@
         ]
       }
     },
+    "/users/profile/cover-photo": {
+      "patch": {
+        "operationId": "UsersController_updateCoverPhoto",
+        "summary": "Update cover photo user",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/users/signup": {
       "post": {
         "operationId": "UsersController_afterSignUp",

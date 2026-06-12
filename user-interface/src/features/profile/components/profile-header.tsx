@@ -1,10 +1,12 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Settings, MessageCircle, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FollowersModal } from './followers-modal';
 import { FollowingModal } from './following-modal';
 import { AvatarUploadModal } from './avatar-upload-modal';
+import { CoverUploadModal } from './cover-upload-modal';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,6 +26,7 @@ interface ProfileHeaderProps {
     id: string;
     email: string;
     avatar?: string;
+    cover_photo?: string | null;
     username: string;
     bio?: string;
     postsCount?: number;
@@ -39,9 +42,16 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
+  const [coverLoaded, setCoverLoaded] = useState(false);
   
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Reset image loading state when user changes
+    setCoverLoaded(false);
+  }, [user.cover_photo]);
 
   const toggleFollowMutation = useMutation({
     mutationFn: (action: 'following' | 'none') =>
@@ -78,21 +88,48 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-      <div className="flex-shrink-0">
-        <button 
-          onClick={() => isMe && setShowAvatarModal(true)} 
-          className={isMe ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}
-        >
-          <Avatar className="w-32 h-32 md:w-40 md:h-40 border">
-            <AvatarImage src={user?.avatar || '/default-avatar.png'} alt={user?.username} className="object-cover" />
-            <AvatarFallback>{user?.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-          </Avatar>
-        </button>
+    <div className="flex flex-col gap-2 relative">
+      {/* Cover Photo */}
+      <div 
+        className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden bg-muted group"
+      >
+        {!coverLoaded && (
+          <Skeleton className="absolute inset-0 w-full h-full rounded-2xl" />
+        )}
+        <img 
+          src={user.cover_photo || '/cafe.jpg'} 
+          alt="Cover" 
+          className={`w-full h-full object-cover transition-opacity duration-300 ${coverLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setCoverLoaded(true)}
+        />
+        {isMe && (
+          <div 
+            className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center"
+            onClick={() => setShowCoverModal(true)}
+          >
+            <span className="text-white font-semibold bg-black/50 px-4 py-2 rounded-lg">Thay đổi ảnh bìa</span>
+          </div>
+        )}
       </div>
-      
-      <div className="flex-grow flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row items-center gap-4">
+
+      {/* Profile Info Section */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 px-4 sm:px-8 -mt-16 md:-mt-20 relative z-10">
+        <div className="flex-shrink-0">
+          <button 
+            onClick={() => isMe && setShowAvatarModal(true)} 
+            className={isMe ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}
+          >
+            <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-background bg-background">
+              <AvatarImage src={user?.avatar || '/default-avatar.png'} alt={user?.username} className="object-cover" />
+              <AvatarFallback className="bg-transparent">
+                <Skeleton className="w-full h-full rounded-full" />
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        </div>
+        
+        <div className="flex-grow flex flex-col gap-4 mt-2 md:mt-20">
+          <div className="flex flex-col md:flex-row items-center gap-4">
           <h1 className="text-2xl font-semibold">{user.username}</h1>
           <div className="flex gap-2">
             {isMe ? (
@@ -151,6 +188,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           <p className="font-semibold">{user.username}</p>
           {user.bio && <p className="whitespace-pre-wrap mt-1">{user.bio}</p>}
         </div>
+        </div>
       </div>
       
       <FollowersModal 
@@ -168,6 +206,13 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         isOpen={showAvatarModal}
         onClose={() => setShowAvatarModal(false)}
         currentAvatar={user?.avatar}
+      />
+
+      <CoverUploadModal
+        isOpen={showCoverModal}
+        onClose={() => setShowCoverModal(false)}
+        currentCover={user?.cover_photo}
+        userId={user.id}
       />
 
       {/* Unfollow Confirmation Modal */}

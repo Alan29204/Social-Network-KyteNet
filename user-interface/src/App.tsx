@@ -35,6 +35,7 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/profile/:id" element={<ProfilePage />} />
+              <Route path="/profile/:id/:tab" element={<ProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
               <Route path="/post/:id" element={<PostPage />} />
               {/* Add other routes like /explore here later */}

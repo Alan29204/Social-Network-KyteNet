@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { PostCard } from '@/features/home/components/post-card';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function AllPostsList({ userId }: { userId: string }) {
   const { data: res, isLoading } = useQuery({
@@ -10,7 +10,27 @@ export function AllPostsList({ userId }: { userId: string }) {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground w-8 h-8" /></div>;
+    return (
+      <div className="flex flex-col gap-6 max-w-xl mx-auto py-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex flex-col gap-4 p-4 border rounded-xl animate-in fade-in duration-500">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-3 w-[120px]" />
+              </div>
+            </div>
+            <Skeleton className="w-full h-[400px] rounded-xl" />
+            <div className="flex gap-4">
+              <Skeleton className="h-8 w-16 rounded-full" />
+              <Skeleton className="h-8 w-16 rounded-full" />
+              <Skeleton className="h-8 w-16 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   const posts = res?.data?.data || res?.data || [];

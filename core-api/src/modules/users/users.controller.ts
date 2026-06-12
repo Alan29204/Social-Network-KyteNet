@@ -106,11 +106,12 @@ export class UsersController {
     const isFollowing = relationStatus === 'following';
 
     if (!privacySeeProfile) {
-      const { id, email, avatar, username, privacy } = userResult;
+      const { id, email, avatar, cover_photo, username, privacy } = userResult;
       return {
         id,
         email,
         avatar,
+        cover_photo,
         username,
         privacy,
         isFollowing,
@@ -133,6 +134,19 @@ export class UsersController {
     file: Express.Multer.File,
   ) {
     return await this.usersService.updateUser(dto, user, file);
+  }
+
+  @Patch('/profile/cover-photo')
+  @ResponseMessage('Update cover photo successfully')
+  @ApiOperation({ summary: 'Update cover photo user' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('cover-photo'))
+  async updateCoverPhoto(
+    @User() user: IUser,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('removeCoverPhoto') removeCoverPhoto?: string,
+  ) {
+    return await this.usersService.updateCoverPhoto(user, file, removeCoverPhoto);
   }
 
   @Post('/signup')

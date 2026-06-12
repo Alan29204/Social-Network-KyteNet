@@ -7,6 +7,7 @@ import { VideoPostsGrid } from './post-lists/video-posts-grid';
 import { SavedCollections } from './post-lists/saved-collections';
 import { RepostedPostsGrid } from './post-lists/reposted-posts-grid';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface ProfileTabsProps {
   userId: string;
@@ -15,6 +16,10 @@ interface ProfileTabsProps {
 export function ProfileTabs({ userId }: ProfileTabsProps) {
   const { user: currentUser } = useAuthStore();
   const isMe = currentUser?.id === userId;
+  const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
+  
+  const activeTab = tab || 'all';
 
   const tabs = [
     { value: 'all', icon: <Menu className="w-5 h-5" />, label: 'BÀI VIẾT', content: <AllPostsList userId={userId} /> },
@@ -31,7 +36,14 @@ export function ProfileTabs({ userId }: ProfileTabsProps) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(val) => {
+          if (val === 'all') navigate(`/profile/${userId}`);
+          else navigate(`/profile/${userId}/${val}`);
+        }} 
+        className="w-full"
+      >
         <TabsList className="w-full justify-center gap-12 bg-transparent h-14 border-b rounded-none mb-6">
           {tabs.map((tab) => (
             <TabsTrigger 

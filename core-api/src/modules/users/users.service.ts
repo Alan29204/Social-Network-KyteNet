@@ -345,6 +345,51 @@ export class UsersService {
     }
   }
 
+  async updateCoverPhoto(user: IUser, file: Express.Multer.File, removeCoverPhoto?: string) {
+    try {
+      const userDb = await this.findUserById(user.id);
+      const oldCover = userDb.cover_photo;
+
+      if (removeCoverPhoto === 'true') {
+        if (oldCover && oldCover.startsWith('http')) {
+          try {
+            await this.mediaService.deleteFile(oldCover);
+          } catch (error) {
+            console.error('Error deleting old cover photo:', error);
+          }
+        }
+        await this.usersRepository.update({ id: user.id }, { cover_photo: null });
+        await this.redisService.del(`user:${user.id}`);
+        return { message: 'Cover photo removed', cover_photo: null };
+      }
+
+      if (!file) {
+        throw new BadRequestException('File is required');
+      }
+
+      if (oldCover && oldCover.startsWith('http')) {
+        try {
+          await this.mediaService.deleteFile(oldCover);
+        } catch {
+          console.error('Error deleting old cover photo');
+        }
+      }
+
+      const coverUrl = await this.mediaService.uploadFile(file, 'covers');
+
+      await this.usersRepository.update({ id: user.id }, { cover_photo: coverUrl });
+      await this.redisService.del(`user:${user.id}`);
+
+      return {
+        message: 'Cover photo updated',
+        cover_photo: coverUrl,
+      };
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      throw new InternalServerErrorException('Error updating cover photo');
+    }
+  }
+
   // ═══════════════════════════════════════════
   //  Forgot Password Flow
   // ═══════════════════════════════════════════

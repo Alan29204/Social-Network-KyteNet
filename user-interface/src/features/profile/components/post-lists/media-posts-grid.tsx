@@ -2,7 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 
 export function MediaPostsGrid({ userId }: { userId: string }) {
@@ -34,7 +34,13 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
   }, [inView, hasNextPage, fetchNextPage]);
 
   if (status === 'pending') {
-    return <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="grid grid-cols-3 gap-1 md:gap-2 max-w-4xl mx-auto py-4">
+        {[...Array(9)].map((_, i) => (
+          <Skeleton key={i} className="aspect-square w-full rounded-sm" />
+        ))}
+      </div>
+    );
   }
 
   if (status === 'error') {

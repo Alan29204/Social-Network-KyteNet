@@ -369,7 +369,7 @@ export function SidebarLeft() {
                 asChild
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
               >
-                <Link to="/saved">
+                <Link to={user?.id ? `/profile/${user.id}/saved` : "/saved"}>
                   <Bookmark className="mr-3 h-5 w-5" />
                   <span>Đã lưu</span>
                 </Link>
