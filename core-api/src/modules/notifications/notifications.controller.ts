@@ -85,6 +85,14 @@ export class NotificationController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Delete('all')
+  @ApiOperation({ summary: 'Delete all notifications' })
+  @ResponseMessage('Delete all notifications successfully')
+  deleteAllNotifications(@User() user: IUser) {
+    return this.notificationService.deleteAllNotifications(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a notification' })
   @ResponseMessage('Delete notification successfully')

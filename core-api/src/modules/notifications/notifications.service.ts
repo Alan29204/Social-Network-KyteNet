@@ -212,6 +212,11 @@ export class NotificationService {
     return { message: 'Notification deleted successfully' };
   }
 
+  async deleteAllNotifications(userId: string) {
+    await this.notiUserRepo.delete({ user_id: userId });
+    return { message: 'All notifications deleted successfully' };
+  }
+
   // ═══════════════════════════════════════════
   //  System Notifications
   // ═══════════════════════════════════════════

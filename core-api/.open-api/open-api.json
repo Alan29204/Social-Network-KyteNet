@@ -686,6 +686,21 @@
         ]
       }
     },
+    "/notifications/all": {
+      "delete": {
+        "operationId": "NotificationController_deleteAllNotifications",
+        "summary": "Delete all notifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
     "/notifications/{id}": {
       "delete": {
         "operationId": "NotificationController_deleteNotification",

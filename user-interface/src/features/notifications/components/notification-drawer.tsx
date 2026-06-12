@@ -12,6 +12,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { usePostModalStore } from '@/features/posts/stores/post-modal-store';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { BellRing } from 'lucide-react';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -21,18 +23,60 @@ interface NotificationDrawerProps {
 export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps) {
   const { ref, inView } = useInView();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const markAllAsReadMutation = useNotificationControllerMarkAllAsRead({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUnreadCountQueryKey() });
+        queryClient.setQueriesData({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() }, (old: any) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              data: {
+                ...page.data,
+                data: (page.data?.data || []).map((n: any) => ({ ...n, is_read: true }))
+              }
+            }))
+          };
+        });
+        queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
+           return { ...old, data: { ...old?.data, unread_count: 0 } };
+        });
         toast({ title: 'Đã đánh dấu tất cả là đã đọc' });
       },
     }
   });
+
+  const handleDeleteAll = async () => {
+    try {
+      setIsDeletingAll(true);
+      await orvalClient({ url: '/notifications/all', method: 'DELETE' });
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() }, (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: { ...page.data, data: [] }
+          }))
+        };
+      });
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
+        return { ...old, data: { ...old?.data, unread_count: 0 } };
+      });
+      setShowDeleteAllConfirm(false);
+      toast({ title: 'Đã xóa tất cả thông báo' });
+    } catch (error) {
+      toast({ title: 'Có lỗi xảy ra khi xóa', variant: 'destructive' });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
 
   const {
     data,
@@ -98,6 +142,9 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
               <DropdownMenuItem onClick={() => markAllAsReadMutation.mutate()}>
                 Đánh dấu tất cả là đã đọc
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowDeleteAllConfirm(true)} className="text-red-500">
+                Xóa tất cả thông báo
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -125,8 +172,12 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-center p-4 text-muted-foreground">
-              Không có thông báo nào.
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 mt-10">
+              <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mb-4">
+                <BellRing className="w-10 h-10 text-muted-foreground/60" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Không có thông báo</h3>
+              <p className="text-sm text-center">Khi bạn có thông báo mới, chúng sẽ xuất hiện ở đây.</p>
             </div>
           ) : (
             notifications.map((noti: any) => (
@@ -142,6 +193,35 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
           )}
         </div>
       </div>
+
+      <AlertDialog open={showDeleteAllConfirm} onOpenChange={setShowDeleteAllConfirm}>
+        <AlertDialogContent className="max-w-[400px] gap-0 p-0 overflow-hidden bg-card border-none rounded-xl">
+          <AlertDialogHeader className="text-center p-6 pb-4">
+            <AlertDialogTitle className="text-center font-semibold text-lg">
+              Xóa tất cả thông báo?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-col items-stretch space-x-0 border-t border-border mt-0 gap-0">
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAll();
+              }}
+              className="w-full bg-transparent text-destructive hover:bg-muted text-base font-bold shadow-none rounded-none py-4 h-auto border-b border-border"
+              disabled={isDeletingAll}
+            >
+              {isDeletingAll ? <Loader2 className="w-5 h-5 animate-spin" /> : "Xóa tất cả"}
+            </AlertDialogAction>
+            <AlertDialogCancel 
+              className="w-full bg-transparent hover:bg-muted text-base shadow-none rounded-none border-0 py-4 h-auto m-0"
+              disabled={isDeletingAll}
+              onClick={() => setShowDeleteAllConfirm(false)}
+            >
+              Hủy
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -177,32 +257,31 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
   const [isReadLocal, setIsReadLocal] = useState(notification.is_read);
   const [isHandling, setIsHandling] = useState(false);
   
-  const markAsReadMutation = useNotificationControllerMarkAsRead({
-    mutation: {
-      onSuccess: () => {
-        // Only invalidate the list to update actual state, don't invalidate count directly 
-        // to avoid reverting optimistic updates if server is slow
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
-      }
-    }
-  });
-
-  const markAsUnreadMutation = useNotificationControllerMarkAsUnread({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
-      }
-    }
-  });
-
+  const markAsReadMutation = useNotificationControllerMarkAsRead({});
+  const markAsUnreadMutation = useNotificationControllerMarkAsUnread({});
   const deleteMutation = useNotificationControllerDeleteNotification({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() });
         toast({ title: 'Đã xóa thông báo' });
       }
     }
   });
+
+  const updateListCache = (isRead: boolean) => {
+    queryClient.setQueriesData({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() }, (old: any) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          data: {
+            ...page.data,
+            data: (page.data?.data || []).map((n: any) => n.id === notification.id ? { ...n, is_read: isRead } : n)
+          }
+        }))
+      };
+    });
+  };
 
   // notification.metadata contains actors and thumbnail
   const metadata = notification.metadata || {};
@@ -210,10 +289,10 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
   const primaryActor = actors[0];
 
   let dateString = notification.updated_at || notification.created_at;
-  let dateObj = new Date(dateString);
-
-  const offset = dateObj.getTimezoneOffset();
-  dateObj = new Date(dateObj.getTime() - (offset * 60 * 1000));
+  if (dateString && !dateString.endsWith('Z')) {
+    dateString += 'Z';
+  }
+  const dateObj = new Date(dateString);
 
   const timeAgo = formatDistanceToNow(dateObj, {
     addSuffix: true,
@@ -230,8 +309,9 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
     if (!isReadLocal) {
       setIsReadLocal(true);
       markAsReadMutation.mutate({ id: notification.id });
+      updateListCache(true);
       
-      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
         if (old?.data?.unread_count > 0) {
           return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
         }
@@ -267,7 +347,7 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
         } else {
            toast({ title: "Không thể tải nội dung, vui lòng kiểm tra kết nối mạng" });
            setIsReadLocal(false);
-           queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+           queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
              if (old?.data?.unread_count !== undefined) {
                return { ...old, data: { ...old.data, unread_count: old.data.unread_count + 1 } };
              }
@@ -293,7 +373,8 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       // Mark as unread
       setIsReadLocal(false);
       markAsUnreadMutation.mutate({ id: notification.id });
-      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+      updateListCache(false);
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
         if (old?.data?.unread_count !== undefined) {
           return { ...old, data: { ...old.data, unread_count: old.data.unread_count + 1 } };
         }
@@ -303,7 +384,8 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       // Mark as read
       setIsReadLocal(true);
       markAsReadMutation.mutate({ id: notification.id });
-      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+      updateListCache(true);
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
         if (old?.data?.unread_count > 0) {
           return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
         }
@@ -316,7 +398,7 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
     e.stopPropagation();
     deleteMutation.mutate({ id: notification.id });
     if (!isReadLocal) {
-      queryClient.setQueryData(getNotificationControllerGetUnreadCountQueryKey(), (old: any) => {
+      queryClient.setQueriesData({ queryKey: getNotificationControllerGetUnreadCountQueryKey() }, (old: any) => {
         if (old?.data?.unread_count > 0) {
           return { ...old, data: { ...old.data, unread_count: old.data.unread_count - 1 } };
         }
@@ -324,7 +406,7 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       });
     }
     // Optimistically remove from list
-    queryClient.setQueryData(getNotificationControllerGetUserNotificationsInfiniteQueryKey(), (old: any) => {
+    queryClient.setQueriesData({ queryKey: getNotificationControllerGetUserNotificationsInfiniteQueryKey() }, (old: any) => {
       if (!old?.pages) return old;
       return {
         ...old,
