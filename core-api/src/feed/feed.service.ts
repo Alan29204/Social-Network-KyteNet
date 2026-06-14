@@ -176,6 +176,10 @@ export class FeedService {
         query.andWhere('post.user_id NOT IN (:...blocked)', {
           blocked: blockedUserIds,
         });
+        query.andWhere(
+          '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blocked))',
+          { blocked: blockedUserIds },
+        );
       }
 
       if (followingIds.length > 0) {
@@ -296,7 +300,8 @@ export class FeedService {
       const visible = posts.filter(
         (p) =>
           p.privacy === PrivacyType.PUBLIC &&
-          !blockedUserIds.includes(p.user_id),
+          !blockedUserIds.includes(p.user_id) &&
+          !(p.shared_post && blockedUserIds.includes(p.shared_post.user?.id)),
       );
 
       // Giữ đúng thứ tự xếp hạng AI trả về
@@ -578,6 +583,7 @@ export class FeedService {
     return posts.filter((post) => {
       // Skip blocked users
       if (blockedUserIds.includes(post.user_id)) return false;
+      if (post.shared_post && blockedUserIds.includes(post.shared_post.user?.id)) return false;
 
       // Owner can always see their own posts
       if (post.user_id === userId) return true;

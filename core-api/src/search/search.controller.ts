@@ -25,10 +25,16 @@ export class SearchController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   searchUsers(
     @Query('q') query: string,
+    @User() user: IUser,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.searchService.searchUsers(query, page || 1, limit || 10);
+    return this.searchService.searchUsers(
+      query,
+      page || 1,
+      limit || 10,
+      user.id,
+    );
   }
 
   @Get('posts')
@@ -43,7 +49,12 @@ export class SearchController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.searchService.searchPosts(query, user.id, page || 1, limit || 10);
+    return this.searchService.searchPosts(
+      query,
+      user.id,
+      page || 1,
+      limit || 10,
+    );
   }
 
   @Get('hashtags')
@@ -62,7 +73,10 @@ export class SearchController {
 
   @Get('semantic')
   @ResponseMessage('Semantic search results')
-  @ApiOperation({ summary: 'AI Semantic search posts using ChromaDB (falls back to keyword search if unavailable)' })
+  @ApiOperation({
+    summary:
+      'AI Semantic search posts using ChromaDB (falls back to keyword search if unavailable)',
+  })
   @ApiQuery({ name: 'q', required: true, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -72,6 +86,11 @@ export class SearchController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.searchService.semanticSearchPosts(query, user.id, page || 1, limit || 10);
+    return this.searchService.semanticSearchPosts(
+      query,
+      user.id,
+      page || 1,
+      limit || 10,
+    );
   }
 }

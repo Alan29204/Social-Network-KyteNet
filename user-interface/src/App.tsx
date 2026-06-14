@@ -8,6 +8,7 @@ import LoginPage from '@/features/auth/pages/login-page';
 import RegisterPage from '@/features/auth/pages/register-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
+import BlockedAccountsPage from '@/features/profile/pages/blocked-accounts-page';
 import ExplorePage from '@/features/explore/pages/explore-page';
 import SuggestedPeoplePage from '@/features/explore/pages/suggested-people-page';
 import MessagesPage from '@/features/chats/pages/messages-page';
@@ -43,6 +44,10 @@ function App() {
               <Route path="/profile/:id" element={<ProfilePage />} />
               <Route path="/profile/:id/:tab" element={<ProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
+              <Route
+                path="/settings/blocked"
+                element={<BlockedAccountsPage />}
+              />
               <Route path="/post/:id" element={<PostPage />} />
               {/* Add other routes like /explore here later */}
               <Route path="search" element={<SearchPage />} />

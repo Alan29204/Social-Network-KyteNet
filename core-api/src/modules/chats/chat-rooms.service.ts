@@ -23,6 +23,7 @@ import { ChatMembersService } from './chat-members.service';
 import { UpdateChatRoomSettingsDto } from './dto/update-chat-room-settings.dto';
 import { UpdateChatRoomEmojiDto } from './dto/update-chat-room-emoji.dto';
 import { GatewayGateway } from 'src/modules/chats/gateway/gategate.gateway';
+import { RelationsService } from 'src/modules/users/relations/relations.service';
 
 @Injectable()
 export class ChatRoomsService {
@@ -37,6 +38,8 @@ export class ChatRoomsService {
     private readonly chatMemberService: ChatMembersService,
     @Inject(forwardRef(() => GatewayGateway))
     private readonly gatewayGateway: GatewayGateway,
+    @Inject(forwardRef(() => RelationsService))
+    private readonly relationsService: RelationsService,
   ) {}
 
   // Find chat room by id
@@ -64,6 +67,17 @@ export class ChatRoomsService {
    */
   async createChatRoom(dto: CreateChatRoomDto, user: IUser) {
     try {
+      if (dto.members && dto.members.length > 0) {
+        const allMembers = [user.id, ...dto.members];
+        const hasBlock =
+          await this.relationsService.hasAnyBlockRelation(allMembers);
+        if (hasBlock) {
+          throw new BadRequestException(
+            'Bạn không thể thêm người dùng này vào nhóm do cài đặt quyền riêng tư của họ.',
+          );
+        }
+      }
+
       const room = await this.chatRoomsRepository.save({
         name: dto.name,
         type: 'group',
@@ -358,9 +372,7 @@ export class ChatRoomsService {
       const nonCreatorRooms = directRooms.filter(
         (r) => r.created_by !== user.id,
       );
-      const creatorIds = [
-        ...new Set(nonCreatorRooms.map((r) => r.created_by)),
-      ];
+      const creatorIds = [...new Set(nonCreatorRooms.map((r) => r.created_by))];
       const followSet = new Set<string>(); // creatorIds the user follows
       if (creatorIds.length > 0) {
         const followResults = await this.chatRoomsRepository.manager.query(
@@ -445,6 +457,7 @@ export class ChatRoomsService {
           avatar: m.user?.avatar,
           member_type: m.member_type,
           is_online: onlineMap.get(m.user_id) || false,
+          is_blocked: blockMap.get(m.user_id) || false,
           last_active: m.user?.last_active || null,
         }));
 
@@ -499,7 +512,7 @@ export class ChatRoomsService {
     try {
       await this.chatMembersRepository.update(
         { chat_room_id: roomId, user_id: userId },
-        { unread_count: 0 }
+        { unread_count: 0 },
       );
       return { success: true };
     } catch {
@@ -508,7 +521,11 @@ export class ChatRoomsService {
   }
 
   // Update chat room settings (e.g. is_muted)
-  async updateChatRoomSettings(roomId: string, userId: string, dto: UpdateChatRoomSettingsDto) {
+  async updateChatRoomSettings(
+    roomId: string,
+    userId: string,
+    dto: UpdateChatRoomSettingsDto,
+  ) {
     const member = await this.chatMembersRepository.findOneBy({
       chat_room_id: roomId,
       user_id: userId,
@@ -532,7 +549,10 @@ export class ChatRoomsService {
         await this.redisService.del(muteKey);
       }
 
-      return { message: 'Chat room settings updated successfully', is_muted: dto.is_muted };
+      return {
+        message: 'Chat room settings updated successfully',
+        is_muted: dto.is_muted,
+      };
     } catch (error) {
       console.error('Error updating chat room settings:', error);
       throw new BadRequestException('Update settings failed');
@@ -540,7 +560,11 @@ export class ChatRoomsService {
   }
 
   // Update chat room emoji
-  async updateChatRoomEmoji(roomId: string, userId: string, dto: UpdateChatRoomEmojiDto) {
+  async updateChatRoomEmoji(
+    roomId: string,
+    userId: string,
+    dto: UpdateChatRoomEmojiDto,
+  ) {
     const room = await this.findChatRoomByID(roomId);
     const member = await this.chatMembersRepository.findOneBy({
       chat_room_id: roomId,
@@ -548,7 +572,9 @@ export class ChatRoomsService {
     });
 
     if (!room || !member) {
-      throw new NotFoundException('Chat room not found or you are not a member');
+      throw new NotFoundException(
+        'Chat room not found or you are not a member',
+      );
     }
 
     try {
@@ -561,17 +587,16 @@ export class ChatRoomsService {
       await this.redisService.del(`chat-room:${roomId}`);
 
       // Broadcast emoji updated event to all members
-      await this.gatewayGateway.broadcastToMembers(
-        roomId,
-        'roomEmojiUpdated',
-        {
-          chat_room_id: roomId,
-          quick_emoji: dto.emoji,
-          updated_by: userId,
-        }
-      );
+      await this.gatewayGateway.broadcastToMembers(roomId, 'roomEmojiUpdated', {
+        chat_room_id: roomId,
+        quick_emoji: dto.emoji,
+        updated_by: userId,
+      });
 
-      return { message: 'Chat room emoji updated successfully', emoji: dto.emoji };
+      return {
+        message: 'Chat room emoji updated successfully',
+        emoji: dto.emoji,
+      };
     } catch (error) {
       console.error('Error updating chat room emoji:', error);
       throw new BadRequestException('Update emoji failed');

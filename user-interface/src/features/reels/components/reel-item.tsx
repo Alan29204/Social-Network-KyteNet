@@ -9,7 +9,6 @@ import {
   Volume2,
   VolumeX,
   Play,
-  Loader2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -55,17 +54,18 @@ export function ReelItem({
   const isMe = authUser?.id === reel.user.id;
   const queryClient = useQueryClient();
 
-  const { data: profileRes, isLoading: isLoadingProfile } = useUsersControllerGetProfile(
-    reel.user.id,
-    {
+  const { data: profileRes, isLoading: isLoadingProfile } =
+    useUsersControllerGetProfile(reel.user.id, {
       query: {
         enabled: !isMe,
         staleTime: 60000,
       },
-    }
-  );
+    });
 
-  const isFollowingApi = profileRes?.data?.is_following || (profileRes?.data as any)?.isFollowing || false;
+  const isFollowingApi =
+    profileRes?.data?.is_following ||
+    (profileRes?.data as any)?.isFollowing ||
+    false;
 
   const [localIsFollowing, setLocalIsFollowing] = useState(isFollowingApi);
   const followTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,7 +90,7 @@ export function ReelItem({
   const handleFollow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Optimistic toggle ngay lập tức
     const newStatus = !localIsFollowing;
     setLocalIsFollowing(newStatus);
@@ -154,11 +154,11 @@ export function ReelItem({
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     if (muted) {
       onToggleMute();
     }
-    
+
     if (video.paused) {
       video.play();
     } else {
@@ -214,9 +214,7 @@ export function ReelItem({
               {reel.user.username?.[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="font-semibold text-sm">
-            {reel.user.username}
-          </span>
+          <span className="font-semibold text-sm">{reel.user.username}</span>
         </Link>
         {!isMe && !isLoadingProfile && (
           <>
@@ -224,7 +222,9 @@ export function ReelItem({
             <button
               onClick={handleFollow}
               className={`text-sm font-semibold transition-colors flex items-center justify-center pointer-events-auto ${
-                localIsFollowing ? 'text-white/80 hover:text-white' : 'text-blue-400 hover:text-blue-300'
+                localIsFollowing
+                  ? 'text-white/80 hover:text-white'
+                  : 'text-blue-400 hover:text-blue-300'
               }`}
             >
               {localIsFollowing ? 'Đang theo dõi' : 'Theo dõi'}
@@ -267,15 +267,10 @@ export function ReelItem({
 
   const renderActions = () => (
     <>
-      <button
-        onClick={handleLike}
-        className="flex flex-col items-center gap-1"
-      >
+      <button onClick={handleLike} className="flex flex-col items-center gap-1">
         <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
           <Heart
-            className={`w-6 h-6 ${
-              liked ? 'fill-red-500 text-red-500' : ''
-            }`}
+            className={`w-6 h-6 ${liked ? 'fill-red-500 text-red-500' : ''}`}
           />
         </div>
         <span className="text-xs">{likesCount}</span>
@@ -296,9 +291,7 @@ export function ReelItem({
         className="flex flex-col items-center gap-1"
       >
         <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-          <Repeat
-            className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`}
-          />
+          <Repeat className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`} />
         </div>
       </button>
 
@@ -354,9 +347,9 @@ export function ReelItem({
         />
 
         {/* Lớp overlay ẩn bắt sự kiện click cho toàn bộ video */}
-        <div 
-          className="absolute inset-0 z-0 cursor-pointer" 
-          onClick={togglePlay} 
+        <div
+          className="absolute inset-0 z-0 cursor-pointer"
+          onClick={togglePlay}
         />
 
         {/* Biểu tượng play khi tạm dừng */}

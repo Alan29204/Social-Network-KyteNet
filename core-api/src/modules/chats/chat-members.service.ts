@@ -16,6 +16,7 @@ import { MemberType } from 'src/common/enums/member.enum';
 import { ChatMember } from './entities/chat-member.entity';
 import { WaitingMembers } from './entities/waiting-members.entity';
 import { ChatRoomsService } from './chat-rooms.service';
+import { RelationsService } from 'src/modules/users/relations/relations.service';
 
 @Injectable()
 export class ChatMembersService {
@@ -28,6 +29,8 @@ export class ChatMembersService {
     @Inject(forwardRef(() => ChatRoomsService))
     private readonly chatRoomService: ChatRoomsService,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => RelationsService))
+    private readonly relationsService: RelationsService,
   ) {}
 
   async requestJoinChatRoom(dto: RequestJoinChatRoomDto, user: IUser) {
@@ -147,6 +150,17 @@ export class ChatMembersService {
       throw new BadRequestException(
         'You do not have permission to add members',
       );
+    }
+
+    const currentMembers = await this.findAllMember(chat_room_id);
+    const currentMemberIds = currentMembers?.map(m => m.user_id) || [];
+    const allMembers = Array.from(new Set([...currentMemberIds, ...user_ids]));
+    
+    if (allMembers.length > 1) {
+      const hasBlock = await this.relationsService.hasAnyBlockRelation(allMembers);
+      if (hasBlock) {
+         throw new BadRequestException('Bạn không thể thêm người dùng này vào nhóm do cài đặt quyền riêng tư của họ.');
+      }
     }
 
     const membersToSave = [];

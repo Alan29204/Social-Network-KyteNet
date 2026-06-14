@@ -18,6 +18,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { FeedService } from 'src/feed/feed.service';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { RelationsService } from 'src/modules/users/relations/relations.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class PostsService {
@@ -30,6 +32,8 @@ export class PostsService {
     private readonly configService: ConfigService,
     @InjectQueue('create-posts')
     private mediasPostsQueue: Queue,
+    @Inject(forwardRef(() => RelationsService))
+    private readonly relationsService: RelationsService,
   ) {}
 
   /** Base URL + headers cho các call nội bộ tới ai-services. */
@@ -113,6 +117,21 @@ export class PostsService {
         });
         if (!postDb)
           throw new NotFoundException(`Post id: ${id} does not exist`);
+
+        // Absolute Override: loại bỏ reaction/comment đã bị ẩn do chặn (is_hidden)
+        postDb.reactions = (postDb.reactions || []).filter((r) => !r.is_hidden);
+        postDb.comments = (postDb.comments || []).filter((c) => !c.is_hidden);
+        postDb.comments.forEach((c) => {
+          c.reactions = (c.reactions || []).filter((r) => !r.is_hidden);
+        });
+        if (postDb.shared_post) {
+          postDb.shared_post.reactions = (
+            postDb.shared_post.reactions || []
+          ).filter((r) => !r.is_hidden);
+          postDb.shared_post.comments = (
+            postDb.shared_post.comments || []
+          ).filter((c) => !c.is_hidden);
+        }
 
         postData = {
           ...postDb,
@@ -322,54 +341,47 @@ export class PostsService {
     currentUser?: IUser,
   ) {
     try {
-      const queryOptions: any = {
-        relations: [
-          'user',
-          'reactions',
-          'comments',
-          'shared_post',
-          'shared_post.user',
-          'shared_post.reactions',
-          'shared_post.comments',
-        ],
-        order: { created_at: 'DESC' },
-        skip: (page - 1) * limit,
-        take: limit,
-      };
+      const qb = this.repository.createQueryBuilder('post')
+        .leftJoinAndSelect('post.user', 'user')
+        .leftJoinAndSelect('post.reactions', 'reactions')
+        .leftJoinAndSelect('post.comments', 'comments')
+        .leftJoinAndSelect('post.shared_post', 'shared_post')
+        .leftJoinAndSelect('shared_post.user', 'shared_post_user')
+        .leftJoinAndSelect('shared_post.reactions', 'shared_post_reactions')
+        .leftJoinAndSelect('shared_post.comments', 'shared_post_comments')
+        .orderBy('post.created_at', 'DESC')
+        .skip((page - 1) * limit)
+        .take(limit);
 
       if (user_id) {
-        queryOptions.where = { user_id };
+        qb.andWhere('post.user_id = :user_id', { user_id });
       }
 
       if (is_repost !== undefined) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-        const { IsNull, Not } = require('typeorm');
-        if (!queryOptions.where) queryOptions.where = {};
         if (is_repost) {
-          queryOptions.where.shared_post_id = Not(IsNull());
+          qb.andWhere('post.shared_post_id IS NOT NULL');
         } else {
-          queryOptions.where.shared_post_id = IsNull();
+          qb.andWhere('post.shared_post_id IS NULL');
         }
       }
 
       if (media_type) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-        const { Raw } = require('typeorm');
-        if (!queryOptions.where) queryOptions.where = {};
         if (media_type === 'video') {
-          queryOptions.where.medias = Raw(
-            (alias) =>
-              `array_to_string(${alias}, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`,
-          );
+          qb.andWhere(`array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`);
         } else if (media_type === 'image') {
-          queryOptions.where.medias = Raw(
-            (alias) =>
-              `array_to_string(${alias}, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`,
-          );
+          qb.andWhere(`array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`);
         }
       }
 
-      const [posts, total] = await this.repository.findAndCount(queryOptions);
+      if (currentUser) {
+        const blockedUserIds = await this.relationsService.getAllBlockedUserIds(currentUser.id);
+        if (blockedUserIds.length > 0) {
+          qb.andWhere('post.user_id NOT IN (:...blockedUserIds)', { blockedUserIds });
+          qb.andWhere('(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blockedUserIds))', { blockedUserIds });
+        }
+      }
+
+      const [posts, total] = await qb.getManyAndCount();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const postIds = posts.map((p) => p.id);
       const actualPostIds = [
@@ -411,20 +423,30 @@ export class PostsService {
         }
       }
 
-      const data = posts.map((post) => ({
-        ...post,
-        interactions: {
-          likes:
-            post.reactions?.filter((r) => r.reaction === 'like').length || 0,
-          comments: post.comments?.length || 0,
-          reposts: repostCountsMap[post.shared_post_id || post.id] || 0,
-          is_liked:
-            post.reactions?.some(
-              (r) => r.user_id === currentUser?.id && r.reaction === 'like',
-            ) || false,
-          is_reposted: userRepostsMap[post.shared_post_id || post.id] || false,
-        },
-      }));
+      const data = posts.map((post) => {
+        // Absolute Override: bỏ qua reaction/comment bị ẩn do chặn
+        const visibleReactions = (post.reactions || []).filter(
+          (r) => !r.is_hidden,
+        );
+        const visibleComments = (post.comments || []).filter(
+          (c) => !c.is_hidden,
+        );
+        return {
+          ...post,
+          interactions: {
+            likes:
+              visibleReactions.filter((r) => r.reaction === 'like').length || 0,
+            comments: visibleComments.length || 0,
+            reposts: repostCountsMap[post.shared_post_id || post.id] || 0,
+            is_liked:
+              visibleReactions.some(
+                (r) => r.user_id === currentUser?.id && r.reaction === 'like',
+              ) || false,
+            is_reposted:
+              userRepostsMap[post.shared_post_id || post.id] || false,
+          },
+        };
+      });
 
       return {
         data,

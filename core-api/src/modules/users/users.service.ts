@@ -345,7 +345,11 @@ export class UsersService {
     }
   }
 
-  async updateCoverPhoto(user: IUser, file: Express.Multer.File, removeCoverPhoto?: string) {
+  async updateCoverPhoto(
+    user: IUser,
+    file: Express.Multer.File,
+    removeCoverPhoto?: string,
+  ) {
     try {
       const userDb = await this.findUserById(user.id);
       const oldCover = userDb.cover_photo;
@@ -358,7 +362,10 @@ export class UsersService {
             console.error('Error deleting old cover photo:', error);
           }
         }
-        await this.usersRepository.update({ id: user.id }, { cover_photo: null });
+        await this.usersRepository.update(
+          { id: user.id },
+          { cover_photo: null },
+        );
         await this.redisService.del(`user:${user.id}`);
         return { message: 'Cover photo removed', cover_photo: null };
       }
@@ -377,7 +384,10 @@ export class UsersService {
 
       const coverUrl = await this.mediaService.uploadFile(file, 'covers');
 
-      await this.usersRepository.update({ id: user.id }, { cover_photo: coverUrl });
+      await this.usersRepository.update(
+        { id: user.id },
+        { cover_photo: coverUrl },
+      );
       await this.redisService.del(`user:${user.id}`);
 
       return {
@@ -520,7 +530,10 @@ export class UsersService {
         END)`,
         'search_rank',
       )
-      .addSelect(`MAX(CASE WHEN r.id IS NOT NULL THEN 2 ELSE 1 END)`, 'relation_rank')
+      .addSelect(
+        `MAX(CASE WHEN r.id IS NOT NULL THEN 2 ELSE 1 END)`,
+        'relation_rank',
+      )
       .groupBy('user.id')
       .orderBy('search_rank', 'DESC')
       .addOrderBy('relation_rank', 'DESC')
@@ -531,7 +544,7 @@ export class UsersService {
       .setParameter('keyword', keyword);
 
     const results = await query.getRawMany();
-    
+
     // Check online status in Redis for each matching user
     const resultsWithStatus = await Promise.all(
       results.map(async (u) => {

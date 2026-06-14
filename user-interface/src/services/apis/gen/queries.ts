@@ -85,6 +85,7 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 export const UserRole = {
   user: 'user',
   admin: 'admin',
+  banned: 'banned',
 } as const;
 
 export type DeviceSession = {
@@ -273,6 +274,7 @@ export type Reaction = {
   post_id: string;
   comment_id: string;
   reaction: ReactionReaction;
+  is_hidden: boolean;
   post: Post;
   comment: Comment;
 };
@@ -288,6 +290,7 @@ export type Comment = {
   created_at: string;
   parent_id: string;
   tagged_users: string[];
+  is_hidden: boolean;
   user: User;
   post: Post;
   parentComment: Comment;
@@ -309,7 +312,7 @@ export type Post = {
   created_at: string;
   user: User;
   shared_post: Post;
-  save_posts: SavePost;
+  save_posts: SavePost[];
   comments: Comment[];
   reactions: Reaction[];
 };
@@ -817,8 +820,8 @@ export type UpdatePostDto = {
 export type SavePostDto = {
   /** ID bài đăng muốn lưu */
   post_id: string;
-  /** ID bộ sưu tập muốn lưu vào */
-  save_list_id: string;
+  /** ID bộ sưu tập muốn lưu vào. Nếu bỏ trống, hệ thống dùng bộ sưu tập mặc định "Đã lưu". */
+  save_list_id?: string;
 };
 
 export type CreateCommentDto = {
@@ -934,6 +937,47 @@ export type CreateReportDto = {
   reported_message_id?: string;
 };
 
+export type StoryType = typeof StoryType[keyof typeof StoryType];
+
+
+export const StoryType = {
+  image: 'image',
+  video: 'video',
+  text: 'text',
+} as const;
+
+export type StoryPrivacy = typeof StoryPrivacy[keyof typeof StoryPrivacy];
+
+
+export const StoryPrivacy = {
+  public: 'public',
+  follower: 'follower',
+  private: 'private',
+} as const;
+
+export type StoryView = {
+  id: string;
+  story_id: string;
+  viewer_id: string;
+  created_at: string;
+  story: Story;
+  viewer: User;
+};
+
+export type Story = {
+  id: string;
+  user_id: string;
+  type: StoryType;
+  media_url: string;
+  content: string;
+  background: string;
+  privacy: StoryPrivacy;
+  created_at: string;
+  expires_at: string;
+  user: User;
+  views: StoryView[];
+};
+
 export type UsersControllerGetAccount200 = { [key: string]: unknown };
 
 export type UsersControllerSearchUsersForMessageParams = {
@@ -991,6 +1035,11 @@ limit: number;
 };
 
 export type RelationsControllerGetSuggestedUsers200 = { [key: string]: unknown };
+
+export type RelationsControllerGetBlockedUsersParams = {
+page?: number;
+limit?: number;
+};
 
 export type NotificationControllerGetUserNotificationsParams = {
 page?: number;
@@ -1057,6 +1106,10 @@ cursor?: number;
 limit?: number;
 };
 
+export type FeedControllerGetRecommendedFeedParams = {
+limit?: number;
+};
+
 export type PostsControllerFindAllParams = {
 /**
  * Page number
@@ -1098,6 +1151,11 @@ export type PostsControllerCreateBody = {
 };
 
 export type PostsControllerFindOne200 = { [key: string]: unknown };
+
+export type SavePostsControllerGetMySavedPostsParams = {
+page?: number;
+limit?: number;
+};
 
 export type SavePostsControllerGetSavedPostsParams = {
 page?: number;
@@ -1164,6 +1222,24 @@ q: string;
 page?: number;
 limit?: number;
 };
+
+export type StoriesControllerCreateBodyPrivacy = typeof StoriesControllerCreateBodyPrivacy[keyof typeof StoriesControllerCreateBodyPrivacy];
+
+
+export const StoriesControllerCreateBodyPrivacy = {
+  public: 'public',
+  follower: 'follower',
+  private: 'private',
+} as const;
+
+export type StoriesControllerCreateBody = {
+  content?: string;
+  background?: string;
+  privacy?: StoriesControllerCreateBodyPrivacy;
+  'media-story'?: Blob;
+};
+
+export type StoriesControllerGetFeed200Item = { [key: string]: unknown };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -2002,6 +2078,88 @@ export const useUsersControllerUpdateUser = <TError = unknown,
       return useMutation(getUsersControllerUpdateUserMutationOptions(options), queryClient);
     }
 
+export type usersControllerUpdateCoverPhotoResponse200 = {
+  data: void
+  status: 200
+}
+
+export type usersControllerUpdateCoverPhotoResponseSuccess = (usersControllerUpdateCoverPhotoResponse200) & {
+  headers: Headers;
+};
+;
+
+export type usersControllerUpdateCoverPhotoResponse = (usersControllerUpdateCoverPhotoResponseSuccess)
+
+export const getUsersControllerUpdateCoverPhotoUrl = () => {
+
+
+
+
+  return `/users/profile/cover-photo`
+}
+
+/**
+ * @summary Update cover photo user
+ */
+export const usersControllerUpdateCoverPhoto = async ( options?: RequestInit): Promise<usersControllerUpdateCoverPhotoResponse> => {
+
+  return orvalClient<usersControllerUpdateCoverPhotoResponse>(getUsersControllerUpdateCoverPhotoUrl(),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getUsersControllerUpdateCoverPhotoMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>, TError,void, TContext> => {
+
+const mutationKey = ['usersControllerUpdateCoverPhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>, void> = () => {
+
+
+          return  usersControllerUpdateCoverPhoto(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UsersControllerUpdateCoverPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>>
+
+    export type UsersControllerUpdateCoverPhotoMutationError = unknown
+
+    /**
+ * @summary Update cover photo user
+ */
+export const useUsersControllerUpdateCoverPhoto = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof usersControllerUpdateCoverPhoto>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getUsersControllerUpdateCoverPhotoMutationOptions(options), queryClient);
+    }
+
 export type usersControllerAfterSignUpResponse201 = {
   data: void
   status: 201
@@ -2727,6 +2885,363 @@ export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnTy
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getRelationsControllerGetSuggestedUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type relationsControllerBlockUserResponse201 = {
+  data: void
+  status: 201
+}
+
+export type relationsControllerBlockUserResponseSuccess = (relationsControllerBlockUserResponse201) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerBlockUserResponse = (relationsControllerBlockUserResponseSuccess)
+
+export const getRelationsControllerBlockUserUrl = () => {
+
+
+
+
+  return `/relations/block`
+}
+
+/**
+ * @summary Block a user (absolute override)
+ */
+export const relationsControllerBlockUser = async ( options?: RequestInit): Promise<relationsControllerBlockUserResponse> => {
+
+  return orvalClient<relationsControllerBlockUserResponse>(getRelationsControllerBlockUserUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRelationsControllerBlockUserMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext> => {
+
+const mutationKey = ['relationsControllerBlockUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerBlockUser>>, void> = () => {
+
+
+          return  relationsControllerBlockUser(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RelationsControllerBlockUserMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerBlockUser>>>
+
+    export type RelationsControllerBlockUserMutationError = unknown
+
+    /**
+ * @summary Block a user (absolute override)
+ */
+export const useRelationsControllerBlockUser = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof relationsControllerBlockUser>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRelationsControllerBlockUserMutationOptions(options), queryClient);
+    }
+
+export type relationsControllerUnblockUserResponse201 = {
+  data: void
+  status: 201
+}
+
+export type relationsControllerUnblockUserResponseSuccess = (relationsControllerUnblockUserResponse201) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerUnblockUserResponse = (relationsControllerUnblockUserResponseSuccess)
+
+export const getRelationsControllerUnblockUserUrl = () => {
+
+
+
+
+  return `/relations/unblock`
+}
+
+/**
+ * @summary Unblock a user (does not restore follow)
+ */
+export const relationsControllerUnblockUser = async ( options?: RequestInit): Promise<relationsControllerUnblockUserResponse> => {
+
+  return orvalClient<relationsControllerUnblockUserResponse>(getRelationsControllerUnblockUserUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRelationsControllerUnblockUserMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext> => {
+
+const mutationKey = ['relationsControllerUnblockUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, void> = () => {
+
+
+          return  relationsControllerUnblockUser(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RelationsControllerUnblockUserMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerUnblockUser>>>
+
+    export type RelationsControllerUnblockUserMutationError = unknown
+
+    /**
+ * @summary Unblock a user (does not restore follow)
+ */
+export const useRelationsControllerUnblockUser = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof relationsControllerUnblockUser>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRelationsControllerUnblockUserMutationOptions(options), queryClient);
+    }
+
+export type relationsControllerGetBlockedUsersResponse200 = {
+  data: void
+  status: 200
+}
+
+export type relationsControllerGetBlockedUsersResponseSuccess = (relationsControllerGetBlockedUsersResponse200) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerGetBlockedUsersResponse = (relationsControllerGetBlockedUsersResponseSuccess)
+
+export const getRelationsControllerGetBlockedUsersUrl = (params?: RelationsControllerGetBlockedUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/relations/blocked/list?${stringifiedParams}` : `/relations/blocked/list`
+}
+
+/**
+ * @summary Get list of users you have blocked
+ */
+export const relationsControllerGetBlockedUsers = async (params?: RelationsControllerGetBlockedUsersParams, options?: RequestInit): Promise<relationsControllerGetBlockedUsersResponse> => {
+
+  return orvalClient<relationsControllerGetBlockedUsersResponse>(getRelationsControllerGetBlockedUsersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRelationsControllerGetBlockedUsersInfiniteQueryKey = (params?: RelationsControllerGetBlockedUsersParams,) => {
+    return [
+    'infinite', `/relations/blocked/list`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getRelationsControllerGetBlockedUsersQueryKey = (params?: RelationsControllerGetBlockedUsersParams,) => {
+    return [
+    `/relations/blocked/list`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRelationsControllerGetBlockedUsersInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, RelationsControllerGetBlockedUsersParams['page']>, TError = unknown>(params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetBlockedUsersInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, QueryKey, RelationsControllerGetBlockedUsersParams['page']> = ({ signal, pageParam }) => relationsControllerGetBlockedUsers({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RelationsControllerGetBlockedUsersInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>>
+export type RelationsControllerGetBlockedUsersInfiniteQueryError = unknown
+
+
+export function useRelationsControllerGetBlockedUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, RelationsControllerGetBlockedUsersParams['page']>, TError = unknown>(
+ params: undefined |  RelationsControllerGetBlockedUsersParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetBlockedUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, RelationsControllerGetBlockedUsersParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetBlockedUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, RelationsControllerGetBlockedUsersParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get list of users you have blocked
+ */
+
+export function useRelationsControllerGetBlockedUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, RelationsControllerGetBlockedUsersParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData, QueryKey, RelationsControllerGetBlockedUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRelationsControllerGetBlockedUsersInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const getRelationsControllerGetBlockedUsersQueryOptions = <TData = Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError = unknown>(params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetBlockedUsersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>> = ({ signal }) => relationsControllerGetBlockedUsers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RelationsControllerGetBlockedUsersQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>>
+export type RelationsControllerGetBlockedUsersQueryError = unknown
+
+
+export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError = unknown>(
+ params: undefined |  RelationsControllerGetBlockedUsersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get list of users you have blocked
+ */
+
+export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError = unknown>(
+ params?: RelationsControllerGetBlockedUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetBlockedUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRelationsControllerGetBlockedUsersQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -3761,6 +4276,88 @@ export const useNotificationControllerMarkAsUnread = <TError = unknown,
         TContext
       > => {
       return useMutation(getNotificationControllerMarkAsUnreadMutationOptions(options), queryClient);
+    }
+
+export type notificationControllerDeleteAllNotificationsResponse200 = {
+  data: void
+  status: 200
+}
+
+export type notificationControllerDeleteAllNotificationsResponseSuccess = (notificationControllerDeleteAllNotificationsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type notificationControllerDeleteAllNotificationsResponse = (notificationControllerDeleteAllNotificationsResponseSuccess)
+
+export const getNotificationControllerDeleteAllNotificationsUrl = () => {
+
+
+
+
+  return `/notifications/all`
+}
+
+/**
+ * @summary Delete all notifications
+ */
+export const notificationControllerDeleteAllNotifications = async ( options?: RequestInit): Promise<notificationControllerDeleteAllNotificationsResponse> => {
+
+  return orvalClient<notificationControllerDeleteAllNotificationsResponse>(getNotificationControllerDeleteAllNotificationsUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getNotificationControllerDeleteAllNotificationsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>, TError,void, TContext> => {
+
+const mutationKey = ['notificationControllerDeleteAllNotifications'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>, void> = () => {
+
+
+          return  notificationControllerDeleteAllNotifications(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NotificationControllerDeleteAllNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>>
+
+    export type NotificationControllerDeleteAllNotificationsMutationError = unknown
+
+    /**
+ * @summary Delete all notifications
+ */
+export const useNotificationControllerDeleteAllNotifications = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof notificationControllerDeleteAllNotifications>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getNotificationControllerDeleteAllNotificationsMutationOptions(options), queryClient);
     }
 
 export type notificationControllerDeleteNotificationResponse200 = {
@@ -6716,6 +7313,126 @@ export function useFeedControllerGetForYouFeed<TData = Awaited<ReturnType<typeof
 
 
 
+export type feedControllerGetRecommendedFeedResponse200 = {
+  data: void
+  status: 200
+}
+
+export type feedControllerGetRecommendedFeedResponseSuccess = (feedControllerGetRecommendedFeedResponse200) & {
+  headers: Headers;
+};
+;
+
+export type feedControllerGetRecommendedFeedResponse = (feedControllerGetRecommendedFeedResponseSuccess)
+
+export const getFeedControllerGetRecommendedFeedUrl = (params?: FeedControllerGetRecommendedFeedParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/feed/recommended?${stringifiedParams}` : `/feed/recommended`
+}
+
+/**
+ * @summary Get AI-personalized recommended feed
+ */
+export const feedControllerGetRecommendedFeed = async (params?: FeedControllerGetRecommendedFeedParams, options?: RequestInit): Promise<feedControllerGetRecommendedFeedResponse> => {
+
+  return orvalClient<feedControllerGetRecommendedFeedResponse>(getFeedControllerGetRecommendedFeedUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFeedControllerGetRecommendedFeedQueryKey = (params?: FeedControllerGetRecommendedFeedParams,) => {
+    return [
+    `/feed/recommended`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getFeedControllerGetRecommendedFeedQueryOptions = <TData = Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError = unknown>(params?: FeedControllerGetRecommendedFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFeedControllerGetRecommendedFeedQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>> = ({ signal }) => feedControllerGetRecommendedFeed(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FeedControllerGetRecommendedFeedQueryResult = NonNullable<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>>
+export type FeedControllerGetRecommendedFeedQueryError = unknown
+
+
+export function useFeedControllerGetRecommendedFeed<TData = Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError = unknown>(
+ params: undefined |  FeedControllerGetRecommendedFeedParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>,
+          TError,
+          Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFeedControllerGetRecommendedFeed<TData = Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError = unknown>(
+ params?: FeedControllerGetRecommendedFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>,
+          TError,
+          Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFeedControllerGetRecommendedFeed<TData = Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError = unknown>(
+ params?: FeedControllerGetRecommendedFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get AI-personalized recommended feed
+ */
+
+export function useFeedControllerGetRecommendedFeed<TData = Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError = unknown>(
+ params?: FeedControllerGetRecommendedFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetRecommendedFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFeedControllerGetRecommendedFeedQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export type postsControllerFindAllResponse200 = {
   data: AppResponseSerialization
   status: 200
@@ -7534,6 +8251,312 @@ export const useSavePostsControllerUnsavePost = <TError = unknown,
       > => {
       return useMutation(getSavePostsControllerUnsavePostMutationOptions(options), queryClient);
     }
+
+export type savePostsControllerGetMySavedPostsResponse200 = {
+  data: void
+  status: 200
+}
+
+export type savePostsControllerGetMySavedPostsResponseSuccess = (savePostsControllerGetMySavedPostsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type savePostsControllerGetMySavedPostsResponse = (savePostsControllerGetMySavedPostsResponseSuccess)
+
+export const getSavePostsControllerGetMySavedPostsUrl = (params?: SavePostsControllerGetMySavedPostsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/save-posts/me/list?${stringifiedParams}` : `/save-posts/me/list`
+}
+
+/**
+ * @summary Get current user saved posts (default list)
+ */
+export const savePostsControllerGetMySavedPosts = async (params?: SavePostsControllerGetMySavedPostsParams, options?: RequestInit): Promise<savePostsControllerGetMySavedPostsResponse> => {
+
+  return orvalClient<savePostsControllerGetMySavedPostsResponse>(getSavePostsControllerGetMySavedPostsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSavePostsControllerGetMySavedPostsInfiniteQueryKey = (params?: SavePostsControllerGetMySavedPostsParams,) => {
+    return [
+    'infinite', `/save-posts/me/list`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getSavePostsControllerGetMySavedPostsQueryKey = (params?: SavePostsControllerGetMySavedPostsParams,) => {
+    return [
+    `/save-posts/me/list`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSavePostsControllerGetMySavedPostsInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, SavePostsControllerGetMySavedPostsParams['page']>, TError = unknown>(params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSavePostsControllerGetMySavedPostsInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, QueryKey, SavePostsControllerGetMySavedPostsParams['page']> = ({ signal, pageParam }) => savePostsControllerGetMySavedPosts({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SavePostsControllerGetMySavedPostsInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>>
+export type SavePostsControllerGetMySavedPostsInfiniteQueryError = unknown
+
+
+export function useSavePostsControllerGetMySavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, SavePostsControllerGetMySavedPostsParams['page']>, TError = unknown>(
+ params: undefined |  SavePostsControllerGetMySavedPostsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, SavePostsControllerGetMySavedPostsParams['page']>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, SavePostsControllerGetMySavedPostsParams['page']>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get current user saved posts (default list)
+ */
+
+export function useSavePostsControllerGetMySavedPostsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, SavePostsControllerGetMySavedPostsParams['page']>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData, QueryKey, SavePostsControllerGetMySavedPostsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSavePostsControllerGetMySavedPostsInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const getSavePostsControllerGetMySavedPostsQueryOptions = <TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError = unknown>(params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSavePostsControllerGetMySavedPostsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>> = ({ signal }) => savePostsControllerGetMySavedPosts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SavePostsControllerGetMySavedPostsQueryResult = NonNullable<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>>
+export type SavePostsControllerGetMySavedPostsQueryError = unknown
+
+
+export function useSavePostsControllerGetMySavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError = unknown>(
+ params: undefined |  SavePostsControllerGetMySavedPostsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get current user saved posts (default list)
+ */
+
+export function useSavePostsControllerGetMySavedPosts<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError = unknown>(
+ params?: SavePostsControllerGetMySavedPostsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPosts>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSavePostsControllerGetMySavedPostsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type savePostsControllerGetMySavedPostIdsResponse200 = {
+  data: string[]
+  status: 200
+}
+
+export type savePostsControllerGetMySavedPostIdsResponseSuccess = (savePostsControllerGetMySavedPostIdsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type savePostsControllerGetMySavedPostIdsResponse = (savePostsControllerGetMySavedPostIdsResponseSuccess)
+
+export const getSavePostsControllerGetMySavedPostIdsUrl = () => {
+
+
+
+
+  return `/save-posts/me/ids`
+}
+
+/**
+ * @summary Get current user saved post ids (default list)
+ */
+export const savePostsControllerGetMySavedPostIds = async ( options?: RequestInit): Promise<savePostsControllerGetMySavedPostIdsResponse> => {
+
+  return orvalClient<savePostsControllerGetMySavedPostIdsResponse>(getSavePostsControllerGetMySavedPostIdsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSavePostsControllerGetMySavedPostIdsQueryKey = () => {
+    return [
+    `/save-posts/me/ids`
+    ] as const;
+    }
+
+
+export const getSavePostsControllerGetMySavedPostIdsQueryOptions = <TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSavePostsControllerGetMySavedPostIdsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>> = ({ signal }) => savePostsControllerGetMySavedPostIds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SavePostsControllerGetMySavedPostIdsQueryResult = NonNullable<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>>
+export type SavePostsControllerGetMySavedPostIdsQueryError = unknown
+
+
+export function useSavePostsControllerGetMySavedPostIds<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPostIds<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>,
+          TError,
+          Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSavePostsControllerGetMySavedPostIds<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get current user saved post ids (default list)
+ */
+
+export function useSavePostsControllerGetMySavedPostIds<TData = Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof savePostsControllerGetMySavedPostIds>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSavePostsControllerGetMySavedPostIdsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export type savePostsControllerGetSavedPostsResponse200 = {
   data: void
@@ -10858,3 +11881,607 @@ export function useSearchControllerSemanticSearch<TData = Awaited<ReturnType<typ
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+
+
+
+
+
+
+export type storiesControllerCreateResponse201 = {
+  data: Story
+  status: 201
+}
+
+export type storiesControllerCreateResponseSuccess = (storiesControllerCreateResponse201) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerCreateResponse = (storiesControllerCreateResponseSuccess)
+
+export const getStoriesControllerCreateUrl = () => {
+
+
+
+
+  return `/stories`
+}
+
+/**
+ * @summary Tạo story (ảnh/video hoặc text)
+ */
+export const storiesControllerCreate = async (storiesControllerCreateBody: StoriesControllerCreateBody, options?: RequestInit): Promise<storiesControllerCreateResponse> => {
+    const formData = new FormData();
+if(storiesControllerCreateBody.content !== undefined) {
+ formData.append(`content`, storiesControllerCreateBody.content);
+ }
+if(storiesControllerCreateBody.background !== undefined) {
+ formData.append(`background`, storiesControllerCreateBody.background);
+ }
+if(storiesControllerCreateBody.privacy !== undefined) {
+ formData.append(`privacy`, storiesControllerCreateBody.privacy);
+ }
+if(storiesControllerCreateBody['media-story'] !== undefined) {
+ formData.append(`media-story`, storiesControllerCreateBody['media-story']);
+ }
+
+  return orvalClient<storiesControllerCreateResponse>(getStoriesControllerCreateUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+export const getStoriesControllerCreateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerCreate>>, TError,{data: StoriesControllerCreateBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof storiesControllerCreate>>, TError,{data: StoriesControllerCreateBody}, TContext> => {
+
+const mutationKey = ['storiesControllerCreate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof storiesControllerCreate>>, {data: StoriesControllerCreateBody}> = (props) => {
+          const {data} = props ?? {};
+
+          return  storiesControllerCreate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StoriesControllerCreateMutationResult = NonNullable<Awaited<ReturnType<typeof storiesControllerCreate>>>
+    export type StoriesControllerCreateMutationBody = StoriesControllerCreateBody
+    export type StoriesControllerCreateMutationError = unknown
+
+    /**
+ * @summary Tạo story (ảnh/video hoặc text)
+ */
+export const useStoriesControllerCreate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerCreate>>, TError,{data: StoriesControllerCreateBody}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof storiesControllerCreate>>,
+        TError,
+        {data: StoriesControllerCreateBody},
+        TContext
+      > => {
+      return useMutation(getStoriesControllerCreateMutationOptions(options), queryClient);
+    }
+
+export type storiesControllerGetFeedResponse200 = {
+  data: StoriesControllerGetFeed200Item[]
+  status: 200
+}
+
+export type storiesControllerGetFeedResponseSuccess = (storiesControllerGetFeedResponse200) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerGetFeedResponse = (storiesControllerGetFeedResponseSuccess)
+
+export const getStoriesControllerGetFeedUrl = () => {
+
+
+
+
+  return `/stories/feed`
+}
+
+/**
+ * @summary Lấy story của bản thân + người đang follow
+ */
+export const storiesControllerGetFeed = async ( options?: RequestInit): Promise<storiesControllerGetFeedResponse> => {
+
+  return orvalClient<storiesControllerGetFeedResponse>(getStoriesControllerGetFeedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStoriesControllerGetFeedQueryKey = () => {
+    return [
+    `/stories/feed`
+    ] as const;
+    }
+
+
+export const getStoriesControllerGetFeedQueryOptions = <TData = Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStoriesControllerGetFeedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof storiesControllerGetFeed>>> = ({ signal }) => storiesControllerGetFeed({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StoriesControllerGetFeedQueryResult = NonNullable<Awaited<ReturnType<typeof storiesControllerGetFeed>>>
+export type StoriesControllerGetFeedQueryError = unknown
+
+
+export function useStoriesControllerGetFeed<TData = Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetFeed>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetFeed<TData = Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetFeed>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetFeed<TData = Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lấy story của bản thân + người đang follow
+ */
+
+export function useStoriesControllerGetFeed<TData = Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStoriesControllerGetFeedQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type storiesControllerGetUserStoriesResponse200 = {
+  data: Story[]
+  status: 200
+}
+
+export type storiesControllerGetUserStoriesResponseSuccess = (storiesControllerGetUserStoriesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerGetUserStoriesResponse = (storiesControllerGetUserStoriesResponseSuccess)
+
+export const getStoriesControllerGetUserStoriesUrl = (userId: string,) => {
+
+
+
+
+  return `/stories/user/${userId}`
+}
+
+/**
+ * @summary Lấy story còn hạn của một user
+ */
+export const storiesControllerGetUserStories = async (userId: string, options?: RequestInit): Promise<storiesControllerGetUserStoriesResponse> => {
+
+  return orvalClient<storiesControllerGetUserStoriesResponse>(getStoriesControllerGetUserStoriesUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStoriesControllerGetUserStoriesQueryKey = (userId: string,) => {
+    return [
+    `/stories/user/${userId}`
+    ] as const;
+    }
+
+
+export const getStoriesControllerGetUserStoriesQueryOptions = <TData = Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError = unknown>(userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStoriesControllerGetUserStoriesQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof storiesControllerGetUserStories>>> = ({ signal }) => storiesControllerGetUserStories(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StoriesControllerGetUserStoriesQueryResult = NonNullable<Awaited<ReturnType<typeof storiesControllerGetUserStories>>>
+export type StoriesControllerGetUserStoriesQueryError = unknown
+
+
+export function useStoriesControllerGetUserStories<TData = Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError = unknown>(
+ userId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetUserStories>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetUserStories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetUserStories<TData = Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError = unknown>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetUserStories>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetUserStories>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetUserStories<TData = Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError = unknown>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lấy story còn hạn của một user
+ */
+
+export function useStoriesControllerGetUserStories<TData = Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError = unknown>(
+ userId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetUserStories>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStoriesControllerGetUserStoriesQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type storiesControllerMarkViewedResponse201 = {
+  data: void
+  status: 201
+}
+
+export type storiesControllerMarkViewedResponseSuccess = (storiesControllerMarkViewedResponse201) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerMarkViewedResponse = (storiesControllerMarkViewedResponseSuccess)
+
+export const getStoriesControllerMarkViewedUrl = (id: string,) => {
+
+
+
+
+  return `/stories/${id}/view`
+}
+
+/**
+ * @summary Đánh dấu đã xem story
+ */
+export const storiesControllerMarkViewed = async (id: string, options?: RequestInit): Promise<storiesControllerMarkViewedResponse> => {
+
+  return orvalClient<storiesControllerMarkViewedResponse>(getStoriesControllerMarkViewedUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStoriesControllerMarkViewedMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerMarkViewed>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof storiesControllerMarkViewed>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['storiesControllerMarkViewed'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof storiesControllerMarkViewed>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  storiesControllerMarkViewed(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StoriesControllerMarkViewedMutationResult = NonNullable<Awaited<ReturnType<typeof storiesControllerMarkViewed>>>
+
+    export type StoriesControllerMarkViewedMutationError = unknown
+
+    /**
+ * @summary Đánh dấu đã xem story
+ */
+export const useStoriesControllerMarkViewed = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerMarkViewed>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof storiesControllerMarkViewed>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getStoriesControllerMarkViewedMutationOptions(options), queryClient);
+    }
+
+export type storiesControllerGetViewersResponse200 = {
+  data: void
+  status: 200
+}
+
+export type storiesControllerGetViewersResponseSuccess = (storiesControllerGetViewersResponse200) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerGetViewersResponse = (storiesControllerGetViewersResponseSuccess)
+
+export const getStoriesControllerGetViewersUrl = (id: string,) => {
+
+
+
+
+  return `/stories/${id}/viewers`
+}
+
+/**
+ * @summary Lấy danh sách người đã xem (chỉ chủ story)
+ */
+export const storiesControllerGetViewers = async (id: string, options?: RequestInit): Promise<storiesControllerGetViewersResponse> => {
+
+  return orvalClient<storiesControllerGetViewersResponse>(getStoriesControllerGetViewersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStoriesControllerGetViewersQueryKey = (id: string,) => {
+    return [
+    `/stories/${id}/viewers`
+    ] as const;
+    }
+
+
+export const getStoriesControllerGetViewersQueryOptions = <TData = Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStoriesControllerGetViewersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof storiesControllerGetViewers>>> = ({ signal }) => storiesControllerGetViewers(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StoriesControllerGetViewersQueryResult = NonNullable<Awaited<ReturnType<typeof storiesControllerGetViewers>>>
+export type StoriesControllerGetViewersQueryError = unknown
+
+
+export function useStoriesControllerGetViewers<TData = Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetViewers>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetViewers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetViewers<TData = Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storiesControllerGetViewers>>,
+          TError,
+          Awaited<ReturnType<typeof storiesControllerGetViewers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStoriesControllerGetViewers<TData = Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lấy danh sách người đã xem (chỉ chủ story)
+ */
+
+export function useStoriesControllerGetViewers<TData = Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof storiesControllerGetViewers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStoriesControllerGetViewersQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type storiesControllerRemoveResponse200 = {
+  data: void
+  status: 200
+}
+
+export type storiesControllerRemoveResponseSuccess = (storiesControllerRemoveResponse200) & {
+  headers: Headers;
+};
+;
+
+export type storiesControllerRemoveResponse = (storiesControllerRemoveResponseSuccess)
+
+export const getStoriesControllerRemoveUrl = (id: string,) => {
+
+
+
+
+  return `/stories/${id}`
+}
+
+/**
+ * @summary Xóa story
+ */
+export const storiesControllerRemove = async (id: string, options?: RequestInit): Promise<storiesControllerRemoveResponse> => {
+
+  return orvalClient<storiesControllerRemoveResponse>(getStoriesControllerRemoveUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getStoriesControllerRemoveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerRemove>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof storiesControllerRemove>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['storiesControllerRemove'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof storiesControllerRemove>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  storiesControllerRemove(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StoriesControllerRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof storiesControllerRemove>>>
+
+    export type StoriesControllerRemoveMutationError = unknown
+
+    /**
+ * @summary Xóa story
+ */
+export const useStoriesControllerRemove = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof storiesControllerRemove>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof storiesControllerRemove>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getStoriesControllerRemoveMutationOptions(options), queryClient);
+    }

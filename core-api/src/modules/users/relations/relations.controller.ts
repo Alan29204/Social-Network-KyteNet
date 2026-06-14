@@ -34,10 +34,30 @@ export class RelationsController {
   @ApiOperation({
     summary: `Get list relation ['following', 'block'] of user`,
   })
-  @ApiQuery({ name: 'relation', enum: RelationType, required: true, description: 'Kiểu quan hệ bạn bè' })
-  @ApiQuery({ name: 'mode', enum: ['followers', 'following'], required: false, description: 'Chế độ xem followers hoặc following' })
-  @ApiQuery({ name: 'page', type: Number, required: false, description: 'Số trang (mặc định: 1)' })
-  @ApiQuery({ name: 'limit', type: Number, required: false, description: 'Số lượng phần tử mỗi trang (mặc định: 10)' })
+  @ApiQuery({
+    name: 'relation',
+    enum: RelationType,
+    required: true,
+    description: 'Kiểu quan hệ bạn bè',
+  })
+  @ApiQuery({
+    name: 'mode',
+    enum: ['followers', 'following'],
+    required: false,
+    description: 'Chế độ xem followers hoặc following',
+  })
+  @ApiQuery({
+    name: 'page',
+    type: Number,
+    required: false,
+    description: 'Số trang (mặc định: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    type: Number,
+    required: false,
+    description: 'Số lượng phần tử mỗi trang (mặc định: 10)',
+  })
   async getListRelation(
     @User() user: IUser,
     @Param('user_id') user_id: string,
@@ -74,6 +94,39 @@ export class RelationsController {
     @Query('limit') limit: number = 5,
   ) {
     return this.relationShipsService.getSuggestedUsers(user.id, limit);
+  }
+
+  @Post('block')
+  @ResponseMessage('User blocked successfully')
+  @ApiOperation({ summary: 'Block a user (absolute override)' })
+  blockUser(@User() user: IUser, @Body() body: { user_id: string }) {
+    if (!body?.user_id) {
+      throw new BadRequestException('user_id is required');
+    }
+    return this.relationShipsService.blockUser(user, body.user_id);
+  }
+
+  @Post('unblock')
+  @ResponseMessage('User unblocked successfully')
+  @ApiOperation({ summary: 'Unblock a user (does not restore follow)' })
+  unblockUser(@User() user: IUser, @Body() body: { user_id: string }) {
+    if (!body?.user_id) {
+      throw new BadRequestException('user_id is required');
+    }
+    return this.relationShipsService.unblockUser(user, body.user_id);
+  }
+
+  @Get('blocked/list')
+  @ResponseMessage('Get blocked users successfully')
+  @ApiOperation({ summary: 'Get list of users you have blocked' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  async getBlockedUsers(
+    @User() user: IUser,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.relationShipsService.getBlockedUsers(user.id, page, limit);
   }
 
   @Get(':user_id')

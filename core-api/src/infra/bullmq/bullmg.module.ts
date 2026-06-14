@@ -10,6 +10,7 @@ import { User } from 'src/modules/users/entities/user.entity';
 import { NotificationUser } from 'src/modules/notifications/notification-users/entities/notification-user.entity';
 import { GatewayModule } from 'src/modules/chats/gateway/gateway.module';
 import { MediasPostsProcessor } from './medias-post.processor';
+import { BlockSweepProcessor } from './block-sweep.processor';
 import { FeedModule } from 'src/feed/feed.module';
 import { PostsModule } from 'src/modules/posts/posts.module';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
@@ -25,12 +26,18 @@ import { NotificationModule } from 'src/modules/notifications/notifications.modu
     BullModule.registerQueue({ name: 'noti-birthday' }),
     BullModule.registerQueue({ name: 'noti-system' }),
     BullModule.registerQueue({ name: 'create-posts' }),
+    BullModule.registerQueue({ name: 'block-sweep' }),
     TypeOrmModule.forFeature([User]),
     TypeOrmModule.forFeature([NotificationUser]),
     GatewayModule,
   ],
   controllers: [BullMQController],
-  providers: [BullMQService, NotiSystemProcessor, MediasPostsProcessor],
+  providers: [
+    BullMQService,
+    NotiSystemProcessor,
+    MediasPostsProcessor,
+    BlockSweepProcessor,
+  ],
   exports: [NotiSystemProcessor],
 })
 export class BullMQModule {}

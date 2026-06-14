@@ -6,6 +6,7 @@ import {
   Patch,
   Delete,
   BadRequestException,
+  NotFoundException,
   Post,
   UseInterceptors,
   UploadedFile,
@@ -90,6 +91,17 @@ export class UsersController {
     if (!isUUID(user_id)) {
       throw new BadRequestException(`Invalid ID format: ${user_id}`);
     }
+
+    // Absolute Override: nếu bị chặn (2 chiều) -> coi như không tồn tại (404)
+    if (user.id !== user_id) {
+      const blocked = await (
+        this.usersService as any
+      ).relationsService.areBlocked(user.id, user_id);
+      if (blocked) {
+        throw new NotFoundException('User profile is not available');
+      }
+    }
+
     const userResult = await this.usersService.findUserById(user_id);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = userResult;
@@ -146,7 +158,11 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
     @Body('removeCoverPhoto') removeCoverPhoto?: string,
   ) {
-    return await this.usersService.updateCoverPhoto(user, file, removeCoverPhoto);
+    return await this.usersService.updateCoverPhoto(
+      user,
+      file,
+      removeCoverPhoto,
+    );
   }
 
   @Post('/signup')

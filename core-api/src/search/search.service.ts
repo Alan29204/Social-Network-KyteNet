@@ -37,16 +37,46 @@ export class SearchService {
     return { key_auth: this.aiServiceKey };
   }
 
+  /** Lấy danh sách id user bị chặn (2 chiều) với `userId`. */
+  private async getBlockedUserIds(userId?: string): Promise<string[]> {
+    if (!userId) return [];
+    const blocks = await this.relationRepository.find({
+      where: [
+        { request_side_id: userId, relation_type: RelationType.BLOCK },
+        { accept_side_id: userId, relation_type: RelationType.BLOCK },
+      ],
+      select: ['request_side_id', 'accept_side_id'],
+    });
+    return blocks.map((b) =>
+      b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
+    );
+  }
+
   /** Search users by username/email using PostgreSQL ILIKE. */
-  async searchUsers(query: string, page: number = 1, limit: number = 10) {
+  async searchUsers(
+    query: string,
+    page: number = 1,
+    limit: number = 10,
+    userId?: string,
+  ) {
     try {
       const skip = (page - 1) * limit;
       const searchTerm = `%${query}%`;
 
-      const [users, total] = await this.userRepository
+      // Absolute Override: loại trừ user bị chặn khỏi kết quả tìm kiếm
+      const blockedIds = await this.getBlockedUserIds(userId);
+
+      const qb = this.userRepository
         .createQueryBuilder('user')
-        .where('user.username ILIKE :q', { q: searchTerm })
-        .orWhere('user.email ILIKE :q', { q: searchTerm })
+        .where('(user.username ILIKE :q OR user.email ILIKE :q)', {
+          q: searchTerm,
+        });
+
+      if (blockedIds.length > 0) {
+        qb.andWhere('user.id NOT IN (:...blockedIds)', { blockedIds });
+      }
+
+      const [users, total] = await qb
         .select([
           'user.id',
           'user.username',
@@ -201,7 +231,7 @@ export class SearchService {
   /** Combined search: returns both users and posts matching the query. */
   async searchAll(query: string, userId: string) {
     const [users, posts] = await Promise.all([
-      this.searchUsers(query, 1, 5),
+      this.searchUsers(query, 1, 5, userId),
       this.searchPosts(query, userId, 1, 5),
     ]);
     return { users: users.data, posts: posts.data };

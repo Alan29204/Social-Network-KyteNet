@@ -1140,6 +1140,27 @@ export default function MessagesPage() {
   // Whether we're in virtual chat mode (no room created yet)
   const isVirtualChat = !selectedRoomId && !!virtualRecipient;
 
+  // Group chat block warning states
+  const [showGroupBlockWarning, setShowGroupBlockWarning] = useState(false);
+  const [groupBlockedUser, setGroupBlockedUser] = useState<any>(null);
+  const [dismissedGroupWarnings, setDismissedGroupWarnings] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (activeRoom && activeRoom.type === 'group' && !dismissedGroupWarnings.has(activeRoom.id)) {
+      const blockedMember = activeRoom.members?.find((m: any) => m.is_blocked);
+      if (blockedMember) {
+        setGroupBlockedUser(blockedMember);
+        setShowGroupBlockWarning(true);
+      } else {
+        setShowGroupBlockWarning(false);
+        setGroupBlockedUser(null);
+      }
+    } else {
+      setShowGroupBlockWarning(false);
+      setGroupBlockedUser(null);
+    }
+  }, [activeRoom, dismissedGroupWarnings]);
+
   // Relative Time Formatter
   const formatRelativeTime = (dateStr: string) => {
     if (!dateStr) return '';
@@ -1259,7 +1280,7 @@ export default function MessagesPage() {
                             {targetUser?.username?.[0]?.toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        {targetUser?.is_online && (
+                        {targetUser?.is_online && !room.is_blocked && (
                           <span className="absolute bottom-0.5 right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
                         )}
                       </div>
@@ -1361,7 +1382,7 @@ export default function MessagesPage() {
                           {otherUser.username?.[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      {otherUser.is_online && (
+                      {otherUser.is_online && !activeRoom?.is_blocked && (
                         <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
                       )}
                     </div>
@@ -2399,89 +2420,99 @@ export default function MessagesPage() {
                 )}
 
                 {/* Chat Input */}
-                <div className="p-4 shrink-0 bg-background border-t border-border/10">
-                  <div className="flex items-center gap-2 border border-border/50 bg-background rounded-full px-2 py-1 relative">
-                    {/* Emoji Trigger */}
-                    <div className="relative">
-                      <button
-                        className={`p-2 hover:opacity-70 transition-colors ${showEmojiPicker ? 'text-[#0084ff]' : 'text-foreground'}`}
-                        onClick={() => setShowEmojiPicker((prev) => !prev)}
-                      >
-                        <Smile className="w-6 h-6" />
-                      </button>
-                      {showEmojiPicker && (
-                        <div className="absolute bottom-14 left-0 bg-background border border-border shadow-lg rounded-2xl p-2 flex gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                          {['❤️', '😂', '👍', '🔥', '😍', '😢', '🙌', '👏'].map(
-                            (emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => {
-                                  setMessageInput((prev) => prev + emoji);
-                                  setShowEmojiPicker(false);
-                                }}
-                                className="hover:bg-muted p-2 rounded-lg text-lg transition-colors"
-                              >
-                                {emoji}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <input
-                      type="text"
-                      placeholder="Nhắn tin..."
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && handleSendMessage()
-                      }
-                      ref={chatInputRef}
-                      className="flex-1 bg-transparent outline-none text-[15px]"
-                    />
-
-                    {/* Hidden File Input */}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,video/*"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-
-                    <div className="flex items-center text-foreground">
-                      {messageInput.trim() || selectedFiles.length > 0 ? (
-                        /* Show Send button when there is text or files */
-                        <button
-                          className="p-2 text-[#0084ff] hover:text-[#0084ff]/80 transition-colors"
-                          onClick={handleSendMessage}
-                        >
-                          <Send className="w-6 h-6" />
-                        </button>
-                      ) : (
-                        /* Show Image + Heart when input is empty */
-                        <>
-                          <button
-                            className="p-2 hover:opacity-70"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <ImageIcon className="w-6 h-6" />
-                          </button>
-                          <button
-                            className="p-2 hover:opacity-70 text-red-500 hover:text-red-600 transition-colors"
-                            onClick={handleSendQuickEmoji}
-                          >
-                            <span className="text-2xl leading-none">
-                              {activeRoom?.quick_emoji || '👍'}
-                            </span>
-                          </button>
-                        </>
-                      )}
+                {activeRoom?.type === 'direct' && activeRoom?.is_blocked ? (
+                  <div className="p-4 shrink-0 bg-background border-t border-border/10">
+                    <div className="p-3 bg-muted text-center rounded-xl border border-border/50">
+                      <p className="text-[15px] text-muted-foreground font-semibold">
+                        Bạn không thể trả lời cuộc trò chuyện này.
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-4 shrink-0 bg-background border-t border-border/10">
+                    <div className="flex items-center gap-2 border border-border/50 bg-background rounded-full px-2 py-1 relative">
+                      {/* Emoji Trigger */}
+                      <div className="relative">
+                        <button
+                          className={`p-2 hover:opacity-70 transition-colors ${showEmojiPicker ? 'text-[#0084ff]' : 'text-foreground'}`}
+                          onClick={() => setShowEmojiPicker((prev) => !prev)}
+                        >
+                          <Smile className="w-6 h-6" />
+                        </button>
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-14 left-0 bg-background border border-border shadow-lg rounded-2xl p-2 flex gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                            {['❤️', '😂', '👍', '🔥', '😍', '😢', '🙌', '👏'].map(
+                              (emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => {
+                                    setMessageInput((prev) => prev + emoji);
+                                    setShowEmojiPicker(false);
+                                  }}
+                                  className="hover:bg-muted p-2 rounded-lg text-lg transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ),
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <input
+                        type="text"
+                        placeholder="Nhắn tin..."
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' && handleSendMessage()
+                        }
+                        ref={chatInputRef}
+                        className="flex-1 bg-transparent outline-none text-[15px]"
+                      />
+
+                      {/* Hidden File Input */}
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,video/*"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+
+                      <div className="flex items-center text-foreground">
+                        {messageInput.trim() || selectedFiles.length > 0 ? (
+                          /* Show Send button when there is text or files */
+                          <button
+                            className="p-2 text-[#0084ff] hover:text-[#0084ff]/80 transition-colors"
+                            onClick={handleSendMessage}
+                          >
+                            <Send className="w-6 h-6" />
+                          </button>
+                        ) : (
+                          /* Show Image + Heart when input is empty */
+                          <>
+                            <button
+                              className="p-2 hover:opacity-70"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <ImageIcon className="w-6 h-6" />
+                            </button>
+                            <button
+                              className="p-2 hover:opacity-70 text-red-500 hover:text-red-600 transition-colors"
+                              onClick={handleSendQuickEmoji}
+                            >
+                              <span className="text-2xl leading-none">
+                                {activeRoom?.quick_emoji || '👍'}
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -2751,6 +2782,63 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      {/* Group Chat Block Warning Dialog */}
+      <Dialog open={showGroupBlockWarning} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm rounded-2xl bg-card border-none" hideCloseButton>
+          <div className="flex flex-col items-center text-center px-4 py-2">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <DialogTitle className="text-xl font-bold mb-2">
+              Cảnh báo
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground mb-6">
+              Nhóm này có <strong>{groupBlockedUser?.username || 'một người dùng'}</strong> là người bạn đã chặn.
+            </DialogDescription>
+            <div className="flex flex-col w-full gap-2">
+              <button
+                className="w-full py-2.5 bg-secondary text-secondary-foreground font-semibold rounded-xl hover:bg-secondary/80 transition-colors"
+                onClick={() => {
+                  setDismissedGroupWarnings((prev) => {
+                    const newSet = new Set(prev);
+                    if (activeRoom?.id) newSet.add(activeRoom.id);
+                    return newSet;
+                  });
+                  setShowGroupBlockWarning(false);
+                }}
+              >
+                Ở lại
+              </button>
+              <button
+                className="w-full py-2.5 bg-destructive text-destructive-foreground font-semibold rounded-xl hover:bg-destructive/90 transition-colors"
+                onClick={async () => {
+                  try {
+                    await orvalClient({
+                      url: `/chats/members/${activeRoom?.id}/leave`,
+                      method: 'DELETE',
+                    });
+                    toast({
+                      title: 'Đã rời nhóm',
+                      description: 'Bạn đã rời khỏi nhóm này.',
+                    });
+                    navigate('/messages');
+                    setShowGroupBlockWarning(false);
+                  } catch (error) {
+                    toast({
+                      title: 'Lỗi',
+                      description: 'Không thể rời nhóm',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+              >
+                Rời nhóm
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

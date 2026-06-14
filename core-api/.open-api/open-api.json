@@ -452,6 +452,68 @@
         ]
       }
     },
+    "/relations/block": {
+      "post": {
+        "operationId": "RelationsController_blockUser",
+        "summary": "Block a user (absolute override)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
+    "/relations/unblock": {
+      "post": {
+        "operationId": "RelationsController_unblockUser",
+        "summary": "Unblock a user (does not restore follow)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
+    "/relations/blocked/list": {
+      "get": {
+        "operationId": "RelationsController_getBlockedUsers",
+        "summary": "Get list of users you have blocked",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
     "/relations/{user_id}": {
       "get": {
         "operationId": "RelationsController_getRelation",
@@ -3293,6 +3355,9 @@
               "angry"
             ]
           },
+          "is_hidden": {
+            "type": "boolean"
+          },
           "post": {
             "$ref": "#/components/schemas/Post"
           },
@@ -3306,6 +3371,7 @@
           "post_id",
           "comment_id",
           "reaction",
+          "is_hidden",
           "post",
           "comment"
         ]
@@ -3352,6 +3418,9 @@
               "type": "string"
             }
           },
+          "is_hidden": {
+            "type": "boolean"
+          },
           "user": {
             "$ref": "#/components/schemas/User"
           },
@@ -3384,6 +3453,7 @@
           "created_at",
           "parent_id",
           "tagged_users",
+          "is_hidden",
           "user",
           "post",
           "parentComment",

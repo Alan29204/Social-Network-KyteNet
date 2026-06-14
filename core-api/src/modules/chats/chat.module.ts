@@ -16,6 +16,7 @@ import { ChatMessagesController } from './chat-messages.controller';
 import { ChatMessagesService } from './chat-messages.service';
 import { ChatRoomsService } from './chat-rooms.service';
 import { GatewayModule } from './gateway/gateway.module';
+import { RelationsModule } from 'src/modules/users/relations/relations.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { GatewayModule } from './gateway/gateway.module';
     RedisModule,
     forwardRef(() => UsersModule),
     forwardRef(() => GatewayModule),
+    forwardRef(() => RelationsModule),
   ],
   controllers: [
     ChatRoomsController,

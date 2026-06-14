@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { UsersModule } from 'src/modules/users/users.module';
 import { RelationsService } from './relations.service';
 import { RelationsController } from './relations.controller';
@@ -13,7 +14,8 @@ import { RecommendationsCron } from './recommendations.cron';
     TypeOrmModule.forFeature([Relation]),
     forwardRef(() => UsersModule),
     FeedModule,
-    NotificationModule,
+    forwardRef(() => NotificationModule),
+    BullModule.registerQueue({ name: 'block-sweep' }),
   ],
   controllers: [RelationsController],
   providers: [RelationsService, RecommendationsCron],

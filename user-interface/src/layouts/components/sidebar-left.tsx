@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
 import { NotificationDrawer } from '@/features/notifications/components/notification-drawer';
+import { BlockedAccountsModal } from '@/features/settings/components/blocked-accounts-modal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ import {
   MessageSquareWarning,
   RefreshCw,
   LogOut,
+  Ban,
 } from 'lucide-react';
 import {
   getChatRoomsControllerGetListChatRoomQueryKey,
@@ -55,6 +57,7 @@ const navItems = [
 export function SidebarLeft() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isBlockedAccountsOpen, setIsBlockedAccountsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { user, accessToken, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -376,6 +379,13 @@ export function SidebarLeft() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
+                onClick={() => setIsBlockedAccountsOpen(true)}
+              >
+                <Ban className="mr-3 h-5 w-5" />
+                <span>Tài khoản đã chặn</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-lg text-[15px]"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
                 {theme === 'dark' ? (
@@ -420,6 +430,11 @@ export function SidebarLeft() {
       <NotificationDrawer
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
+      />
+
+      <BlockedAccountsModal
+        open={isBlockedAccountsOpen}
+        onOpenChange={setIsBlockedAccountsOpen}
       />
     </>
   );

@@ -11,7 +11,8 @@ import {
   Trash2, 
   ChevronDown, 
   ChevronUp, 
-  ExternalLink 
+  ExternalLink,
+  Unlock
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
@@ -34,9 +35,11 @@ import {
   useChatRoomsControllerUpdateEmoji,
   useChatRoomsControllerSoftDeleteHistory,
   useRelationsControllerUpdateRelation,
-  getChatRoomsControllerGetListChatRoomQueryKey,
   getChatMessagesControllerGetMessageHistoryQueryKey,
+  useRelationsControllerGetRelation,
+  getChatRoomsControllerGetListChatRoomQueryKey,
 } from '@/services/apis/gen/queries';
+import { useBlockUser } from '@/features/profile/hooks/use-block-user';
 
 interface ChatDetailsDrawerProps {
   roomId: string;
@@ -58,11 +61,21 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   const updateEmojiMutation = useChatRoomsControllerUpdateEmoji();
   const deleteHistoryMutation = useChatRoomsControllerSoftDeleteHistory();
   const updateRelationMutation = useRelationsControllerUpdateRelation();
+  const { blockMutation, unblockMutation } = useBlockUser();
+
+  // Fetch relation info between currentUser and otherMember to know if we blocked them
+  const otherMember = activeRoom?.members?.find((m: any) => m.id !== currentUser?.id);
+  
+  const { data: relationRes } = useRelationsControllerGetRelation(
+    otherMember?.id || '',
+    {
+      query: { enabled: !!otherMember?.id }
+    }
+  );
+  
+  const blockedByMe = (relationRes as any)?.data === 'block';
 
   if (!activeRoom) return null;
-
-  // Lấy ra thông tin đối phương (nếu là chat 1-1)
-  const otherMember = activeRoom.members?.find((m: any) => m.id !== currentUser?.id);
   const isDirect = activeRoom.type === 'direct';
 
   // Trạng thái mute hiện tại của bản thân
@@ -225,28 +238,16 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   };
 
   // 4. Block / Restrict handlers
-  const handleRelationAction = (type: 'block' | 'restrict') => {
+  const handleRestrict = () => {
     if (!otherMember) return;
-
-    const payload: any = { user_id: otherMember.id };
-    if (type === 'block') {
-      payload.relation = 'block';
-    } else {
-      payload.action = 'restrict';
-    }
-
     updateRelationMutation.mutate(
-      { data: payload },
+      { data: { user_id: otherMember.id, action: 'restrict' as any } },
       {
         onSuccess: () => {
           toast({
-            title: type === 'block' ? 'Đã chặn người dùng' : 'Đã hạn chế người dùng',
-            description: type === 'block' 
-              ? 'Người này sẽ không thể nhắn tin hoặc xem profile của bạn.'
-              : 'Tin nhắn của họ sẽ được chuyển vào mục spam/chờ.',
+            title: 'Đã hạn chế người dùng',
+            description: 'Tin nhắn của họ sẽ được chuyển vào mục spam/chờ.',
           });
-          
-          // Sau khi chặn/hạn chế thì văng ra ngoài phòng chat
           navigate('/messages');
           if (onClose) onClose();
         },
@@ -259,6 +260,24 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
         }
       }
     );
+  };
+
+  const handleBlockUnblock = () => {
+    if (!otherMember) return;
+    if (blockedByMe) {
+      unblockMutation.mutate(otherMember.id, {
+        onSuccess: () => {
+          if (onClose) onClose();
+        }
+      });
+    } else {
+      blockMutation.mutate(otherMember.id, {
+        onSuccess: () => {
+          navigate('/messages');
+          if (onClose) onClose();
+        }
+      });
+    }
   };
 
   return (
@@ -404,7 +423,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                 <AlertDialogFooter>
                   <AlertDialogCancel>Hủy</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={() => handleRelationAction('restrict')}
+                    onClick={handleRestrict}
                     className="bg-amber-500 hover:bg-amber-600 text-white"
                   >
                     Hạn chế
@@ -420,26 +439,34 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
               <AlertDialogTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-xl"
+                  className={`w-full justify-start gap-3 rounded-xl transition-colors ${
+                    blockedByMe 
+                      ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
+                      : 'text-red-500 hover:text-red-600 hover:bg-red-500/10'
+                  }`}
                 >
-                  <Ban className="w-5 h-5" />
-                  <span>Chặn tài khoản</span>
+                  {blockedByMe ? <Unlock className="w-5 h-5" /> : <Ban className="w-5 h-5" />}
+                  <span>{blockedByMe ? 'Bỏ chặn' : 'Chặn tài khoản'}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Chặn người dùng này?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    {blockedByMe ? 'Bỏ chặn người dùng này?' : 'Chặn người dùng này?'}
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    Họ sẽ không thể gửi tin nhắn, theo dõi hoặc xem bài viết của bạn. Hành động này không thể hoàn tác dễ dàng.
+                    {blockedByMe
+                      ? 'Bạn có chắc chắn muốn bỏ chặn người dùng này không? Họ sẽ có thể xem bài viết của bạn và gửi tin nhắn cho bạn.'
+                      : 'Họ sẽ không thể gửi tin nhắn, theo dõi hoặc xem bài viết của bạn. Hành động này không thể hoàn tác dễ dàng.'}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Hủy</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={() => handleRelationAction('block')}
-                    className="bg-red-500 hover:bg-red-600 text-white"
+                    onClick={handleBlockUnblock}
+                    className={blockedByMe ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-red-500 hover:bg-red-600 text-white'}
                   >
-                    Chặn
+                    {blockedByMe ? 'Xác nhận' : 'Chặn'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

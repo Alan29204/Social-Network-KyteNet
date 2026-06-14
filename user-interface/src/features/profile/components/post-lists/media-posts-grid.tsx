@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
+import { Loader2 } from 'lucide-react';
 
 export function MediaPostsGrid({ userId }: { userId: string }) {
   const { ref, inView } = useInView();
@@ -50,39 +51,57 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
   const posts = data.pages.flatMap((page: any) => page.data?.data || []);
 
   if (posts.length === 0) {
-    return <div className="text-center py-8 text-muted-foreground">Chưa có ảnh nào</div>;
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        Chưa có ảnh nào
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-1 md:gap-4 py-4">
         {posts.map((post: any) => {
-          const firstImage = post.medias?.find((m: string) => /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(m)) || post.medias?.[0];
+          const firstImage =
+            post.medias?.find((m: string) =>
+              /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(m),
+            ) || post.medias?.[0];
           return (
-              <div 
-                key={post.id} 
-                className="aspect-square bg-muted flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => setSelectedPost({ ...post, images: post.medias || post.mediaUrls || [] })}
-              >
-                {firstImage ? (
-                  <img src={firstImage} alt="Post media" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-muted-foreground text-sm">Trống</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
-        {selectedPost && (
-          <PostDetailModal
-            post={selectedPost}
-            open={!!selectedPost}
-            onOpenChange={(open) => !open && setSelectedPost(null)}
-          />
-        )}
+            <div
+              key={post.id}
+              className="aspect-square bg-muted flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() =>
+                setSelectedPost({
+                  ...post,
+                  images: post.medias || post.mediaUrls || [],
+                })
+              }
+            >
+              {firstImage ? (
+                <img
+                  src={firstImage}
+                  alt="Post media"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-muted-foreground text-sm">Trống</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {selectedPost && (
+        <PostDetailModal
+          post={selectedPost}
+          open={!!selectedPost}
+          onOpenChange={(open) => !open && setSelectedPost(null)}
+        />
+      )}
       <div ref={ref} className="py-2 flex justify-center">
-        {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+        {isFetchingNextPage && (
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        )}
       </div>
     </div>
   );

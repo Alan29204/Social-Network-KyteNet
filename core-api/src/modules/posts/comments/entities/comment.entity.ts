@@ -45,6 +45,11 @@ export class Comment {
   @Column('text', { array: true, nullable: true })
   tagged_users: string[];
 
+  /** Ẩn do hành động chặn (block sweep). Không khôi phục khi unblock. */
+  @Index()
+  @Column({ default: false })
+  is_hidden: boolean;
+
   @ManyToOne(() => User, (user) => user.comments)
   @JoinColumn({ name: 'user_id' })
   user: User;
@@ -53,7 +58,9 @@ export class Comment {
   @JoinColumn({ name: 'post_id' })
   post: Post;
 
-  @ManyToOne(() => Comment, (comment) => comment.childComments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Comment, (comment) => comment.childComments, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'parent_id' })
   parentComment: Comment;
 

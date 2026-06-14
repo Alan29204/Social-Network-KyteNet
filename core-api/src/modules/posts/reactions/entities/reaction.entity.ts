@@ -1,7 +1,14 @@
 import { ReactionType } from 'src/common/enums/reaction.enum';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class Reaction {
@@ -22,6 +29,11 @@ export class Reaction {
 
   @Column({ enum: ReactionType, default: ReactionType.LIKE })
   reaction: ReactionType;
+
+  /** Ẩn do hành động chặn (block sweep). Không khôi phục khi unblock. */
+  @Index()
+  @Column({ default: false })
+  is_hidden: boolean;
 
   @ManyToOne(() => Post, (post) => post.reactions)
   @JoinColumn({ name: 'post_id' })
