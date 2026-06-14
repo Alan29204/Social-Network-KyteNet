@@ -43,21 +43,32 @@ export class AdminsService {
   /** List all users with pagination and optional search */
   async listUsers(page = 1, limit = 20, search?: string) {
     const skip = (page - 1) * limit;
-    const query = this.userRepository.createQueryBuilder('user')
+    const query = this.userRepository
+      .createQueryBuilder('user')
       .select([
-        'user.id', 'user.email', 'user.username', 'user.avatar',
-        'user.role', 'user.privacy', 'user.created_at',
+        'user.id',
+        'user.email',
+        'user.username',
+        'user.avatar',
+        'user.role',
+        'user.privacy',
+        'user.created_at',
       ])
       .orderBy('user.created_at', 'DESC')
       .skip(skip)
       .take(limit);
 
     if (search) {
-      query.where('user.username ILIKE :q OR user.email ILIKE :q', { q: `%${search}%` });
+      query.where('user.username ILIKE :q OR user.email ILIKE :q', {
+        q: `%${search}%`,
+      });
     }
 
     const [users, total] = await query.getManyAndCount();
-    return { data: users, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
+    return {
+      data: users,
+      meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+    };
   }
 
   /** Ban or unban a user by setting/clearing their role */
@@ -69,9 +80,11 @@ export class AdminsService {
     }
 
     await this.userRepository.update(userId, {
-      role: ban ? ('banned' as any) : RoleType.USER,
+      role: ban ? RoleType.BANNED : RoleType.USER,
     });
-    return { message: ban ? 'User banned successfully' : 'User unbanned successfully' };
+    return {
+      message: ban ? 'User banned successfully' : 'User unbanned successfully',
+    };
   }
 
   /** Delete a user account */
@@ -94,7 +107,10 @@ export class AdminsService {
       skip,
       take: limit,
     });
-    return { data: posts, meta: { page, limit, total, total_pages: Math.ceil(total / limit) } };
+    return {
+      data: posts,
+      meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+    };
   }
 
   /** Force-delete a post as admin */

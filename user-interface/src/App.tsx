@@ -17,6 +17,12 @@ import ReelsPage from '@/features/reels/pages/reels-page';
 import SavedPage from '@/features/saved/pages/saved-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollToTop } from '@/components/scroll-to-top';
+import { AdminGuard } from '@/layouts/admin-guard';
+import { AdminLayout } from '@/layouts/admin-layout';
+import AdminDashboardPage from '@/features/admin/pages/admin-dashboard-page';
+import AdminUsersPage from '@/features/admin/pages/admin-users-page';
+import AdminPostsPage from '@/features/admin/pages/admin-posts-page';
+import AdminReportsPage from '@/features/admin/pages/admin-reports-page';
 
 function App() {
   return (
@@ -46,6 +52,18 @@ function App() {
               <Route path="explore/people" element={<SuggestedPeoplePage />} />
               <Route path="messages" element={<MessagesPage />} />
               <Route path="messages/:roomId" element={<MessagesPage />} />
+            </Route>
+          </Route>
+
+          {/* Admin routes */}
+          <Route element={<AuthGuard />}>
+            <Route element={<AdminGuard />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/admin/posts" element={<AdminPostsPage />} />
+                <Route path="/admin/reports" element={<AdminReportsPage />} />
+              </Route>
             </Route>
           </Route>
         </Routes>
