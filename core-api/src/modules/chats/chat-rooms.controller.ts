@@ -20,7 +20,7 @@ import { UpdateChatRoomDto } from './dto/update-chat-room.dto';
 import { isUUID } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import IdDto from 'src/common/dto/id.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { GetListChatRoomDto } from './dto/get-list-chat-room.dto';
 import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member.dto';
 import { UpdateChatRoomSettingsDto } from './dto/update-chat-room-settings.dto';
 import { UpdateChatRoomEmojiDto } from './dto/update-chat-room-emoji.dto';
@@ -33,7 +33,7 @@ export class ChatRoomsController {
   @Get()
   @ResponseMessage('Get list chat room success')
   @ApiOperation({ summary: 'Get list chat room' })
-  getListChatRoom(@User() user: IUser, @Query() query: PaginationDto) {
+  getListChatRoom(@User() user: IUser, @Query() query: GetListChatRoomDto) {
     return this.chatRoomsService.getListChatRoom(user, query);
   }
 
@@ -135,5 +135,13 @@ export class ChatRoomsController {
   softDeleteHistory(@Param('id') id: string, @User() user: IUser) {
     if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
     return this.chatRoomsService.softDeleteHistory(id, user.id);
+  }
+
+  @Post(':id/accept-request')
+  @ResponseMessage('Accept message request success')
+  @ApiOperation({ summary: 'Accept a message request' })
+  acceptMessageRequest(@Param('id') id: string, @User() user: IUser) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.acceptMessageRequest(id, user.id);
   }
 }

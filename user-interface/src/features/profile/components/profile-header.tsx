@@ -46,6 +46,7 @@ interface ProfileHeaderProps {
     followersCount?: number;
     followingCount?: number;
     isFollowing?: boolean;
+    relationStatus?: string;
   };
 }
 
@@ -97,7 +98,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   });
 
   const handleToggleFollow = () => {
-    if (user.isFollowing) {
+    if (user.isFollowing || user.relationStatus === 'pending') {
       setConfirmUnfollow(true);
     } else {
       toggleFollowMutation.mutate('following');
@@ -185,6 +186,20 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         'Đang theo dõi'
+                      )}
+                    </Button>
+                  ) : user.relationStatus === 'pending' ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="font-semibold w-[110px]"
+                      onClick={handleToggleFollow}
+                      disabled={toggleFollowMutation.isPending}
+                    >
+                      {toggleFollowMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Đã yêu cầu'
                       )}
                     </Button>
                   ) : (
@@ -309,7 +324,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               Bỏ theo dõi @{user.username}?
             </AlertDialogTitle>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-col items-stretch space-x-0 border-t border-border mt-0 gap-0">
+          <AlertDialogFooter className="flex-col sm:flex-col items-stretch space-x-0 border-t border-border mt-4 gap-0">
             <AlertDialogAction
               onClick={() => toggleFollowMutation.mutate('none')}
               className="w-full bg-transparent text-destructive hover:bg-muted text-base font-bold shadow-none rounded-none py-4 h-auto border-b border-border"
@@ -318,7 +333,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               {toggleFollowMutation.isPending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                'Bỏ theo dõi'
+                `Hủy ${user.relationStatus === 'pending' ? 'yêu cầu' : 'theo dõi'}`
               )}
             </AlertDialogAction>
             <AlertDialogCancel

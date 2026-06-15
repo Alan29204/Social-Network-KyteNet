@@ -77,23 +77,24 @@ export class UsersService {
    */
   async privacySeeProfile(user_id_see: string, user_id: string) {
     const user = await this.findUserById(user_id);
-    const privacy = user.privacy;
-    switch (true) {
-      case privacy === PrivacyType.PRIVATE:
-        return false;
-      case privacy === PrivacyType.PUBLIC:
-        return true;
-      case privacy === PrivacyType.FOLLOWER:
-        const relation = await this.relationsService.getRelation(
-          user_id_see,
-          user_id,
-        );
-        if (relation === RelationType.FOLLOWING) {
-          return true;
-        } else {
-          return false;
-        }
+    if (user_id_see === user_id) {
+      return true;
     }
+
+    const privacy = user.privacy;
+    if (privacy === PrivacyType.PUBLIC) {
+      return true;
+    }
+
+    // Both PRIVATE and FOLLOWER mean only followers (or the user themselves) can see
+    const relation = await this.relationsService.getRelation(
+      user_id_see,
+      user_id,
+    );
+    if (relation === RelationType.FOLLOWING) {
+      return true;
+    }
+    
     return false;
   }
 

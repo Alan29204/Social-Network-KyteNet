@@ -47,6 +47,9 @@ export class ChatMember {
   @Column({ default: 0 })
   unread_count: number;
 
+  @Column({ default: true })
+  is_accepted: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

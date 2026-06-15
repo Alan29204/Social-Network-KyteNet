@@ -237,6 +237,132 @@ export class RelationsService {
     };
   }
 
+  /** Danh sách yêu cầu theo dõi đang chờ duyệt */
+  async getPendingRequests(userId: string, page: number, limit: number) {
+    const offset = (page - 1) * limit;
+    const [relations, total] = await this.relationRepository.findAndCount({
+      where: {
+        accept_side_id: userId,
+        relation_type: RelationType.PENDING,
+      },
+      relations: ['request_side'],
+      order: { created_at: 'DESC' },
+      skip: offset,
+      take: limit,
+    });
+
+    return {
+      page,
+      limit,
+      total,
+      data: relations.map((r) => ({
+        id: r.id,
+        user: r.request_side
+          ? {
+              id: r.request_side.id,
+              username: r.request_side.username,
+              full_name: r.request_side.full_name,
+              avatar: r.request_side.avatar,
+            }
+          : null,
+        requested_at: r.created_at,
+      })),
+    };
+  }
+
+  /** Chấp nhận yêu cầu theo dõi */
+  async acceptFollowRequest(user: IUser, requestUserId: string) {
+    const relationRequestAccept = await this.relationRepository.findOne({
+      where: {
+        request_side_id: requestUserId,
+        accept_side_id: user.id,
+        relation_type: RelationType.PENDING,
+      },
+    });
+
+    if (!relationRequestAccept) {
+      throw new NotFoundException('Follow request not found or already processed');
+    }
+
+    relationRequestAccept.relation_type = RelationType.FOLLOWING;
+
+    // Check if acceptUser is also following requestUser
+    const relationAcceptRequest = await this.relationRepository.findOne({
+      where: {
+        request_side_id: user.id,
+        accept_side_id: requestUserId,
+        relation_type: RelationType.FOLLOWING,
+      },
+    });
+
+    if (relationAcceptRequest) {
+      relationRequestAccept.is_mutual = true;
+      relationAcceptRequest.is_mutual = true;
+      await this.relationRepository.save([relationRequestAccept, relationAcceptRequest]);
+    } else {
+      await this.relationRepository.save(relationRequestAccept);
+    }
+
+    // Backfill feed and delete request notification
+    await this.feedService.backfillFeedOnFollow(requestUserId, user.id);
+    
+    // Clear notification follow request
+    try {
+      await this.notificationService.undoNotification(
+        requestUserId,
+        user.id,
+        user.id,
+        'USER',
+        NotificationType.FOLLOW_REQUEST,
+      );
+      
+      // Notify the requester that their request was accepted
+      const currentUser = await this.usersService.findUserById(user.id);
+      await this.notificationService.notifyFollow(
+        user.id,
+        currentUser?.username || 'Someone',
+        requestUserId,
+        'following', // They are now following each other potentially, or accepted
+      );
+    } catch (e) {
+      console.error('Error handling notifications for accept follow request:', e);
+    }
+
+    return { message: 'Follow request accepted' };
+  }
+
+  /** Từ chối yêu cầu theo dõi */
+  async rejectFollowRequest(user: IUser, requestUserId: string) {
+    const relationRequestAccept = await this.relationRepository.findOne({
+      where: {
+        request_side_id: requestUserId,
+        accept_side_id: user.id,
+        relation_type: RelationType.PENDING,
+      },
+    });
+
+    if (!relationRequestAccept) {
+      throw new NotFoundException('Follow request not found or already processed');
+    }
+
+    await this.relationRepository.remove(relationRequestAccept);
+    
+    // Clear notification follow request
+    try {
+      await this.notificationService.undoNotification(
+        requestUserId,
+        user.id,
+        user.id,
+        'USER',
+        NotificationType.FOLLOW_REQUEST,
+      );
+    } catch (e) {
+      console.error('Error undoing follow request notification:', e);
+    }
+
+    return { message: 'Follow request rejected' };
+  }
+
   async getListRelation(
     userId: string,
     page: number,
@@ -429,11 +555,14 @@ export class RelationsService {
         // Notify the followed user
         try {
           const requestUser = await this.usersService.findUserById(user.id);
+          const notiRelationType = newType === RelationType.PENDING ? 'follow_request' : 'following';
+          const notiType = newType === RelationType.PENDING ? NotificationType.FOLLOW_REQUEST : NotificationType.FOLLOW;
           await this.notificationService.notifyFollow(
             user.id,
             requestUser?.username || 'Someone',
             dto.user_id,
-            'following',
+            notiRelationType,
+            notiType,
           );
         } catch (e) {
           console.error('Error sending follow notification:', e);

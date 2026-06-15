@@ -127,10 +127,11 @@ export class UsersController {
         username,
         privacy,
         isFollowing,
+        relationStatus,
         ...stats,
       };
     }
-    return { ...result, isFollowing, ...stats };
+    return { ...result, isFollowing, relationStatus, ...stats };
   }
 
   @Patch('/profile')

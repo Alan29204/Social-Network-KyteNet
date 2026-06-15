@@ -109,6 +109,7 @@ export class NotificationService {
     actorName: string,
     targetUserId: string,
     relationType: string,
+    notiType: NotificationType = NotificationType.FOLLOW,
   ) {
     if (actorId === targetUserId) return;
 
@@ -116,7 +117,7 @@ export class NotificationService {
       'USER',
       targetUserId,
       targetUserId,
-      NotificationType.FOLLOW,
+      notiType,
       actorId,
       { relation_type: relationType },
     );
@@ -532,6 +533,10 @@ export class NotificationService {
         break;
       case NotificationType.FOLLOW:
         title = `${actorString} đã bắt đầu theo dõi bạn`;
+        message = title;
+        break;
+      case NotificationType.FOLLOW_REQUEST:
+        title = `${actorString} đã gửi yêu cầu theo dõi bạn`;
         message = title;
         break;
       default:

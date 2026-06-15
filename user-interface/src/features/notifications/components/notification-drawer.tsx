@@ -359,7 +359,11 @@ function NotificationItem({ notification, onClose }: { notification: any, onClos
       }
     } else if (target_type === 'USER') {
       onClose();
-      navigate(`/profile/${primaryActor?.id || target_id}`);
+      if (notification.notification_type === 'FOLLOW_REQUEST') {
+        window.dispatchEvent(new CustomEvent('openFollowRequests'));
+      } else {
+        navigate(`/profile/${primaryActor?.id || target_id}`);
+      }
       setIsHandling(false);
     } else {
       onClose();

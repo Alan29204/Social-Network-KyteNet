@@ -129,6 +129,39 @@ export class RelationsController {
     return this.relationShipsService.getBlockedUsers(user.id, page, limit);
   }
 
+  @Get('requests/pending')
+  @ResponseMessage('Get pending follow requests successfully')
+  @ApiOperation({ summary: 'Get list of pending follow requests' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  async getPendingRequests(
+    @User() user: IUser,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.relationShipsService.getPendingRequests(user.id, page, limit);
+  }
+
+  @Post('requests/accept')
+  @ResponseMessage('Follow request accepted successfully')
+  @ApiOperation({ summary: 'Accept a follow request' })
+  acceptFollowRequest(@User() user: IUser, @Body() body: { user_id: string }) {
+    if (!body?.user_id) {
+      throw new BadRequestException('user_id is required');
+    }
+    return this.relationShipsService.acceptFollowRequest(user, body.user_id);
+  }
+
+  @Post('requests/reject')
+  @ResponseMessage('Follow request rejected successfully')
+  @ApiOperation({ summary: 'Reject a follow request' })
+  rejectFollowRequest(@User() user: IUser, @Body() body: { user_id: string }) {
+    if (!body?.user_id) {
+      throw new BadRequestException('user_id is required');
+    }
+    return this.relationShipsService.rejectFollowRequest(user, body.user_id);
+  }
+
   @Get(':user_id')
   @ResponseMessage('Get relation between 2 users successfully')
   @ApiOperation({ summary: 'Get relation between 2 users' })

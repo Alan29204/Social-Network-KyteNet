@@ -20,6 +20,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
@@ -99,6 +101,7 @@ export default function MessagesPage() {
   const [forwardTargets, setForwardTargets] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'primary' | 'requests'>('primary');
 
   // Focus input when replying
   useEffect(() => {
@@ -116,7 +119,7 @@ export default function MessagesPage() {
 
   // 1. Fetch Chat Rooms
   const { data: chatRoomsResponse, isLoading: isLoadingRooms } =
-    useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50 });
+    useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50, type: selectedTab });
   const chatRooms: any[] = (chatRoomsResponse as any)?.data?.data || [];
 
   // 2. Fetch Message History (Query Cache as Source of Truth)
@@ -529,6 +532,40 @@ export default function MessagesPage() {
       );
     };
 
+    /**
+     * roomRead — another member read the room.
+     */
+    const handleRoomRead = (data: {
+      chat_room_id: string;
+      read_by_user_id: string;
+    }) => {
+      queryClient.setQueriesData(
+        { queryKey: ['/chat-rooms'] },
+        (old: any) => {
+          if (!old || !old.data) return old;
+          const list = old.data?.data || old.data;
+          if (!Array.isArray(list)) return old;
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: list.map((room: any) => {
+                if (room.id !== data.chat_room_id) return room;
+                return {
+                  ...room,
+                  members: (room.members || room.chat_members || []).map((m: any) =>
+                    (m.id || m.user_id) === data.read_by_user_id
+                      ? { ...m, unread_count: 0 }
+                      : m
+                  ),
+                };
+              }),
+            },
+          };
+        },
+      );
+    };
+
     // Register all listeners
     socket.on('newMessage', handleNewMessage);
     socket.on('messageSaved', handleMessageSaved);
@@ -540,6 +577,7 @@ export default function MessagesPage() {
     socket.on('messagePinned', handleMessagePinned);
     socket.on('messageUnpinned', handleMessageUnpinned);
     socket.on('roomEmojiUpdated', handleRoomEmojiUpdated);
+    socket.on('roomRead', handleRoomRead);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
@@ -552,6 +590,7 @@ export default function MessagesPage() {
       socket.off('messagePinned', handleMessagePinned);
       socket.off('messageUnpinned', handleMessageUnpinned);
       socket.off('roomEmojiUpdated', handleRoomEmojiUpdated);
+      socket.off('roomRead', handleRoomRead);
     };
   }, [token, queryClient, toast]);
 
@@ -601,6 +640,15 @@ export default function MessagesPage() {
       if (container && container.scrollTop < 150) {
         scrollToBottom('smooth');
       }
+
+      // If we receive a message from someone else while in the active room, mark it as read
+      const newestMsg = messages[0];
+      if (newestMsg && newestMsg.created_by !== user?.id) {
+        orvalClient({
+          url: `/chat-rooms/${selectedRoomId}/read`,
+          method: 'POST',
+        }).catch(console.error);
+      }
     }
     prevMessagesLenRef.current = messages.length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -637,6 +685,8 @@ export default function MessagesPage() {
           // If the message is for the currently selected room, mark as read immediately in UI
           if (roomId === selectedRoomId) {
             updatedRoom.unread_count = 0;
+          } else if (msg.created_by !== user?.id) {
+            updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1;
           }
           rooms.splice(idx, 1);
           rooms.unshift(updatedRoom);
@@ -1240,9 +1290,17 @@ export default function MessagesPage() {
           </div>
 
           {/* Tabs / Header */}
-          <div className="flex items-center justify-between px-6 py-4 shrink-0">
-            <span className="font-bold text-base">Tin nhắn</span>
-            <button className="text-sm font-semibold text-muted-foreground hover:text-foreground">
+          <div className="flex items-center gap-6 px-6 py-4 shrink-0 border-b border-border/50">
+            <button
+              onClick={() => setSelectedTab('primary')}
+              className={`text-[15px] font-semibold transition-colors ${selectedTab === 'primary' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}
+            >
+              Tin nhắn
+            </button>
+            <button
+              onClick={() => setSelectedTab('requests')}
+              className={`text-[15px] font-semibold transition-colors ${selectedTab === 'requests' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}
+            >
               Tin nhắn đang chờ
             </button>
           </div>
@@ -1541,8 +1599,12 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} className="h-1 shrink-0" />
 
                   {/* Messages Mapping — Instagram/Messenger-style connected bubbles */}
-                  {reversedMessages.map((msg: any, idx: number) => {
-                    const isMine = msg.created_by === user?.id;
+                  {(() => {
+                    const targetUser = activeRoom?.members?.find((m: any) => m.id !== user?.id);
+                    const lastReadIdxByOther = targetUser?.unread_count || 0;
+
+                    return reversedMessages.map((msg: any, idx: number) => {
+                      const isMine = msg.created_by === user?.id;
                     // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
                     // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
                     const prevMsg =
@@ -2088,11 +2150,6 @@ export default function MessagesPage() {
                                   style={{ borderRadius: bubbleRadius }}
                                 >
                                   {msg.message}
-                                  {msg.is_sending && (
-                                    <span className="absolute bottom-0.5 right-2 text-[8px] opacity-60">
-                                      đang gửi...
-                                    </span>
-                                  )}
                                   {msg.is_failed && (
                                     <span className="absolute bottom-0.5 right-2 text-[8px] text-white font-bold">
                                       lỗi
@@ -2123,6 +2180,24 @@ export default function MessagesPage() {
                                     </span>
                                   ))}
                                 </div>
+                              </div>
+                            )}
+
+                            {/* Message Status Indicators */}
+                            {isMine && (
+                              <div className="mt-0.5 h-3.5 flex items-center justify-end">
+                                {msg.is_sending && idx === 0 && (
+                                  <Circle className="w-3 h-3 text-muted-foreground" />
+                                )}
+                                {!msg.is_sending && idx === 0 && lastReadIdxByOther !== 0 && (
+                                  <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
+                                )}
+                                {idx === lastReadIdxByOther && targetUser && (
+                                  <Avatar className="w-3.5 h-3.5">
+                                    <AvatarImage src={targetUser.avatar || '/default-avatar.png'} />
+                                    <AvatarFallback className="text-[8px]">{targetUser.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                  </Avatar>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2253,7 +2328,8 @@ export default function MessagesPage() {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                })()}
                   {/* Avatar introduction — shown at the visual TOP (end of list) */}
                   {!hasMore && (
                     <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3 mt-auto">
@@ -2420,16 +2496,84 @@ export default function MessagesPage() {
                 )}
 
                 {/* Chat Input */}
-                {activeRoom?.type === 'direct' && activeRoom?.is_blocked ? (
-                  <div className="p-4 shrink-0 bg-background border-t border-border/10">
-                    <div className="p-3 bg-muted text-center rounded-xl border border-border/50">
-                      <p className="text-[15px] text-muted-foreground font-semibold">
-                        Bạn không thể trả lời cuộc trò chuyện này.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 shrink-0 bg-background border-t border-border/10">
+                {(() => {
+                  const myMember = activeRoom?.members?.find((m: any) => m.id === user?.id);
+                  const isAccepted = myMember?.is_accepted !== false; // true or undefined is accepted
+
+                  if (!isAccepted) {
+                    const targetUser = activeRoom?.members?.find((m: any) => m.id !== user?.id);
+                    return (
+                      <div className="p-4 shrink-0 bg-background border-t border-border/10">
+                        <div className="flex flex-col gap-4 text-center pb-4">
+                          <p className="text-[15px] text-muted-foreground font-semibold px-4">
+                            {targetUser?.username} muốn gửi tin nhắn cho bạn. Họ sẽ không biết bạn đã xem cho đến khi bạn chấp nhận.
+                          </p>
+                          <div className="flex justify-center gap-3">
+                            <button
+                              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold transition-colors"
+                              onClick={() => {
+                                orvalClient({ url: `/chat-rooms/${activeRoom.id}/accept-request`, method: 'POST' })
+                                  .then(() => {
+                                    queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                    toast({ title: 'Đã chấp nhận tin nhắn' });
+                                  })
+                                  .catch(() => toast({ title: 'Lỗi khi chấp nhận', variant: 'destructive' }));
+                              }}
+                            >
+                              Chấp nhận
+                            </button>
+                            <button
+                              className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-bold transition-colors"
+                              onClick={() => {
+                                deleteMutation.mutate(
+                                  { roomId: activeRoom.id },
+                                  {
+                                    onSuccess: () => {
+                                      queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                      navigate('/messages');
+                                      toast({ title: 'Đã xóa tin nhắn' });
+                                    }
+                                  }
+                                );
+                              }}
+                            >
+                              Xóa
+                            </button>
+                            <button
+                              className="px-6 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-xl font-bold transition-colors"
+                              onClick={() => {
+                                if (targetUser) {
+                                  orvalClient({ url: '/relations/update', method: 'POST', data: { user_id: targetUser.id, relation: 'block' } })
+                                    .then(() => {
+                                      queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                      navigate('/messages');
+                                      toast({ title: 'Đã chặn người dùng' });
+                                    });
+                                }
+                              }}
+                            >
+                              Chặn
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (activeRoom?.type === 'direct' && activeRoom?.is_blocked) {
+                    return (
+                      <div className="p-4 shrink-0 bg-background border-t border-border/10">
+                        <div className="p-3 bg-muted text-center rounded-xl border border-border/50">
+                          <p className="text-[15px] text-muted-foreground font-semibold">
+                            Bạn không thể trả lời cuộc trò chuyện này.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-4 shrink-0 bg-background border-t border-border/10">
                     <div className="flex items-center gap-2 border border-border/50 bg-background rounded-full px-2 py-1 relative">
                       {/* Emoji Trigger */}
                       <div className="relative">

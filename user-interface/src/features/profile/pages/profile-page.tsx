@@ -4,9 +4,12 @@ import { ProfileTabs } from '../components/profile-tabs';
 import { ProfileSkeleton } from '../components/profile-skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { Lock } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const { user: authUser } = useAuthStore();
 
   const { data: userProfile, isLoading, error } = useQuery({
     queryKey: ['profile', id],
@@ -80,12 +83,28 @@ export default function ProfilePage() {
     return <div className="text-center p-8 text-destructive">Lỗi khi tải trang cá nhân</div>;
   }
 
+  const isMe = authUser?.id === userProfile.id;
+  const isPrivateAndNotFollowing = userProfile.privacy === 'PRIVATE' && !userProfile.isFollowing && !isMe;
+
   return (
     <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <ProfileHeader user={userProfile} />
-      <div className="mt-8 border-t">
-        <ProfileTabs userId={userProfile.id} />
-      </div>
+      <ProfileHeader user={userProfile as any} />
+      
+      {isPrivateAndNotFollowing ? (
+        <div className="mt-8 border-t pt-16 flex flex-col items-center justify-center text-center">
+          <div className="w-20 h-20 border-2 border-foreground rounded-full flex items-center justify-center mb-6">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3">Tài khoản này là riêng tư</h2>
+          <p className="text-muted-foreground text-lg max-w-md">
+            Hãy theo dõi để xem ảnh và video của họ.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-8 border-t">
+          <ProfileTabs userId={userProfile.id} />
+        </div>
+      )}
     </div>
   );
 }

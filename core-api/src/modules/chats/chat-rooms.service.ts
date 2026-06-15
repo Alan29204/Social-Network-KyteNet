@@ -459,6 +459,8 @@ export class ChatRoomsService {
           is_online: onlineMap.get(m.user_id) || false,
           is_blocked: blockMap.get(m.user_id) || false,
           last_active: m.user?.last_active || null,
+          is_accepted: m.is_accepted,
+          unread_count: m.unread_count || 0,
         }));
 
         // Last message (from batch Redis)
@@ -514,6 +516,18 @@ export class ChatRoomsService {
         { chat_room_id: roomId, user_id: userId },
         { unread_count: 0 },
       );
+
+      // Broadcast roomRead event to other members
+      this.gatewayGateway.broadcastToMembers(
+        roomId,
+        'roomRead',
+        {
+          chat_room_id: roomId,
+          read_by_user_id: userId,
+        },
+        userId,
+      );
+
       return { success: true };
     } catch {
       throw new InternalServerErrorException('Error marking room as read');

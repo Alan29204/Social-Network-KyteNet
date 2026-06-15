@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
 import { NotificationDrawer } from '@/features/notifications/components/notification-drawer';
 import { BlockedAccountsModal } from '@/features/settings/components/blocked-accounts-modal';
+import { FollowRequestsModal } from '@/features/profile/components/follow-requests-modal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ import {
   RefreshCw,
   LogOut,
   Ban,
+  UserPlus,
 } from 'lucide-react';
 import {
   getChatRoomsControllerGetListChatRoomQueryKey,
@@ -58,6 +60,7 @@ export function SidebarLeft() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isBlockedAccountsOpen, setIsBlockedAccountsOpen] = useState(false);
+  const [isFollowRequestsOpen, setIsFollowRequestsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { user, accessToken, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -100,6 +103,14 @@ export function SidebarLeft() {
 
   const rooms = (chatRoomsResponse as any)?.data?.data || [];
   const unreadCount = rooms.filter((room: any) => room.unread_count > 0).length;
+
+  useEffect(() => {
+    const handleOpenFollowRequests = () => {
+      setIsFollowRequestsOpen(true);
+    };
+    window.addEventListener('openFollowRequests', handleOpenFollowRequests);
+    return () => window.removeEventListener('openFollowRequests', handleOpenFollowRequests);
+  }, []);
 
   useEffect(() => {
     if (!user || !accessToken) return;
@@ -386,6 +397,13 @@ export function SidebarLeft() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
+                onClick={() => setIsFollowRequestsOpen(true)}
+              >
+                <UserPlus className="mr-3 h-5 w-5" />
+                <span>Yêu cầu theo dõi</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="p-3 cursor-pointer rounded-lg text-[15px]"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
                 {theme === 'dark' ? (
@@ -435,6 +453,11 @@ export function SidebarLeft() {
       <BlockedAccountsModal
         open={isBlockedAccountsOpen}
         onOpenChange={setIsBlockedAccountsOpen}
+      />
+
+      <FollowRequestsModal
+        open={isFollowRequestsOpen}
+        onOpenChange={setIsFollowRequestsOpen}
       />
     </>
   );
