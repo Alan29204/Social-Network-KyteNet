@@ -20,7 +20,7 @@ export interface ReelData {
   id: string;
   videoUrl: string;
   caption: string;
-  user: { id: string; username: string; avatarUrl?: string };
+  user: { id: string; username: string; avatarUrl?: string; privacy?: string };
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
@@ -37,8 +37,8 @@ interface ReelItemProps {
   onActive?: () => void;
 }
 
-/**
- * Một reel chiếm trọn viewport. Video tự phát khi cuộn vào tầm nhìn
+  /**
+  * Một reel chiếm trọn viewport. Video tự phát khi cuộn vào tầm nhìn
  * (IntersectionObserver) và tạm dừng khi rời đi.
  */
 export function ReelItem({
@@ -286,14 +286,16 @@ export function ReelItem({
         <span className="text-xs">{reel.commentsCount}</span>
       </button>
 
-      <button
-        onClick={handleRepost}
-        className="flex flex-col items-center gap-1"
-      >
-        <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-          <Repeat className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`} />
-        </div>
-      </button>
+      {reel.user?.privacy !== 'private' && (
+        <button
+          onClick={handleRepost}
+          className="flex flex-col items-center gap-1"
+        >
+          <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+            <Repeat className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`} />
+          </div>
+        </button>
+      )}
 
       <button
         onClick={() => onShare(reel)}

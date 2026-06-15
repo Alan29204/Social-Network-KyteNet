@@ -279,6 +279,10 @@ export class PostsService {
       throw new BadRequestException('You cannot repost your own post');
     }
 
+    if (originalPost.user?.privacy === 'private') {
+      throw new BadRequestException('You cannot repost a post from a private account');
+    }
+
     try {
       // Prevent chained reposts: always link to the TRUE original post
       const actualOriginalPostId =
@@ -374,11 +378,20 @@ export class PostsService {
       }
 
       if (currentUser) {
+        const followingIds = await this.relationsService.getFollowingIds(currentUser.id);
         const blockedUserIds = await this.relationsService.getAllBlockedUserIds(currentUser.id);
         if (blockedUserIds.length > 0) {
           qb.andWhere('post.user_id NOT IN (:...blockedUserIds)', { blockedUserIds });
           qb.andWhere('(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blockedUserIds))', { blockedUserIds });
         }
+        
+        if (followingIds.length > 0) {
+          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))', { pub: 'public', cid: currentUser.id, followingIds });
+        } else {
+          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', { pub: 'public', cid: currentUser.id });
+        }
+      } else {
+        qb.andWhere('user.privacy = :pub', { pub: 'public' });
       }
 
       const [posts, total] = await qb.getManyAndCount();

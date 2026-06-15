@@ -109,6 +109,7 @@ export const NotificationNotificationType = {
   comment: 'comment',
   follow: 'follow',
   reaction: 'reaction',
+  follow_request: 'follow_request',
   system: 'system',
 } as const;
 
@@ -175,6 +176,7 @@ export type ChatMember = {
   is_muted: boolean;
   deleted_at: string;
   unread_count: number;
+  is_accepted: boolean;
   created_at: string;
   user: User;
   chat_room: ChatRoom;
@@ -637,6 +639,7 @@ export const NotificationItemDtoNotificationType = {
   comment: 'comment',
   follow: 'follow',
   reaction: 'reaction',
+  follow_request: 'follow_request',
   system: 'system',
 } as const;
 
@@ -1041,6 +1044,11 @@ page?: number;
 limit?: number;
 };
 
+export type RelationsControllerGetPendingRequestsParams = {
+page?: number;
+limit?: number;
+};
+
 export type NotificationControllerGetUserNotificationsParams = {
 page?: number;
 limit?: number;
@@ -1061,7 +1069,16 @@ page?: number;
  * @minimum 1
  */
 limit?: number;
+type?: ChatRoomsControllerGetListChatRoomType;
 };
+
+export type ChatRoomsControllerGetListChatRoomType = typeof ChatRoomsControllerGetListChatRoomType[keyof typeof ChatRoomsControllerGetListChatRoomType];
+
+
+export const ChatRoomsControllerGetListChatRoomType = {
+  primary: 'primary',
+  requests: 'requests',
+} as const;
 
 export type ChatMessagesControllerCreateMessageBody = {
   chat_room_id?: string;
@@ -3253,6 +3270,363 @@ export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType
 
 
 
+
+export type relationsControllerGetPendingRequestsResponse200 = {
+  data: void
+  status: 200
+}
+
+export type relationsControllerGetPendingRequestsResponseSuccess = (relationsControllerGetPendingRequestsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerGetPendingRequestsResponse = (relationsControllerGetPendingRequestsResponseSuccess)
+
+export const getRelationsControllerGetPendingRequestsUrl = (params?: RelationsControllerGetPendingRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/relations/requests/pending?${stringifiedParams}` : `/relations/requests/pending`
+}
+
+/**
+ * @summary Get list of pending follow requests
+ */
+export const relationsControllerGetPendingRequests = async (params?: RelationsControllerGetPendingRequestsParams, options?: RequestInit): Promise<relationsControllerGetPendingRequestsResponse> => {
+
+  return orvalClient<relationsControllerGetPendingRequestsResponse>(getRelationsControllerGetPendingRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRelationsControllerGetPendingRequestsInfiniteQueryKey = (params?: RelationsControllerGetPendingRequestsParams,) => {
+    return [
+    'infinite', `/relations/requests/pending`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getRelationsControllerGetPendingRequestsQueryKey = (params?: RelationsControllerGetPendingRequestsParams,) => {
+    return [
+    `/relations/requests/pending`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRelationsControllerGetPendingRequestsInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, RelationsControllerGetPendingRequestsParams['page']>, TError = unknown>(params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetPendingRequestsInfiniteQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, QueryKey, RelationsControllerGetPendingRequestsParams['page']> = ({ signal, pageParam }) => relationsControllerGetPendingRequests({...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RelationsControllerGetPendingRequestsInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>>
+export type RelationsControllerGetPendingRequestsInfiniteQueryError = unknown
+
+
+export function useRelationsControllerGetPendingRequestsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, RelationsControllerGetPendingRequestsParams['page']>, TError = unknown>(
+ params: undefined |  RelationsControllerGetPendingRequestsParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetPendingRequestsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, RelationsControllerGetPendingRequestsParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetPendingRequestsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, RelationsControllerGetPendingRequestsParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get list of pending follow requests
+ */
+
+export function useRelationsControllerGetPendingRequestsInfinite<TData = InfiniteData<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, RelationsControllerGetPendingRequestsParams['page']>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData, QueryKey, RelationsControllerGetPendingRequestsParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRelationsControllerGetPendingRequestsInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const getRelationsControllerGetPendingRequestsQueryOptions = <TData = Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError = unknown>(params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetPendingRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>> = ({ signal }) => relationsControllerGetPendingRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RelationsControllerGetPendingRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>>
+export type RelationsControllerGetPendingRequestsQueryError = unknown
+
+
+export function useRelationsControllerGetPendingRequests<TData = Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError = unknown>(
+ params: undefined |  RelationsControllerGetPendingRequestsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetPendingRequests<TData = Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>,
+          TError,
+          Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRelationsControllerGetPendingRequests<TData = Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get list of pending follow requests
+ */
+
+export function useRelationsControllerGetPendingRequests<TData = Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError = unknown>(
+ params?: RelationsControllerGetPendingRequestsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetPendingRequests>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRelationsControllerGetPendingRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type relationsControllerAcceptFollowRequestResponse201 = {
+  data: void
+  status: 201
+}
+
+export type relationsControllerAcceptFollowRequestResponseSuccess = (relationsControllerAcceptFollowRequestResponse201) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerAcceptFollowRequestResponse = (relationsControllerAcceptFollowRequestResponseSuccess)
+
+export const getRelationsControllerAcceptFollowRequestUrl = () => {
+
+
+
+
+  return `/relations/requests/accept`
+}
+
+/**
+ * @summary Accept a follow request
+ */
+export const relationsControllerAcceptFollowRequest = async ( options?: RequestInit): Promise<relationsControllerAcceptFollowRequestResponse> => {
+
+  return orvalClient<relationsControllerAcceptFollowRequestResponse>(getRelationsControllerAcceptFollowRequestUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRelationsControllerAcceptFollowRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext> => {
+
+const mutationKey = ['relationsControllerAcceptFollowRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, void> = () => {
+
+
+          return  relationsControllerAcceptFollowRequest(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RelationsControllerAcceptFollowRequestMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>>
+
+    export type RelationsControllerAcceptFollowRequestMutationError = unknown
+
+    /**
+ * @summary Accept a follow request
+ */
+export const useRelationsControllerAcceptFollowRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRelationsControllerAcceptFollowRequestMutationOptions(options), queryClient);
+    }
+
+export type relationsControllerRejectFollowRequestResponse201 = {
+  data: void
+  status: 201
+}
+
+export type relationsControllerRejectFollowRequestResponseSuccess = (relationsControllerRejectFollowRequestResponse201) & {
+  headers: Headers;
+};
+;
+
+export type relationsControllerRejectFollowRequestResponse = (relationsControllerRejectFollowRequestResponseSuccess)
+
+export const getRelationsControllerRejectFollowRequestUrl = () => {
+
+
+
+
+  return `/relations/requests/reject`
+}
+
+/**
+ * @summary Reject a follow request
+ */
+export const relationsControllerRejectFollowRequest = async ( options?: RequestInit): Promise<relationsControllerRejectFollowRequestResponse> => {
+
+  return orvalClient<relationsControllerRejectFollowRequestResponse>(getRelationsControllerRejectFollowRequestUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRelationsControllerRejectFollowRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext> => {
+
+const mutationKey = ['relationsControllerRejectFollowRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, void> = () => {
+
+
+          return  relationsControllerRejectFollowRequest(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RelationsControllerRejectFollowRequestMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>>
+
+    export type RelationsControllerRejectFollowRequestMutationError = unknown
+
+    /**
+ * @summary Reject a follow request
+ */
+export const useRelationsControllerRejectFollowRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRelationsControllerRejectFollowRequestMutationOptions(options), queryClient);
+    }
 
 export type relationsControllerGetRelationResponse200 = {
   data: void
@@ -6044,6 +6418,88 @@ export const useChatRoomsControllerSoftDeleteHistory = <TError = unknown,
         TContext
       > => {
       return useMutation(getChatRoomsControllerSoftDeleteHistoryMutationOptions(options), queryClient);
+    }
+
+export type chatRoomsControllerAcceptMessageRequestResponse201 = {
+  data: void
+  status: 201
+}
+
+export type chatRoomsControllerAcceptMessageRequestResponseSuccess = (chatRoomsControllerAcceptMessageRequestResponse201) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerAcceptMessageRequestResponse = (chatRoomsControllerAcceptMessageRequestResponseSuccess)
+
+export const getChatRoomsControllerAcceptMessageRequestUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/accept-request`
+}
+
+/**
+ * @summary Accept a message request
+ */
+export const chatRoomsControllerAcceptMessageRequest = async (id: string, options?: RequestInit): Promise<chatRoomsControllerAcceptMessageRequestResponse> => {
+
+  return orvalClient<chatRoomsControllerAcceptMessageRequestResponse>(getChatRoomsControllerAcceptMessageRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerAcceptMessageRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerAcceptMessageRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  chatRoomsControllerAcceptMessageRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerAcceptMessageRequestMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>>
+
+    export type ChatRoomsControllerAcceptMessageRequestMutationError = unknown
+
+    /**
+ * @summary Accept a message request
+ */
+export const useChatRoomsControllerAcceptMessageRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerAcceptMessageRequest>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerAcceptMessageRequestMutationOptions(options), queryClient);
     }
 
 export type chatMembersControllerRequestJoinChatRoomResponse201 = {

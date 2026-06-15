@@ -8,14 +8,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  useRelationsControllerGetPendingRequests,
-  useRelationsControllerAcceptFollowRequest,
-  useRelationsControllerRejectFollowRequest,
   getRelationsControllerGetPendingRequestsQueryKey,
+  useRelationsControllerGetPendingRequests,
 } from '@/services/apis/gen/queries';
-import { useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
+import { orvalClient } from '@/services/apis/axios-client';
 
 interface FollowRequestsModalProps {
   open: boolean;
@@ -24,6 +23,7 @@ interface FollowRequestsModalProps {
 
 export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: requestsData, isLoading } = useRelationsControllerGetPendingRequests({
     query: {
@@ -31,34 +31,36 @@ export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalP
     },
   });
 
-  const requests = (requestsData as any)?.data || [];
+  console.log('requestsData:', requestsData);
+  const rawData = (requestsData as any)?.data?.data || (requestsData as any)?.data || requestsData;
+  const requests = Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.data) ? rawData.data : []);
 
-  const { mutate: acceptRequest, isPending: isAccepting } = useRelationsControllerAcceptFollowRequest({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
-        });
-      },
+  const { mutate: acceptRequest, isPending: isAccepting } = useMutation({
+    mutationFn: (userId: string) =>
+      orvalClient({ url: '/relations/requests/accept', method: 'POST', data: { user_id: userId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
+      });
     },
   });
 
-  const { mutate: rejectRequest, isPending: isRejecting } = useRelationsControllerRejectFollowRequest({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
-        });
-      },
+  const { mutate: rejectRequest, isPending: isRejecting } = useMutation({
+    mutationFn: (userId: string) =>
+      orvalClient({ url: '/relations/requests/reject', method: 'POST', data: { user_id: userId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
+      });
     },
   });
 
   const handleAccept = (userId: string) => {
-    acceptRequest({ data: { targetUserId: userId } });
+    acceptRequest(userId);
   };
 
   const handleReject = (userId: string) => {
-    rejectRequest({ data: { targetUserId: userId } });
+    rejectRequest(userId);
   };
 
   return (
@@ -80,31 +82,35 @@ export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalP
             </div>
           ) : (
             requests.map((req: any) => {
-              const requester = req.user_request_side;
+              const requester = req.user;
               if (!requester) return null;
 
               return (
                 <div key={req.id} className="flex items-center justify-between gap-3">
-                  <Link
-                    to={`/profile/${requester.id}`}
-                    onClick={() => onOpenChange(false)}
-                    className="flex items-center gap-3 flex-1 overflow-hidden"
+                  <div
+                    onClick={() => {
+                      onOpenChange(false);
+                      setTimeout(() => {
+                        navigate(`/profile/${requester.id}`);
+                      }, 100);
+                    }}
+                    className="flex items-center gap-3 flex-1 overflow-hidden cursor-pointer"
                   >
                     <Avatar className="w-11 h-11 border border-border">
-                      <AvatarImage src={requester.avatar_url || ''} />
+                      <AvatarImage src={requester.avatar || requester.avatar_url || ''} />
                       <AvatarFallback>
                         {requester.username?.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col overflow-hidden">
-                      <span className="font-semibold text-sm truncate">
+                      <span className="font-semibold text-sm truncate hover:underline">
                         {requester.username}
                       </span>
                       <span className="text-muted-foreground text-[13px] truncate">
                         {requester.full_name}
                       </span>
                     </div>
-                  </Link>
+                  </div>
 
                   <div className="flex gap-2">
                     <Button

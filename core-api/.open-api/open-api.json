@@ -514,6 +514,68 @@
         ]
       }
     },
+    "/relations/requests/pending": {
+      "get": {
+        "operationId": "RelationsController_getPendingRequests",
+        "summary": "Get list of pending follow requests",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
+    "/relations/requests/accept": {
+      "post": {
+        "operationId": "RelationsController_acceptFollowRequest",
+        "summary": "Accept a follow request",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
+    "/relations/requests/reject": {
+      "post": {
+        "operationId": "RelationsController_rejectFollowRequest",
+        "summary": "Reject a follow request",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
     "/relations/{user_id}": {
       "get": {
         "operationId": "RelationsController_getRelation",
@@ -555,7 +617,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -925,6 +994,19 @@
               "default": 10,
               "type": "number"
             }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "primary",
+              "enum": [
+                "primary",
+                "requests"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1194,6 +1276,30 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
+    "/chat-rooms/{id}/accept-request": {
+      "post": {
+        "operationId": "ChatRoomsController_acceptMessageRequest",
+        "summary": "Accept a message request",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -3027,6 +3133,7 @@
               "comment",
               "follow",
               "reaction",
+              "follow_request",
               "system"
             ]
           },
@@ -3137,6 +3244,9 @@
           "unread_count": {
             "type": "number"
           },
+          "is_accepted": {
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -3158,6 +3268,7 @@
           "is_muted",
           "deleted_at",
           "unread_count",
+          "is_accepted",
           "created_at",
           "user",
           "chat_room"
@@ -4437,6 +4548,7 @@
               "comment",
               "follow",
               "reaction",
+              "follow_request",
               "system"
             ],
             "type": "string"

@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, IsNull } from 'typeorm';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import { Relation } from 'src/modules/users/relations/entities/relation.entity';
@@ -66,6 +66,17 @@ export class SearchService {
       // Absolute Override: loại trừ user bị chặn khỏi kết quả tìm kiếm
       const blockedIds = await this.getBlockedUserIds(userId);
 
+      const followingRelations = await this.relationRepository.find({
+        where: {
+          request_side_id: userId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
+        select: ['accept_side_id'],
+      });
+
+      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+
       const qb = this.userRepository
         .createQueryBuilder('user')
         .where('(user.username ILIKE :q OR user.email ILIKE :q)', {
@@ -73,8 +84,10 @@ export class SearchService {
         });
 
       if (blockedIds.length > 0) {
-        qb.andWhere('user.id NOT IN (:...blockedIds)', { blockedIds });
+        qb.andWhere('user.id NOT IN (:...blocked)', { blocked: blockedIds });
       }
+
+
 
       const [users, total] = await qb
         .select([
@@ -120,16 +133,34 @@ export class SearchService {
         b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
       );
 
+      const followingRelations = await this.relationRepository.find({
+        where: {
+          request_side_id: userId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
+        select: ['accept_side_id'],
+      });
+
+      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+
       const qb = this.postRepository
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
         .where('post.content ILIKE :q', { q: searchTerm })
-        .andWhere('post.privacy = :privacy', { privacy: 'public' });
+        .andWhere('post.privacy = :privacy', { privacy: 'public' })
+        .andWhere('post.shared_post_id IS NULL');
 
       if (blockedIds.length > 0) {
         qb.andWhere('post.user_id NOT IN (:...blocked)', {
           blocked: blockedIds,
         });
+      }
+
+      if (followingIds.length > 0) {
+        qb.andWhere('(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))', { pub: 'public', cid: userId, followingIds });
+      } else {
+        qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', { pub: 'public', cid: userId });
       }
 
       const [posts, total] = await qb
@@ -157,7 +188,9 @@ export class SearchService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
         .where('post.privacy = :privacy', { privacy: 'public' })
+        .andWhere('user.privacy = :userPrivacy', { userPrivacy: 'public' })
         .andWhere(':tag = ANY(post.hashtags)', { tag })
+        .andWhere('post.shared_post_id IS NULL')
         .orderBy('post.created_at', 'DESC')
         .skip(skip)
         .take(limit)
@@ -202,10 +235,35 @@ export class SearchService {
         };
       }
 
-      const posts = await this.postRepository.find({
-        where: { id: In(postIds), privacy: 'public' as any },
+      const followingRelations = await this.relationRepository.find({
+        where: {
+          request_side_id: userId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
+        select: ['accept_side_id'],
+      });
+
+      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+
+      let posts = await this.postRepository.find({
+        where: { id: In(postIds), privacy: 'public' as any, shared_post_id: IsNull() },
         relations: ['user'],
         order: { created_at: 'DESC' },
+      });
+
+      // Lọc các bài đăng từ tài khoản Private nếu user không phải người đăng và không theo dõi
+      posts = posts.filter(post => {
+        // Không cho phép bài đăng lại (repost) xuất hiện ở đây
+        if (post.shared_post) {
+           return false;
+        }
+
+        const isAccountPrivate = post.user?.privacy === 'private';
+        if (isAccountPrivate && post.user_id !== userId && !followingIds.includes(post.user_id)) {
+          return false;
+        }
+        return true;
       });
 
       return {
@@ -257,9 +315,42 @@ export class SearchService {
         return { data: [], source };
       }
 
-      const posts = await this.postRepository.find({
-        where: { id: In(postIds), privacy: 'public' as any },
-        relations: ['user'],
+      const followingRelations = await this.relationRepository.find({
+        where: {
+          request_side_id: userId,
+          relation_type: RelationType.FOLLOWING,
+          is_restricted: false,
+        },
+        select: ['accept_side_id'],
+      });
+
+      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+
+      let posts = await this.postRepository.find({
+        where: { id: In(postIds), privacy: 'public' as any, shared_post_id: IsNull() },
+        relations: ['user', 'shared_post', 'shared_post.user'],
+      });
+
+      // Lọc các bài đăng từ tài khoản Private nếu user không phải người đăng và không theo dõi
+      // Đồng thời lọc các bài repost từ tài khoản private
+      posts = posts.filter((post) => {
+        // Không cho phép bài đăng lại (repost) xuất hiện ở đây
+        if (post.shared_post) {
+           return false;
+        }
+
+        const isAccountPrivate = post.user?.privacy === 'private';
+        if (isAccountPrivate && post.user_id !== userId && !followingIds.includes(post.user_id)) {
+          return false;
+        }
+
+        if (post.shared_post && post.shared_post.user?.privacy === 'private') {
+           if (post.shared_post.user.id !== userId && !followingIds.includes(post.shared_post.user.id)) {
+              return false;
+           }
+        }
+        
+        return true;
       });
 
       // Giữ đúng thứ tự xếp hạng do AI trả về

@@ -250,6 +250,7 @@ export class UsersService {
     try {
       // Remove removeAvatar from dto before updating DB
       const { removeAvatar, ...updateData } = dto;
+      console.log('UpdateUser payload received:', updateData);
 
       if (!file) {
         if (removeAvatar === 'true') {

@@ -35,6 +35,7 @@ interface PostResponse {
     id: string;
     username: string;
     avatarUrl?: string;
+    privacy?: string;
   };
   createdAt: string;
   images: string[];
@@ -566,27 +567,29 @@ export function PostDetailModal({
                     </span>
                   )}
                 </button>
-                <button
-                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50"
-                  disabled={repostMutation.isPending || isMyPost}
-                  onClick={handleRepost}
-                >
-                  <div className="relative inline-flex items-center justify-center">
-                    <Repeat
-                      className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
-                    />
-                  </div>
-                  {((post?.interactions?.reposts ?? initialPost.repostsCount) ||
-                    0) > 0 && (
-                    <span
-                      className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
-                    >
-                      {(post?.interactions?.reposts ??
-                        initialPost.repostsCount) ||
-                        0}
-                    </span>
-                  )}
-                </button>
+                {displayPost?.user?.privacy !== 'private' && (
+                  <button
+                    className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50"
+                    disabled={repostMutation.isPending || isMyPost}
+                    onClick={handleRepost}
+                  >
+                    <div className="relative inline-flex items-center justify-center">
+                      <Repeat
+                        className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                      />
+                    </div>
+                    {((post?.interactions?.reposts ?? initialPost.repostsCount) ||
+                      0) > 0 && (
+                      <span
+                        className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                      >
+                        {(post?.interactions?.reposts ??
+                          initialPost.repostsCount) ||
+                          0}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button className="hover:text-muted-foreground transition-colors">
                   <Send className="w-6 h-6" />
                 </button>

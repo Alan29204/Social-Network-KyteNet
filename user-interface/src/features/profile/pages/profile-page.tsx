@@ -84,7 +84,7 @@ export default function ProfilePage() {
   }
 
   const isMe = authUser?.id === userProfile.id;
-  const isPrivateAndNotFollowing = userProfile.privacy === 'PRIVATE' && !userProfile.isFollowing && !isMe;
+  const isPrivateAndNotFollowing = userProfile.privacy === 'private' && !userProfile.isFollowing && !isMe;
 
   return (
     <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

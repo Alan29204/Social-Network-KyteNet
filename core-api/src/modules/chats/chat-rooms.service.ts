@@ -640,4 +640,34 @@ export class ChatRoomsService {
       throw new BadRequestException('Delete chat history failed');
     }
   }
+
+  // Accept a message request
+  async acceptMessageRequest(roomId: string, userId: string) {
+    const member = await this.chatMembersRepository.findOneBy({
+      chat_room_id: roomId,
+      user_id: userId,
+    });
+
+    if (!member) {
+      throw new NotFoundException('You are not a member of this chat room');
+    }
+
+    try {
+      await this.chatMembersRepository.update(
+        { chat_room_id: roomId, user_id: userId },
+        { is_accepted: true },
+      );
+
+      // Clear cache
+      await this.redisService.del(`chat-room:${roomId}`);
+      
+      // We might need to clear chat rooms list cache, or frontend handles it via optimistic update
+      // It's usually better if the frontend handles the UI switch immediately.
+      
+      return { message: 'Message request accepted successfully' };
+    } catch (error) {
+      console.error('Error accepting message request:', error);
+      throw new BadRequestException('Accept message request failed');
+    }
+  }
 }

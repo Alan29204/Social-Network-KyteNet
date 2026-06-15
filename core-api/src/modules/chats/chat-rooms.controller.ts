@@ -131,7 +131,9 @@ export class ChatRoomsController {
 
   @Delete(':id/history')
   @ResponseMessage('Soft delete chat room history success')
-  @ApiOperation({ summary: 'Soft delete history of a chat room for current user' })
+  @ApiOperation({
+    summary: 'Soft delete history of a chat room for current user',
+  })
   softDeleteHistory(@Param('id') id: string, @User() user: IUser) {
     if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
     return this.chatRoomsService.softDeleteHistory(id, user.id);

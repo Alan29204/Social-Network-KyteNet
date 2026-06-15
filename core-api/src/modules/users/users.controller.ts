@@ -128,7 +128,9 @@ export class UsersController {
         privacy,
         isFollowing,
         relationStatus,
-        ...stats,
+        postsCount: stats.postsCount,
+        followersCount: stats.followersCount,
+        followingCount: stats.followingCount,
       };
     }
     return { ...result, isFollowing, relationStatus, ...stats };

@@ -37,6 +37,7 @@ interface PostCardProps {
       id: string;
       username: string;
       avatarUrl?: string;
+      privacy?: string;
     };
     createdAt: string;
     images: string[];
@@ -473,34 +474,36 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
               )}
             </button>
 
-            <button
-              className="flex items-center gap-1.5 group transition-all disabled:opacity-50"
-              onClick={handleRepost}
-              disabled={repostMutation.isPending || isMyPost}
-            >
-              <div className="relative inline-flex items-center justify-center">
-                <Repeat
-                  className={`w-5 h-5 transition-colors ${
-                    localReposted
-                      ? 'text-green-500'
-                      : 'text-foreground/70 group-hover:text-green-400'
-                  }`}
-                />
-                {localReposted && (
-                  <Check
-                    className="w-2.5 h-2.5 absolute text-green-500 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                    strokeWidth={4}
+            {displayPost.user?.privacy !== 'private' && (
+              <button
+                className="flex items-center gap-1.5 group transition-all disabled:opacity-50"
+                onClick={handleRepost}
+                disabled={repostMutation.isPending || isMyPost}
+              >
+                <div className="relative inline-flex items-center justify-center">
+                  <Repeat
+                    className={`w-5 h-5 transition-colors ${
+                      localReposted
+                        ? 'text-green-500'
+                        : 'text-foreground/70 group-hover:text-green-400'
+                    }`}
                   />
+                  {localReposted && (
+                    <Check
+                      className="w-2.5 h-2.5 absolute text-green-500 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                      strokeWidth={4}
+                    />
+                  )}
+                </div>
+                {(localRepostsCount ?? 0) > 0 && (
+                  <span
+                    className={`text-xs font-medium ${localReposted ? 'text-green-500' : 'text-foreground/70'}`}
+                  >
+                    {localRepostsCount}
+                  </span>
                 )}
-              </div>
-              {(localRepostsCount ?? 0) > 0 && (
-                <span
-                  className={`text-xs font-medium ${localReposted ? 'text-green-500' : 'text-foreground/70'}`}
-                >
-                  {localRepostsCount}
-                </span>
-              )}
-            </button>
+              </button>
+            )}
 
             <button
               className="group transition-all"

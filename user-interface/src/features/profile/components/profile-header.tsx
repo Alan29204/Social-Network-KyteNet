@@ -75,20 +75,41 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         method: 'POST',
         data: { user_id: user.id, relation: action },
       }),
-    onSuccess: (_, action) => {
+    onSuccess: (response: any, action) => {
       setConfirmUnfollow(false);
-      const isNowFollowing = action === 'following';
-
+      
+      const returnedStatus = response?.data?.relationStatus || response?.relationStatus;
+      
       // Optimistic update for Profile Header stats and isFollowing
       queryClient.setQueryData(['profile', user.id], (oldData: any) => {
         if (!oldData) return oldData;
+        
+        // If backend returned status, use it. Otherwise fallback to client-side logic.
+        let relationStatus = returnedStatus;
+        if (!relationStatus) {
+            const isNowFollowing = action === 'following';
+            const isPrivate = oldData.privacy === 'private';
+            const isPending = isPrivate && isNowFollowing;
+            relationStatus = isPending ? 'pending' : (isNowFollowing ? 'following' : 'none');
+        }
+        
+        const isFollowing = relationStatus === 'following';
+        
+        // Only adjust followers count if we actually started following them, or stopped following them.
+        let followersDelta = 0;
+        if (action === 'following' && relationStatus === 'following') {
+            // We started following
+            if (!oldData.isFollowing) followersDelta = 1;
+        } else if (action === 'none') {
+            // We unfollowed
+            if (oldData.isFollowing) followersDelta = -1;
+        }
+
         return {
           ...oldData,
-          isFollowing: isNowFollowing,
-          followersCount: Math.max(
-            0,
-            (oldData.followersCount || 0) + (isNowFollowing ? 1 : -1),
-          ),
+          isFollowing,
+          relationStatus,
+          followersCount: Math.max(0, (oldData.followersCount || 0) + followersDelta),
         };
       });
 

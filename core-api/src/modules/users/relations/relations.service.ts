@@ -58,6 +58,22 @@ export class RelationsService {
   }
 
   /**
+   * Lấy danh sách ID những người mà user đang theo dõi (đã accept).
+   */
+  async getFollowingIds(userId: string): Promise<string[]> {
+    if (!userId) return [];
+    const relations = await this.relationRepository.find({
+      where: {
+        request_side_id: userId,
+        relation_type: RelationType.FOLLOWING,
+        is_restricted: false,
+      },
+      select: ['accept_side_id'],
+    });
+    return [...new Set(relations.map((r) => r.accept_side_id))];
+  }
+
+  /**
    * A chặn B (Mục III - Absolute Override).
    * - Set quan hệ A->B = BLOCK; drop follow 2 chiều (B->A về NONE).
    * - Dọn feed 2 chiều, purge notifications, enqueue sweep tương tác cũ.
@@ -281,7 +297,9 @@ export class RelationsService {
     });
 
     if (!relationRequestAccept) {
-      throw new NotFoundException('Follow request not found or already processed');
+      throw new NotFoundException(
+        'Follow request not found or already processed',
+      );
     }
 
     relationRequestAccept.relation_type = RelationType.FOLLOWING;
@@ -298,14 +316,17 @@ export class RelationsService {
     if (relationAcceptRequest) {
       relationRequestAccept.is_mutual = true;
       relationAcceptRequest.is_mutual = true;
-      await this.relationRepository.save([relationRequestAccept, relationAcceptRequest]);
+      await this.relationRepository.save([
+        relationRequestAccept,
+        relationAcceptRequest,
+      ]);
     } else {
       await this.relationRepository.save(relationRequestAccept);
     }
 
     // Backfill feed and delete request notification
     await this.feedService.backfillFeedOnFollow(requestUserId, user.id);
-    
+
     // Clear notification follow request
     try {
       await this.notificationService.undoNotification(
@@ -315,7 +336,7 @@ export class RelationsService {
         'USER',
         NotificationType.FOLLOW_REQUEST,
       );
-      
+
       // Notify the requester that their request was accepted
       const currentUser = await this.usersService.findUserById(user.id);
       await this.notificationService.notifyFollow(
@@ -325,7 +346,10 @@ export class RelationsService {
         'following', // They are now following each other potentially, or accepted
       );
     } catch (e) {
-      console.error('Error handling notifications for accept follow request:', e);
+      console.error(
+        'Error handling notifications for accept follow request:',
+        e,
+      );
     }
 
     return { message: 'Follow request accepted' };
@@ -342,11 +366,13 @@ export class RelationsService {
     });
 
     if (!relationRequestAccept) {
-      throw new NotFoundException('Follow request not found or already processed');
+      throw new NotFoundException(
+        'Follow request not found or already processed',
+      );
     }
 
     await this.relationRepository.remove(relationRequestAccept);
-    
+
     // Clear notification follow request
     try {
       await this.notificationService.undoNotification(
@@ -555,8 +581,12 @@ export class RelationsService {
         // Notify the followed user
         try {
           const requestUser = await this.usersService.findUserById(user.id);
-          const notiRelationType = newType === RelationType.PENDING ? 'follow_request' : 'following';
-          const notiType = newType === RelationType.PENDING ? NotificationType.FOLLOW_REQUEST : NotificationType.FOLLOW;
+          const notiRelationType =
+            newType === RelationType.PENDING ? 'follow_request' : 'following';
+          const notiType =
+            newType === RelationType.PENDING
+              ? NotificationType.FOLLOW_REQUEST
+              : NotificationType.FOLLOW;
           await this.notificationService.notifyFollow(
             user.id,
             requestUser?.username || 'Someone',
@@ -565,10 +595,13 @@ export class RelationsService {
             notiType,
           );
         } catch (e) {
-          console.error('Error sending follow notification:', e);
+          console.error('Error handling notifications for follow request:', e);
         }
-        break;
 
+        return {
+          message: 'Action following performed successfully',
+          relationStatus: newType,
+        };
       case relationNew === RelationType.FOLLOWING &&
         relationRequestAccept?.relation_type === RelationType.FOLLOWING:
         // Already following, do nothing to be idempotent
@@ -605,6 +638,15 @@ export class RelationsService {
             'USER',
             NotificationType.FOLLOW,
           );
+          if (oldType === RelationType.PENDING) {
+            await this.notificationService.undoNotification(
+              user.id,
+              dto.user_id,
+              dto.user_id,
+              'USER',
+              NotificationType.FOLLOW_REQUEST,
+            );
+          }
         } catch (e) {
           console.error('Error undoing follow notification:', e);
         }

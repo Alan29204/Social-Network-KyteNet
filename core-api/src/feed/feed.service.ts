@@ -170,7 +170,9 @@ export class FeedService {
         .addSelect('COUNT(DISTINCT reaction.id)', 'like_count')
         .addSelect('COUNT(DISTINCT comment.id)', 'comment_count')
         .where('post.privacy = :privacy', { privacy: PrivacyType.PUBLIC })
-        .andWhere('post.user_id != :userId', { userId });
+        .andWhere('user.privacy = :uPrivacy', { uPrivacy: PrivacyType.PUBLIC })
+        .andWhere('post.user_id != :userId', { userId })
+        .andWhere('post.shared_post_id IS NULL');
 
       if (blockedUserIds.length > 0) {
         query.andWhere('post.user_id NOT IN (:...blocked)', {
@@ -179,6 +181,10 @@ export class FeedService {
         query.andWhere(
           '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blocked))',
           { blocked: blockedUserIds },
+        );
+        query.andWhere(
+          '(shared_post_user.id IS NULL OR shared_post_user.privacy = :spPrivacy)',
+          { spPrivacy: PrivacyType.PUBLIC },
         );
       }
 
@@ -588,7 +594,19 @@ export class FeedService {
       // Owner can always see their own posts
       if (post.user_id === userId) return true;
 
-      // Privacy check
+      // Privacy check (Post level + User level)
+      const isAccountPrivate = post.user?.privacy === PrivacyType.PRIVATE;
+      if (isAccountPrivate && !followingIds.includes(post.user_id)) {
+        return false;
+      }
+
+      // Hide reposts of private accounts if not following the original author
+      if (post.shared_post && post.shared_post.user?.privacy === PrivacyType.PRIVATE) {
+        if (post.shared_post.user.id !== userId && !followingIds.includes(post.shared_post.user.id)) {
+          return false;
+        }
+      }
+
       switch (post.privacy) {
         case PrivacyType.PUBLIC:
           return true;
