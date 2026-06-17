@@ -42,6 +42,16 @@ export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostA
     },
   });
 
+  const removeTagMutation = useMutation({
+    mutationFn: () => orvalClient({ url: `/posts/${post.id}/remove-tag`, method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+      onOpenChange(false);
+    },
+  });
+
   const copyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
     alert('Đã sao chép liên kết!');
@@ -118,6 +128,17 @@ export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostA
           >
             Báo cáo
           </button>
+        )}
+        {post?.tagged_users?.includes(currentUser?.id) && (
+          <>
+            <div className="h-[1px] w-full bg-border"></div>
+            <button 
+              className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
+              onClick={() => removeTagMutation.mutate()}
+            >
+              Gỡ thẻ
+            </button>
+          </>
         )}
         <div className="h-[1px] w-full bg-border"></div>
         <button 

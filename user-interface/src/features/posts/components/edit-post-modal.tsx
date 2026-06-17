@@ -5,6 +5,9 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
+import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface EditPostModalProps {
   post: any;
@@ -19,10 +22,10 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
   const queryClient = useQueryClient();
 
   const updatePostMutation = useMutation({
-    mutationFn: () => orvalClient({
+    mutationFn: (taggedUserIds: string[]) => orvalClient({
       url: `/posts`,
       method: 'PATCH',
-      data: { id: post.id, content, privacy: post.privacy || 'public' }
+      data: { id: post.id, content, privacy: post.privacy || 'public', tagged_users: taggedUserIds }
     }),
     onSuccess: async () => {
       // Đợi tải lại dữ liệu ngầm xong
@@ -59,11 +62,33 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
 
   const handleConfirm = () => {
     if (confirmAction === 'save') {
-      updatePostMutation.mutate();
+      const taggedUserIds: string[] = [];
+      const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+      let match;
+      while ((match = mentionRegex.exec(content)) !== null) {
+        taggedUserIds.push(match[1]);
+      }
+      updatePostMutation.mutate(taggedUserIds);
     } else if (confirmAction === 'cancel') {
       setShowConfirm(false);
       setContent(post.content || post.caption || '');
       onOpenChange(false);
+    }
+  };
+
+  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+    if (!query) return;
+    try {
+      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
+      const suggestions = res.data?.data.map((u: any) => ({
+        id: u.id,
+        display: u.username || u.email,
+        avatar: u.avatar,
+      })) || [];
+      callback(suggestions);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      callback([]);
     }
   };
 
@@ -124,12 +149,55 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
         </div>
         
         <div className="p-4">
-          <Textarea 
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[120px] border-none resize-none focus-visible:ring-0 px-0 text-base"
-            placeholder="Viết nội dung..."
-          />
+          <div className="mentions-input-wrapper relative border-none">
+            <MentionsInput
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Viết nội dung..."
+              className="mentions-input min-h-[120px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
+              style={{
+                control: { fontSize: '1rem', fontWeight: 'normal', outline: 'none', border: 'none' },
+                input: { margin: 0, padding: 0, border: 'none', outline: 'none' },
+                highlighter: { padding: 0, border: 'none' },
+                suggestions: {
+                  list: {
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '0.375rem',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    zIndex: 50,
+                    marginTop: '24px'
+                  },
+                  item: {
+                    padding: '8px 12px',
+                    borderBottom: '1px solid hsl(var(--border))',
+                  },
+                },
+              }}
+            >
+              <Mention
+                trigger="@"
+                data={fetchUsers}
+                displayTransform={(id, display) => display}
+                renderSuggestion={(suggestion, search, highlightedDisplay, index, focused) => (
+                  <div className={`flex items-center gap-2 ${focused ? 'bg-muted rounded-sm' : ''} p-1 cursor-pointer hover:bg-muted`}>
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={(suggestion as any).avatar || '/default-avatar.png'} className="object-cover" />
+                      <AvatarFallback>{suggestion.display[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{suggestion.display}</span>
+                  </div>
+                )}
+                style={{
+                  color: '#3b82f6',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+              />
+            </MentionsInput>
+          </div>
           
           {(post.medias?.length > 0 || post.images?.length > 0) && (
             <div className="mt-4 grid grid-cols-2 gap-2 opacity-70 pointer-events-none">

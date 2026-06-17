@@ -32,7 +32,7 @@ export class ChatRoom {
   type: 'direct' | 'group';
 
   @Index()
-  @Column({ default: 'chat-room.png' })
+  @Column({ nullable: true })
   avatar: string;
 
   @Column()

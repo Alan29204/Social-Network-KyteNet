@@ -1,5 +1,6 @@
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
 import { MemberType } from 'src/common/enums/member.enum';
+import { ChatMemberStatus } from 'src/common/enums/chat-member-status.enum';
 import { User } from 'src/modules/users/entities/user.entity';
 import {
   Entity,
@@ -47,8 +48,12 @@ export class ChatMember {
   @Column({ default: 0 })
   unread_count: number;
 
-  @Column({ default: true })
-  is_accepted: boolean;
+  @Column({
+    type: 'enum',
+    enum: ChatMemberStatus,
+    default: ChatMemberStatus.ACCEPTED,
+  })
+  status: ChatMemberStatus;
 
   @CreateDateColumn()
   created_at: Date;

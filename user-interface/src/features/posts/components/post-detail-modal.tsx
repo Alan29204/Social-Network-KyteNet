@@ -28,6 +28,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 
 interface PostResponse {
   id: string;
@@ -469,8 +470,11 @@ export function PostDetailModal({
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
           {/* Nội dung Text bài viết */}
           {(displayPost?.caption || displayPost?.content) && (
-            <div className="px-4 pt-3 pb-2 text-sm whitespace-pre-wrap break-words">
-              {displayPost?.caption || displayPost?.content}
+            <div className="px-4 pt-3 pb-2 text-sm">
+              <PostContentRenderer
+                content={displayPost?.caption || displayPost?.content}
+                taggedUsers={displayPost?.tagged_users || initialPost.tagged_users}
+              />
             </div>
           )}
 

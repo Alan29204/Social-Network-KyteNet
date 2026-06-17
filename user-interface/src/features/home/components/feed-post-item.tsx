@@ -21,6 +21,7 @@ export function FeedPostItem({ post }: { post: any }) {
         likesCount: post.likesCount || post.interactions?.likes || 0,
         commentsCount: post.commentsCount || post.interactions?.comments || 0,
         repostsCount: post.interactions?.reposts || 0,
+        tagged_users: post.tagged_users || [],
         isLiked: post.isLiked || post.interactions?.is_liked || false,
         isSaved: post.isSaved || false,
         isReposted: post.interactions?.is_reposted || false,
@@ -47,6 +48,7 @@ export function FeedPostItem({ post }: { post: any }) {
               images:
                 post.shared_post.medias || post.shared_post.mediaUrls || [],
               caption: post.shared_post.content || '',
+              tagged_users: post.shared_post.tagged_users || [],
             }
           : undefined,
       }}

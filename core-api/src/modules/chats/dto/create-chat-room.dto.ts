@@ -5,9 +5,9 @@ export class CreateChatRoomDto {
   @IsString()
   @MaxLength(30)
   @MinLength(3)
-  @IsNotEmpty()
-  @ApiProperty({ example: 'Group Chat' })
-  name: string;
+  @IsOptional()
+  @ApiProperty({ example: 'Group Chat', required: false })
+  name?: string;
 
   @IsArray()
   @IsOptional()

@@ -29,6 +29,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useFollowStore } from '@/features/profile/stores/follow-store';
+import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 
 interface PostCardProps {
   post: {
@@ -50,6 +51,9 @@ interface PostCardProps {
     isReposted?: boolean;
     repostedBy?: { id: string; username: string }[];
     shared_post?: any;
+    tagged_users?: string[];
+    content?: string;
+    created_at?: string;
   };
   showFollowButton?: boolean;
 }
@@ -355,19 +359,12 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
         {/* Caption (Text Content) */}
         {(displayPost.caption || displayPost.content) && (
           <div className="px-4 pb-3">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-              {(displayPost.caption || displayPost.content).length > 150
-                ? `${(displayPost.caption || displayPost.content).slice(0, 150)}...`
-                : displayPost.caption || displayPost.content}
-              {(displayPost.caption || displayPost.content).length > 150 && (
-                <button
-                  onClick={() => setIsDetailOpen(true)}
-                  className="text-muted-foreground ml-1 hover:text-snet-purple text-xs"
-                >
-                  Xem thêm
-                </button>
-              )}
-            </p>
+            <PostContentRenderer
+              content={displayPost.caption || displayPost.content}
+              taggedUsers={displayPost.tagged_users}
+              maxLength={150}
+              onShowMore={() => setIsDetailOpen(true)}
+            />
           </div>
         )}
 

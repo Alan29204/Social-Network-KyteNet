@@ -163,4 +163,17 @@ export class PostsController {
   remove(@Param('id') id: string, @User() user: IUser) {
     return this.postsService.remove(id, user);
   }
+
+  @Post(':id/remove-tag')
+  @ResponseMessage('Gỡ thẻ thành công')
+  @ApiOperation({ summary: 'Gỡ thẻ người dùng khỏi bài viết' })
+  @Doc({
+    summary: 'Remove tag from post',
+  })
+  removeTag(@Param('id') id: string, @User() user: IUser) {
+    if (!isUUID(id)) {
+      throw new BadRequestException(`Invalid ID format: ${id}`);
+    }
+    return this.postsService.removeTag(id, user.id);
+  }
 }

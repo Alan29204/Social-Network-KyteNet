@@ -1,7 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { GenderType } from 'src/common/enums/gender.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
+import { MentionPrivacyType } from 'src/common/enums/mention-privacy.enum';
+import { MessagePrivacyType } from 'src/common/enums/message-privacy.enum';
 
 export class UpdateUserDto {
   @MinLength(2)
@@ -41,7 +49,11 @@ export class UpdateUserDto {
   @IsString()
   birthday: Date;
 
-  @ApiProperty({ example: GenderType.MALE, description: 'gender', enum: GenderType })
+  @ApiProperty({
+    example: GenderType.MALE,
+    description: 'gender',
+    enum: GenderType,
+  })
   @IsOptional()
   @IsEnum(GenderType)
   gender: GenderType;
@@ -52,17 +64,44 @@ export class UpdateUserDto {
   @IsOptional()
   address: string;
 
-  @ApiProperty({ example: PrivacyType.PUBLIC, description: 'privacy', enum: PrivacyType })
+  @ApiProperty({
+    example: PrivacyType.PUBLIC,
+    description: 'privacy',
+    enum: PrivacyType,
+  })
   @IsOptional()
   @IsEnum(PrivacyType)
   privacy: PrivacyType;
+
+  @ApiProperty({
+    example: MentionPrivacyType.EVERYONE,
+    description: 'mention privacy',
+    enum: MentionPrivacyType,
+  })
+  @IsOptional()
+  @IsEnum(MentionPrivacyType)
+  mention_privacy: MentionPrivacyType;
+
+  @ApiProperty({
+    example: MessagePrivacyType.EVERYONE,
+    description: 'message privacy',
+    enum: MessagePrivacyType,
+  })
+  @IsOptional()
+  @IsEnum(MessagePrivacyType)
+  message_privacy: MessagePrivacyType;
 
   @ApiProperty({ example: 'true', description: 'Cờ để xóa avatar hiện tại' })
   @IsOptional()
   @IsString()
   removeAvatar?: string;
 
-  @ApiProperty({ type: 'string', format: 'binary', required: false, description: 'File ảnh đại diện người dùng' })
+  @ApiProperty({
+    type: 'string',
+    format: 'binary',
+    required: false,
+    description: 'File ảnh đại diện người dùng',
+  })
   @IsOptional()
   'avatar-user'?: any;
 }

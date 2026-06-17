@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsArray } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCommentDto {
   @IsString()
@@ -14,10 +15,20 @@ export class CreateCommentDto {
 
   @IsString()
   @IsOptional()
-  @ApiProperty({ description: 'ID of the parent comment if this is a reply', required: false })
+  @ApiProperty({
+    description: 'ID of the parent comment if this is a reply',
+    required: false,
+  })
   parent_id?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string')
+      return value.split(',').map((item) => item.trim());
+    return value;
+  })
+  @IsArray()
   @ApiProperty({
     example: ['user-id-1', 'user-id-2'],
     description: 'tagged user IDs',

@@ -8,6 +8,7 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
+import { User } from 'src/modules/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { MediaService } from 'src/infra/media/media.service';
@@ -20,6 +21,8 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { NotificationService } from 'src/modules/notifications/notifications.service';
+import { NotificationType } from 'src/common/enums/notification.enum';
 
 @Injectable()
 export class PostsService {
@@ -34,6 +37,8 @@ export class PostsService {
     private mediasPostsQueue: Queue,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly notificationService: NotificationService,
   ) {}
 
   /** Base URL + headers cho các call nội bộ tới ai-services. */
@@ -228,8 +233,66 @@ export class PostsService {
       newPost.user_id = user.id;
       newPost.content = dto?.content;
       newPost.medias = medias;
-      newPost.hashtags = dto.hashtags || [];
-      newPost.tagged_users = dto.tagged_users || [];
+      let hashtags = dto.hashtags || [];
+      if (typeof hashtags === 'string') hashtags = [(hashtags as string)];
+      else if (!Array.isArray(hashtags)) hashtags = [];
+      newPost.hashtags = hashtags;
+
+      let taggedUsers = dto.tagged_users || [];
+      if (typeof taggedUsers === 'string') taggedUsers = [(taggedUsers as string)];
+      else if (!Array.isArray(taggedUsers)) taggedUsers = [];
+
+      const validTaggedUsers: string[] = [];
+      let postContent = dto?.content || '';
+      const userRepository = this.repository.manager.getRepository(User);
+      const authorUser = await userRepository.findOne({ where: { id: user.id } });
+
+      if (taggedUsers.length > 0) {
+        for (const taggedUserId of taggedUsers) {
+          if (taggedUserId === user.id) continue;
+
+          let isValid = true;
+          
+          // 1. Data Collision (Block)
+          const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+          if (areBlocked) isValid = false;
+
+          if (isValid) {
+            const taggedUser = await userRepository.findOne({ where: { id: taggedUserId } });
+            if (!taggedUser) {
+              isValid = false;
+            } else {
+              const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id); // From Tagged User to Author
+
+              // 2. Tagged User's Privacy
+              if (taggedUser.mention_privacy === 'nobody') {
+                isValid = false;
+              } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+                isValid = false;
+              }
+
+              // 3. Author's Post & Account Privacy
+              const isAuthorPrivate = authorUser?.privacy === 'private' || dto.privacy === 'private';
+              if (isValid && isAuthorPrivate && relationBtoA !== 'following') {
+                isValid = false;
+              }
+            }
+          }
+
+          if (isValid) {
+            validTaggedUsers.push(taggedUserId);
+          } else {
+            // Remove UUID hyperlink from content, fallback to plain text @Name
+            // Regex match format: @[Name](uuid)
+            const regex = new RegExp(`@\\[(.*?)\\]\\(${taggedUserId}\\)`, 'g');
+            postContent = postContent.replace(regex, '@$1');
+          }
+        }
+      }
+
+      newPost.tagged_users = validTaggedUsers;
+      newPost.content = postContent;
+
       newPost.privacy = dto.privacy;
       newPost.created_at = new Date();
 
@@ -250,13 +313,30 @@ export class PostsService {
         },
       );
 
+      // Handle mentions
+      if (newPost.tagged_users && newPost.tagged_users.length > 0) {
+        for (const taggedUserId of newPost.tagged_users) {
+          await this.notificationService.notifyMentionInPost(
+            user.id,
+            'User', // actorName will be fetched by notification service
+            taggedUserId,
+            newPost.id,
+          );
+        }
+      }
+
       return {
         message: 'Create post successfully',
       };
     } catch (err) {
+      console.error('ERROR CREATING POST:', err);
       if (err instanceof BadRequestException) throw err;
 
-      throw new InternalServerErrorException('Error when create post');
+      throw new InternalServerErrorException({
+        message: 'Error when create post',
+        error: err.message,
+        stack: err.stack,
+      });
     }
   }
 
@@ -280,7 +360,9 @@ export class PostsService {
     }
 
     if (originalPost.user?.privacy === 'private') {
-      throw new BadRequestException('You cannot repost a post from a private account');
+      throw new BadRequestException(
+        'You cannot repost a post from a private account',
+      );
     }
 
     try {
@@ -345,7 +427,8 @@ export class PostsService {
     currentUser?: IUser,
   ) {
     try {
-      const qb = this.repository.createQueryBuilder('post')
+      const qb = this.repository
+        .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
         .leftJoinAndSelect('post.reactions', 'reactions')
         .leftJoinAndSelect('post.comments', 'comments')
@@ -371,24 +454,43 @@ export class PostsService {
 
       if (media_type) {
         if (media_type === 'video') {
-          qb.andWhere(`array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`);
+          qb.andWhere(
+            `array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`,
+          );
         } else if (media_type === 'image') {
-          qb.andWhere(`array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`);
+          qb.andWhere(
+            `array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`,
+          );
         }
       }
 
       if (currentUser) {
-        const followingIds = await this.relationsService.getFollowingIds(currentUser.id);
-        const blockedUserIds = await this.relationsService.getAllBlockedUserIds(currentUser.id);
+        const followingIds = await this.relationsService.getFollowingIds(
+          currentUser.id,
+        );
+        const blockedUserIds = await this.relationsService.getAllBlockedUserIds(
+          currentUser.id,
+        );
         if (blockedUserIds.length > 0) {
-          qb.andWhere('post.user_id NOT IN (:...blockedUserIds)', { blockedUserIds });
-          qb.andWhere('(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blockedUserIds))', { blockedUserIds });
+          qb.andWhere('post.user_id NOT IN (:...blockedUserIds)', {
+            blockedUserIds,
+          });
+          qb.andWhere(
+            '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blockedUserIds))',
+            { blockedUserIds },
+          );
         }
-        
+
         if (followingIds.length > 0) {
-          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))', { pub: 'public', cid: currentUser.id, followingIds });
+          qb.andWhere(
+            '(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))',
+            { pub: 'public', cid: currentUser.id, followingIds },
+          );
         } else {
-          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', { pub: 'public', cid: currentUser.id });
+          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', {
+            pub: 'public',
+            cid: currentUser.id,
+          });
         }
       } else {
         qb.andWhere('user.privacy = :pub', { pub: 'public' });
@@ -487,9 +589,56 @@ export class PostsService {
     }
 
     try {
+      let updatedTaggedUsers = dto.tagged_users;
+      if (typeof updatedTaggedUsers === 'string') updatedTaggedUsers = [(updatedTaggedUsers as string)];
+      else if (updatedTaggedUsers && !Array.isArray(updatedTaggedUsers)) updatedTaggedUsers = [];
+
+      let postContent = dto.content;
+      
+      if (updatedTaggedUsers && updatedTaggedUsers.length > 0) {
+        const validTaggedUsers: string[] = [];
+        const userRepository = this.repository.manager.getRepository(User);
+        const authorUser = await userRepository.findOne({ where: { id: user.id } });
+
+        for (const taggedUserId of updatedTaggedUsers) {
+          if (taggedUserId === user.id) continue;
+          let isValid = true;
+          
+          const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+          if (areBlocked) isValid = false;
+
+          if (isValid) {
+            const taggedUser = await userRepository.findOne({ where: { id: taggedUserId } });
+            if (!taggedUser) {
+              isValid = false;
+            } else {
+              const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id);
+              if (taggedUser.mention_privacy === 'nobody') {
+                isValid = false;
+              } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+                isValid = false;
+              }
+              const isAuthorPrivate = authorUser?.privacy === 'private' || dto.privacy === 'private';
+              if (isValid && isAuthorPrivate && relationBtoA !== 'following') {
+                isValid = false;
+              }
+            }
+          }
+
+          if (isValid) {
+            validTaggedUsers.push(taggedUserId);
+          } else if (postContent) {
+            const regex = new RegExp(`@\\[(.*?)\\]\\(${taggedUserId}\\)`, 'g');
+            postContent = postContent.replace(regex, '@$1');
+          }
+        }
+        updatedTaggedUsers = validTaggedUsers;
+      }
+
       await this.repository.update(dto.id, {
-        content: dto.content,
+        ...(postContent !== undefined && { content: postContent }),
         privacy: dto.privacy,
+        ...(updatedTaggedUsers && { tagged_users: updatedTaggedUsers }),
       });
       await this.redisService.del(`post:${dto.id}`);
 
@@ -559,6 +708,40 @@ export class PostsService {
       console.error('DELETE POST ERROR:', err);
       if (err instanceof BadRequestException) throw err;
       throw new InternalServerErrorException('Error when deleting post');
+    }
+  }
+
+  async removeTag(postId: string, userId: string) {
+    try {
+      const post = await this.repository.findOne({ where: { id: postId } });
+      if (!post)
+        throw new NotFoundException(`Post id: ${postId} does not exist`);
+
+      if (!post.tagged_users || !post.tagged_users.includes(userId)) {
+        return { message: 'You are not tagged in this post' };
+      }
+
+      // Remove from tagged_users
+      post.tagged_users = post.tagged_users.filter((id) => id !== userId);
+
+      // Replace content syntax @[Name](userId) -> Name
+      if (post.content) {
+        const regex = new RegExp(`@\\[([^\\]]+)\\]\\(${userId}\\)`, 'g');
+        post.content = post.content.replace(regex, '$1');
+      }
+
+      await this.repository.save(post);
+      await this.redisService.del(`post:${postId}`);
+
+      // Update embedding in Chromadb because content changed
+      if (post.content !== undefined) {
+        await this.upsertPostEmbedding(post.id, post.content || '');
+      }
+
+      return { message: 'Remove tag successfully' };
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      throw new InternalServerErrorException('Error when removing tag');
     }
   }
 }

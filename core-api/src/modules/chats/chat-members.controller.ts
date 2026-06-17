@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Param, Post, Patch } from '@nestjs/common';
 import { ChatMembersService } from './chat-members.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
@@ -40,6 +40,17 @@ export class ChatMembersController {
   @ApiOperation({ summary: 'Remove a member from a chat room (Admin only)' })
   removeMember(@Body() dto: RemoveMemberDto, @User() user: IUser) {
     return this.chatMembersService.removeMember(
+      dto.chat_room_id,
+      dto.target_user_id,
+      user,
+    );
+  }
+
+  @Patch('promote-admin')
+  @ResponseMessage('Promote member to admin successfully')
+  @ApiOperation({ summary: 'Promote a member to admin (Admin only)' })
+  promoteAdmin(@Body() dto: RemoveMemberDto, @User() user: IUser) {
+    return this.chatMembersService.promoteAdmin(
       dto.chat_room_id,
       dto.target_user_id,
       user,

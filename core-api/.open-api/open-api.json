@@ -1308,6 +1308,30 @@
         ]
       }
     },
+    "/chat-rooms/{id}/decline-request": {
+      "post": {
+        "operationId": "ChatRoomsController_declineMessageRequest",
+        "summary": "Decline a message request",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Rooms"
+        ]
+      }
+    },
     "/chat-members": {
       "post": {
         "operationId": "ChatMembersController_requestJoinChatRoom",
@@ -1362,6 +1386,31 @@
       "delete": {
         "operationId": "ChatMembersController_removeMember",
         "summary": "Remove a member from a chat room (Admin only)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Chat Members"
+        ]
+      }
+    },
+    "/chat-members/promote-admin": {
+      "patch": {
+        "operationId": "ChatMembersController_promoteAdmin",
+        "summary": "Promote a member to admin (Admin only)",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1929,6 +1978,44 @@
           }
         },
         "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Posts"
+        ]
+      }
+    },
+    "/posts/{id}/remove-tag": {
+      "post": {
+        "operationId": "PostsController_removeTag",
+        "summary": "Gỡ thẻ người dùng khỏi bài viết",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/AppResponseSerialization"
+                    }
+                  ]
+                }
+              }
+            }
+          },
           "201": {
             "description": ""
           }
@@ -3134,7 +3221,8 @@
               "follow",
               "reaction",
               "follow_request",
-              "system"
+              "system",
+              "mention"
             ]
           },
           "target_type": {
@@ -3244,8 +3332,15 @@
           "unread_count": {
             "type": "number"
           },
-          "is_accepted": {
-            "type": "boolean"
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "kicked",
+              "left"
+            ]
           },
           "created_at": {
             "format": "date-time",
@@ -3268,7 +3363,7 @@
           "is_muted",
           "deleted_at",
           "unread_count",
-          "is_accepted",
+          "status",
           "created_at",
           "user",
           "chat_room"
@@ -3693,7 +3788,8 @@
             "enum": [
               "normal",
               "edited",
-              "deleted"
+              "deleted",
+              "system"
             ],
             "type": "string"
           },
@@ -3967,6 +4063,14 @@
               "following"
             ]
           },
+          "mention_privacy": {
+            "type": "string",
+            "enum": [
+              "everyone",
+              "following",
+              "nobody"
+            ]
+          },
           "last_active": {
             "format": "date-time",
             "type": "string"
@@ -4095,6 +4199,7 @@
           "address",
           "privacy",
           "message_privacy",
+          "mention_privacy",
           "last_active",
           "user_category",
           "company",
@@ -4309,6 +4414,25 @@
             "example": "public",
             "description": "privacy"
           },
+          "mention_privacy": {
+            "enum": [
+              "everyone",
+              "following",
+              "nobody"
+            ],
+            "type": "string",
+            "example": "everyone",
+            "description": "mention privacy"
+          },
+          "message_privacy": {
+            "enum": [
+              "everyone",
+              "following"
+            ],
+            "type": "string",
+            "example": "everyone",
+            "description": "message privacy"
+          },
           "removeAvatar": {
             "type": "string",
             "example": "true",
@@ -4328,7 +4452,9 @@
           "birthday",
           "gender",
           "address",
-          "privacy"
+          "privacy",
+          "mention_privacy",
+          "message_privacy"
         ]
       },
       "AfterSignUpDto": {
@@ -4549,7 +4675,8 @@
               "follow",
               "reaction",
               "follow_request",
-              "system"
+              "system",
+              "mention"
             ],
             "type": "string"
           },
@@ -4699,10 +4826,7 @@
               "type": "string"
             }
           }
-        },
-        "required": [
-          "name"
-        ]
+        }
       },
       "UpdateChatRoomDto": {
         "type": "object",
@@ -4892,7 +5016,7 @@
           "content": {
             "type": "string",
             "minLength": 0,
-            "maxLength": 256,
+            "maxLength": 5000,
             "example": "Hello world",
             "description": "content"
           },
@@ -4917,6 +5041,17 @@
             "type": "string",
             "example": "public",
             "description": "privacy"
+          },
+          "tagged_users": {
+            "example": [
+              "uuid1",
+              "uuid2"
+            ],
+            "description": "tagged_users",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

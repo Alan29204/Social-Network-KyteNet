@@ -70,6 +70,15 @@ export const UserMessagePrivacy = {
   following: 'following',
 } as const;
 
+export type UserMentionPrivacy = typeof UserMentionPrivacy[keyof typeof UserMentionPrivacy];
+
+
+export const UserMentionPrivacy = {
+  everyone: 'everyone',
+  following: 'following',
+  nobody: 'nobody',
+} as const;
+
 export type UserUserCategory = typeof UserUserCategory[keyof typeof UserUserCategory];
 
 
@@ -111,6 +120,7 @@ export const NotificationNotificationType = {
   reaction: 'reaction',
   follow_request: 'follow_request',
   system: 'system',
+  mention: 'mention',
 } as const;
 
 export type NotificationMetadata = { [key: string]: unknown };
@@ -166,6 +176,17 @@ export const ChatMemberMemberType = {
   member: 'member',
 } as const;
 
+export type ChatMemberStatus = typeof ChatMemberStatus[keyof typeof ChatMemberStatus];
+
+
+export const ChatMemberStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  declined: 'declined',
+  kicked: 'kicked',
+  left: 'left',
+} as const;
+
 export type ChatMember = {
   id: string;
   chat_room_id: string;
@@ -176,7 +197,7 @@ export type ChatMember = {
   is_muted: boolean;
   deleted_at: string;
   unread_count: number;
-  is_accepted: boolean;
+  status: ChatMemberStatus;
   created_at: string;
   user: User;
   chat_room: ChatRoom;
@@ -189,6 +210,7 @@ export const ChatMessageMessageStatus = {
   normal: 'normal',
   edited: 'edited',
   deleted: 'deleted',
+  system: 'system',
 } as const;
 
 export type PinMessage = {
@@ -394,6 +416,7 @@ export type User = {
   address: string;
   privacy: UserPrivacy;
   message_privacy: UserMessagePrivacy;
+  mention_privacy: UserMentionPrivacy;
   last_active: string;
   user_category: UserUserCategory;
   company: string[];
@@ -482,6 +505,29 @@ export const UpdateUserDtoPrivacy = {
   private: 'private',
 } as const;
 
+/**
+ * mention privacy
+ */
+export type UpdateUserDtoMentionPrivacy = typeof UpdateUserDtoMentionPrivacy[keyof typeof UpdateUserDtoMentionPrivacy];
+
+
+export const UpdateUserDtoMentionPrivacy = {
+  everyone: 'everyone',
+  following: 'following',
+  nobody: 'nobody',
+} as const;
+
+/**
+ * message privacy
+ */
+export type UpdateUserDtoMessagePrivacy = typeof UpdateUserDtoMessagePrivacy[keyof typeof UpdateUserDtoMessagePrivacy];
+
+
+export const UpdateUserDtoMessagePrivacy = {
+  everyone: 'everyone',
+  following: 'following',
+} as const;
+
 export type UpdateUserDto = {
   /**
      * Your last username
@@ -519,6 +565,10 @@ export type UpdateUserDto = {
   address: string;
   /** privacy */
   privacy: UpdateUserDtoPrivacy;
+  /** mention privacy */
+  mention_privacy: UpdateUserDtoMentionPrivacy;
+  /** message privacy */
+  message_privacy: UpdateUserDtoMessagePrivacy;
   /** Cờ để xóa avatar hiện tại */
   removeAvatar?: string;
   /** File ảnh đại diện người dùng */
@@ -641,6 +691,7 @@ export const NotificationItemDtoNotificationType = {
   reaction: 'reaction',
   follow_request: 'follow_request',
   system: 'system',
+  mention: 'mention',
 } as const;
 
 export type NotificationItemDto = {
@@ -697,7 +748,7 @@ export type CreateChatRoomDto = {
      * @minLength 3
      * @maxLength 30
      */
-  name: string;
+  name?: string;
   /** List of member IDs to add initially */
   members?: string[];
 };
@@ -811,13 +862,15 @@ export type UpdatePostDto = {
   /**
      * content
      * @minLength 0
-     * @maxLength 256
+     * @maxLength 5000
      */
   content: string;
   /** medias */
   medias: string[];
   /** privacy */
   privacy: UpdatePostDtoPrivacy;
+  /** tagged_users */
+  tagged_users?: string[];
 };
 
 export type SavePostDto = {
@@ -1048,6 +1101,8 @@ export type RelationsControllerGetPendingRequestsParams = {
 page?: number;
 limit?: number;
 };
+
+export type RelationsControllerUpdateRelation201 = { [key: string]: unknown };
 
 export type NotificationControllerGetUserNotificationsParams = {
 page?: number;
@@ -2031,6 +2086,8 @@ formData.append(`birthday`, updateUserDto.birthday);
 formData.append(`gender`, updateUserDto.gender);
 formData.append(`address`, updateUserDto.address);
 formData.append(`privacy`, updateUserDto.privacy);
+formData.append(`mention_privacy`, updateUserDto.mention_privacy);
+formData.append(`message_privacy`, updateUserDto.message_privacy);
 if(updateUserDto.removeAvatar !== undefined) {
  formData.append(`removeAvatar`, updateUserDto.removeAvatar);
  }
@@ -3742,7 +3799,7 @@ export function useRelationsControllerGetRelation<TData = Awaited<ReturnType<typ
 
 
 export type relationsControllerUpdateRelationResponse201 = {
-  data: void
+  data: RelationsControllerUpdateRelation201
   status: 201
 }
 
@@ -6502,6 +6559,88 @@ export const useChatRoomsControllerAcceptMessageRequest = <TError = unknown,
       return useMutation(getChatRoomsControllerAcceptMessageRequestMutationOptions(options), queryClient);
     }
 
+export type chatRoomsControllerDeclineMessageRequestResponse201 = {
+  data: void
+  status: 201
+}
+
+export type chatRoomsControllerDeclineMessageRequestResponseSuccess = (chatRoomsControllerDeclineMessageRequestResponse201) & {
+  headers: Headers;
+};
+;
+
+export type chatRoomsControllerDeclineMessageRequestResponse = (chatRoomsControllerDeclineMessageRequestResponseSuccess)
+
+export const getChatRoomsControllerDeclineMessageRequestUrl = (id: string,) => {
+
+
+
+
+  return `/chat-rooms/${id}/decline-request`
+}
+
+/**
+ * @summary Decline a message request
+ */
+export const chatRoomsControllerDeclineMessageRequest = async (id: string, options?: RequestInit): Promise<chatRoomsControllerDeclineMessageRequestResponse> => {
+
+  return orvalClient<chatRoomsControllerDeclineMessageRequestResponse>(getChatRoomsControllerDeclineMessageRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getChatRoomsControllerDeclineMessageRequestMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['chatRoomsControllerDeclineMessageRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  chatRoomsControllerDeclineMessageRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatRoomsControllerDeclineMessageRequestMutationResult = NonNullable<Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>>
+
+    export type ChatRoomsControllerDeclineMessageRequestMutationError = unknown
+
+    /**
+ * @summary Decline a message request
+ */
+export const useChatRoomsControllerDeclineMessageRequest = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatRoomsControllerDeclineMessageRequest>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getChatRoomsControllerDeclineMessageRequestMutationOptions(options), queryClient);
+    }
+
 export type chatMembersControllerRequestJoinChatRoomResponse201 = {
   data: void
   status: 201
@@ -6746,6 +6885,88 @@ export const useChatMembersControllerRemoveMember = <TError = unknown,
         TContext
       > => {
       return useMutation(getChatMembersControllerRemoveMemberMutationOptions(options), queryClient);
+    }
+
+export type chatMembersControllerPromoteAdminResponse200 = {
+  data: void
+  status: 200
+}
+
+export type chatMembersControllerPromoteAdminResponseSuccess = (chatMembersControllerPromoteAdminResponse200) & {
+  headers: Headers;
+};
+;
+
+export type chatMembersControllerPromoteAdminResponse = (chatMembersControllerPromoteAdminResponseSuccess)
+
+export const getChatMembersControllerPromoteAdminUrl = () => {
+
+
+
+
+  return `/chat-members/promote-admin`
+}
+
+/**
+ * @summary Promote a member to admin (Admin only)
+ */
+export const chatMembersControllerPromoteAdmin = async (removeMemberDto: RemoveMemberDto, options?: RequestInit): Promise<chatMembersControllerPromoteAdminResponse> => {
+
+  return orvalClient<chatMembersControllerPromoteAdminResponse>(getChatMembersControllerPromoteAdminUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(removeMemberDto)
+  }
+);}
+
+
+
+
+export const getChatMembersControllerPromoteAdminMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>, TError,{data: RemoveMemberDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>, TError,{data: RemoveMemberDto}, TContext> => {
+
+const mutationKey = ['chatMembersControllerPromoteAdmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>, {data: RemoveMemberDto}> = (props) => {
+          const {data} = props ?? {};
+
+          return  chatMembersControllerPromoteAdmin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChatMembersControllerPromoteAdminMutationResult = NonNullable<Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>>
+    export type ChatMembersControllerPromoteAdminMutationBody = RemoveMemberDto
+    export type ChatMembersControllerPromoteAdminMutationError = unknown
+
+    /**
+ * @summary Promote a member to admin (Admin only)
+ */
+export const useChatMembersControllerPromoteAdmin = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>, TError,{data: RemoveMemberDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chatMembersControllerPromoteAdmin>>,
+        TError,
+        {data: RemoveMemberDto},
+        TContext
+      > => {
+      return useMutation(getChatMembersControllerPromoteAdminMutationOptions(options), queryClient);
     }
 
 export type chatMembersControllerLeaveRoomResponse200 = {
@@ -8542,6 +8763,93 @@ export const usePostsControllerSharePost = <TError = unknown,
         TContext
       > => {
       return useMutation(getPostsControllerSharePostMutationOptions(options), queryClient);
+    }
+
+export type postsControllerRemoveTagResponse200 = {
+  data: AppResponseSerialization
+  status: 200
+}
+
+export type postsControllerRemoveTagResponse201 = {
+  data: void
+  status: 201
+}
+
+export type postsControllerRemoveTagResponseSuccess = (postsControllerRemoveTagResponse200 | postsControllerRemoveTagResponse201) & {
+  headers: Headers;
+};
+;
+
+export type postsControllerRemoveTagResponse = (postsControllerRemoveTagResponseSuccess)
+
+export const getPostsControllerRemoveTagUrl = (id: string,) => {
+
+
+
+
+  return `/posts/${id}/remove-tag`
+}
+
+/**
+ * @summary Gỡ thẻ người dùng khỏi bài viết
+ */
+export const postsControllerRemoveTag = async (id: string, options?: RequestInit): Promise<postsControllerRemoveTagResponse> => {
+
+  return orvalClient<postsControllerRemoveTagResponse>(getPostsControllerRemoveTagUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostsControllerRemoveTagMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerRemoveTag>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof postsControllerRemoveTag>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postsControllerRemoveTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postsControllerRemoveTag>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postsControllerRemoveTag(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostsControllerRemoveTagMutationResult = NonNullable<Awaited<ReturnType<typeof postsControllerRemoveTag>>>
+
+    export type PostsControllerRemoveTagMutationError = unknown
+
+    /**
+ * @summary Gỡ thẻ người dùng khỏi bài viết
+ */
+export const usePostsControllerRemoveTag = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postsControllerRemoveTag>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof postsControllerRemoveTag>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostsControllerRemoveTagMutationOptions(options), queryClient);
     }
 
 export type savePostsControllerSavePostResponse201 = {

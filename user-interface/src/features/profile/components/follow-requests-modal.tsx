@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,11 +24,14 @@ export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalP
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: requestsData, isLoading } = useRelationsControllerGetPendingRequests({
-    query: {
-      enabled: open,
-    },
-  });
+  const { data: requestsData, isLoading } = useRelationsControllerGetPendingRequests(
+    undefined,
+    {
+      query: {
+        enabled: open,
+      },
+    }
+  );
 
   console.log('requestsData:', requestsData);
   const rawData = (requestsData as any)?.data?.data || (requestsData as any)?.data || requestsData;

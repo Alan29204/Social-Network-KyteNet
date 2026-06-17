@@ -17,6 +17,10 @@ import { ChatMember } from './entities/chat-member.entity';
 import { WaitingMembers } from './entities/waiting-members.entity';
 import { ChatRoomsService } from './chat-rooms.service';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
+import { ChatMessage } from './entities/chat-message.entity';
+import { GatewayGateway } from './gateway/gategate.gateway';
+import { ChatMemberStatus } from 'src/common/enums/chat-member-status.enum';
+import { MessageStatusType } from 'src/common/enums/message-status.enum';
 
 @Injectable()
 export class ChatMembersService {
@@ -31,6 +35,10 @@ export class ChatMembersService {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
+    @InjectRepository(ChatMessage)
+    private readonly chatMessagesRepository: Repository<ChatMessage>,
+    @Inject(forwardRef(() => GatewayGateway))
+    private readonly gatewayGateway: GatewayGateway,
   ) {}
 
   async requestJoinChatRoom(dto: RequestJoinChatRoomDto, user: IUser) {
@@ -164,20 +172,52 @@ export class ChatMembersService {
     }
 
     const membersToSave = [];
+    const acceptedUserIds = [];
+
     for (const userId of user_ids) {
       const existing = await this.findMemberInChatRoom(chat_room_id, userId);
-      if (!existing) {
-        membersToSave.push({
-          chat_room_id: chat_room_id,
-          user_id: userId,
-          member_type: MemberType.MEMBER,
-        });
+      if (!existing || existing.status === ChatMemberStatus.LEFT || existing.status === ChatMemberStatus.KICKED) {
+        const rel = await this.relationsService.getRelation(userId, user.id);
+        const status = rel === 'following' ? ChatMemberStatus.ACCEPTED : ChatMemberStatus.PENDING;
+        
+        if (existing) {
+          existing.status = status;
+          existing.member_type = MemberType.MEMBER;
+          membersToSave.push(existing);
+        } else {
+          membersToSave.push({
+            chat_room_id: chat_room_id,
+            user_id: userId,
+            member_type: MemberType.MEMBER,
+            status: status,
+          });
+        }
+        
+        if (status === ChatMemberStatus.ACCEPTED) {
+           acceptedUserIds.push(userId);
+        }
       }
     }
 
     if (membersToSave.length > 0) {
       await this.chatMembersRepository.save(membersToSave);
+      
+      await this.chatMessagesRepository.save({
+        chat_room_id: chat_room_id,
+        created_by: user.id,
+        message: 'đã thêm thành viên mới',
+        message_status: MessageStatusType.SYSTEM,
+      });
+
       await this.redisService.del(`chat-members:${chat_room_id}`);
+      await this.redisService.del(`chat-room:${chat_room_id}`);
+      
+      if (acceptedUserIds.length > 0) {
+         const fullRoom = await this.chatRoomService.findChatRoomByID(chat_room_id);
+         if (fullRoom) {
+            this.gatewayGateway.server.to(acceptedUserIds).emit('new_group_chat', fullRoom);
+         }
+      }
     }
     return { message: 'Members added successfully' };
   }
@@ -209,13 +249,81 @@ export class ChatMembersService {
       );
     }
 
-    await this.chatMembersRepository.delete({
-      chat_room_id,
-      user_id: target_user_id,
+    await this.chatMembersRepository.update(
+      { chat_room_id, user_id: target_user_id },
+      { status: ChatMemberStatus.KICKED }
+    );
+    
+    await this.chatMessagesRepository.save({
+      chat_room_id: chat_room_id,
+      created_by: user.id,
+      message: 'đã xóa một thành viên khỏi nhóm',
+      message_status: MessageStatusType.SYSTEM,
     });
+
     await this.redisService.del(`chat-members:${chat_room_id}`);
+    await this.redisService.del(`chat-room:${chat_room_id}`);
 
     return { message: 'Member removed successfully' };
+  }
+
+  async promoteAdmin(
+    chat_room_id: string,
+    target_user_id: string,
+    user: IUser,
+  ) {
+    const room = await this.chatRoomService.findChatRoomByID(chat_room_id);
+    if (!room) throw new NotFoundException('Chat room not found');
+
+    const currentUserMember = await this.findMemberInChatRoom(
+      chat_room_id,
+      user.id,
+    );
+    if (
+      !currentUserMember ||
+      currentUserMember.member_type !== MemberType.ADMIN
+    ) {
+      throw new BadRequestException(
+        'You do not have permission to promote members',
+      );
+    }
+
+    if (user.id === target_user_id) {
+      throw new BadRequestException(
+        'You are already an admin',
+      );
+    }
+
+    const targetMember = await this.findMemberInChatRoom(
+      chat_room_id,
+      target_user_id,
+    );
+    if (!targetMember || targetMember.status !== ChatMemberStatus.ACCEPTED) {
+      throw new BadRequestException('Target user is not a valid member');
+    }
+
+    await this.chatMembersRepository.update(
+      { chat_room_id, user_id: target_user_id },
+      { member_type: MemberType.ADMIN }
+    );
+    
+    await this.chatMessagesRepository.save({
+      chat_room_id: chat_room_id,
+      created_by: user.id,
+      message: 'đã chỉ định một quản trị viên mới',
+      message_status: MessageStatusType.SYSTEM,
+    });
+
+    await this.redisService.del(`chat-members:${chat_room_id}`);
+    await this.redisService.del(`chat-room:${chat_room_id}`);
+
+    const fullRoom = await this.chatRoomService.findChatRoomByID(chat_room_id);
+    if (fullRoom) {
+      // Emit event to update room info on client
+      this.gatewayGateway.server.to(chat_room_id).emit('roomUpdated', fullRoom);
+    }
+
+    return { message: 'Member promoted to admin successfully' };
   }
 
   async leaveRoom(chat_room_id: string, user: IUser) {
@@ -226,8 +334,45 @@ export class ChatMembersService {
     if (!member)
       throw new BadRequestException('You are not a member of this chat room');
 
-    await this.chatMembersRepository.delete({ chat_room_id, user_id: user.id });
+    await this.chatMembersRepository.update(
+       { chat_room_id, user_id: user.id },
+       { status: ChatMemberStatus.LEFT }
+    );
+    
+    await this.chatMessagesRepository.save({
+      chat_room_id: chat_room_id,
+      created_by: user.id,
+      message: 'đã rời khỏi nhóm',
+      message_status: MessageStatusType.SYSTEM,
+    });
+
+    if (member.member_type === MemberType.ADMIN) {
+       const otherAdmins = await this.chatMembersRepository.count({ 
+          where: { chat_room_id, member_type: MemberType.ADMIN, status: ChatMemberStatus.ACCEPTED } 
+       });
+       
+       if (otherAdmins === 0) {
+          const oldestMember = await this.chatMembersRepository.findOne({
+             where: { chat_room_id, status: ChatMemberStatus.ACCEPTED },
+             order: { created_at: 'ASC' }
+          });
+          
+          if (oldestMember) {
+             oldestMember.member_type = MemberType.ADMIN;
+             await this.chatMembersRepository.save(oldestMember);
+             
+             await this.chatMessagesRepository.save({
+                chat_room_id: chat_room_id,
+                created_by: oldestMember.user_id,
+                message: 'đã trở thành quản trị viên',
+                message_status: MessageStatusType.SYSTEM,
+             });
+          }
+       }
+    }
+
     await this.redisService.del(`chat-members:${chat_room_id}`);
+    await this.redisService.del(`chat-room:${chat_room_id}`);
 
     return { message: 'Left chat room successfully' };
   }

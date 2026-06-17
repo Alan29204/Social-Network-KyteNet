@@ -74,6 +74,7 @@ export default function ExplorePage() {
                             new Date().toISOString(),
                           images: post.medias || post.mediaUrls || [],
                           caption: post.content || '',
+                          tagged_users: post.tagged_users || [],
                           likesCount:
                             post.likesCount || post.interactions?.likes || 0,
                           commentsCount:
@@ -107,6 +108,7 @@ export default function ExplorePage() {
                                   post.shared_post.mediaUrls ||
                                   [],
                                 caption: post.shared_post.content || '',
+                                tagged_users: post.shared_post.tagged_users || [],
                               }
                             : undefined,
                         }}

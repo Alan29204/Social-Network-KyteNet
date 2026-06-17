@@ -104,6 +104,23 @@ export class NotificationService {
     );
   }
 
+  async notifyMentionInPost(
+    actorId: string,
+    actorName: string,
+    taggedUserId: string,
+    postId: string,
+  ) {
+    if (actorId === taggedUserId) return;
+
+    await this.aggregateAndSave(
+      'POST',
+      postId,
+      taggedUserId,
+      NotificationType.MENTION,
+      actorId,
+    );
+  }
+
   async notifyFollow(
     actorId: string,
     actorName: string,
@@ -537,6 +554,10 @@ export class NotificationService {
         break;
       case NotificationType.FOLLOW_REQUEST:
         title = `${actorString} đã gửi yêu cầu theo dõi bạn`;
+        message = title;
+        break;
+      case NotificationType.MENTION:
+        title = `${actorString} đã nhắc đến bạn trong một bài viết`;
         message = title;
         break;
       default:

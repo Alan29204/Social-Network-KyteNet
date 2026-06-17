@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 
 export class UpdatePostDto {
@@ -21,7 +22,7 @@ export class UpdatePostDto {
 
   @IsString()
   @IsOptional()
-  @MaxLength(256)
+  @MaxLength(5000)
   @MinLength(0)
   @ApiProperty({ example: 'Hello world', description: 'content' })
   content: string;
@@ -31,6 +32,11 @@ export class UpdatePostDto {
     example: ['img1.jpg', 'img2.jpg', 'img3.jpg'],
     description: 'medias',
   })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return value.split(',').map((item) => item.trim());
+    return value;
+  })
   @IsArray()
   medias: string[];
 
@@ -38,4 +44,14 @@ export class UpdatePostDto {
   @IsNotEmpty()
   @ApiProperty({ example: PrivacyType.PUBLIC, description: 'privacy' })
   privacy: PrivacyType;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return value.split(',').map((item) => item.trim());
+    return value;
+  })
+  @IsArray()
+  @ApiProperty({ example: ['uuid1', 'uuid2'], description: 'tagged_users', required: false })
+  tagged_users?: string[];
 }

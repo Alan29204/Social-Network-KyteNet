@@ -27,7 +27,7 @@ export class Post {
   user_id: string;
 
   @Index()
-  @Column({ default: null })
+  @Column('text', { default: null })
   content: string;
 
   @Index()

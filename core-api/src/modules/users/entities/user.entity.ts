@@ -10,6 +10,7 @@ import { PrivacyType } from 'src/common/enums/privacy.enum';
 import { RoleType } from 'src/common/enums/role.enum';
 import { UserCategoryType } from 'src/common/enums/user-category.enum';
 import { MessagePrivacyType } from 'src/common/enums/message-privacy.enum';
+import { MentionPrivacyType } from 'src/common/enums/mention-privacy.enum';
 import { NotificationUser } from 'src/modules/notifications/notification-users/entities/notification-user.entity';
 import { PinChat } from 'src/modules/chats/pin-chats/entities/pin-chat.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
@@ -75,6 +76,9 @@ export class User {
 
   @Column({ type: 'enum', enum: MessagePrivacyType, default: MessagePrivacyType.EVERYONE })
   message_privacy: MessagePrivacyType;
+
+  @Column({ type: 'enum', enum: MentionPrivacyType, default: MentionPrivacyType.EVERYONE })
+  mention_privacy: MentionPrivacyType;
 
   @Column({ nullable: true })
   last_active: Date;

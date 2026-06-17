@@ -144,6 +144,14 @@ export class ChatRoomsController {
   @ApiOperation({ summary: 'Accept a message request' })
   acceptMessageRequest(@Param('id') id: string, @User() user: IUser) {
     if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
-    return this.chatRoomsService.acceptMessageRequest(id, user.id);
+    return this.chatRoomsService.acceptMessageRequest(id, user);
+  }
+
+  @Post(':id/decline-request')
+  @ResponseMessage('Decline message request success')
+  @ApiOperation({ summary: 'Decline a message request' })
+  declineMessageRequest(@Param('id') id: string, @User() user: IUser) {
+    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+    return this.chatRoomsService.declineMessageRequest(id, user);
   }
 }

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePostsControllerCreate } from '@/services/apis/gen/queries';
+import { usePostsControllerCreate, searchControllerSearchUsers } from '@/services/apis/gen/queries';
+import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,22 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setCaption((prev) => prev + emojiData.emoji);
+  };
+
+  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+    if (!query) return;
+    try {
+      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
+      const suggestions = res.data?.data.map((u: any) => ({
+        id: u.id,
+        display: u.username || u.email,
+        avatar: u.avatar,
+      })) || [];
+      callback(suggestions);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      callback([]);
+    }
   };
 
   // Clean up object URLs to avoid memory leaks
@@ -152,6 +169,14 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
     const hashtags = caption.match(/#[\p{L}0-9_]+/gu)?.map(tag => tag.slice(1)) || [];
 
+    // Extract tagged users from the caption formatted by react-mentions: @[Display](id)
+    const taggedUserIds: string[] = [];
+    const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+    let match;
+    while ((match = mentionRegex.exec(caption)) !== null) {
+      taggedUserIds.push(match[1]);
+    }
+
     setPostStatus('loading');
     
     timeoutRef.current = setTimeout(() => {
@@ -165,6 +190,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         privacy: privacy as any,
         'medias-posts': images,
         hashtags,
+        tagged_users: taggedUserIds,
       }
     });
   };
@@ -264,12 +290,55 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
           {/* Caption Input */}
           <div className="px-4 pb-2">
-            <Textarea
-              placeholder="Bạn đang nghĩ gì?"
-              className="min-h-[100px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-            />
+            <div className="mentions-input-wrapper relative border-none">
+              <MentionsInput
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Bạn đang nghĩ gì?"
+                className="mentions-input min-h-[100px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
+                style={{
+                  control: { fontSize: '1rem', fontWeight: 'normal', outline: 'none', border: 'none' },
+                  input: { margin: 0, padding: 0, border: 'none', outline: 'none' },
+                  highlighter: { padding: 0, border: 'none' },
+                  suggestions: {
+                    list: {
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '0.375rem',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 50,
+                      marginTop: '24px'
+                    },
+                    item: {
+                      padding: '8px 12px',
+                      borderBottom: '1px solid hsl(var(--border))',
+                    },
+                  },
+                }}
+              >
+                <Mention
+                  trigger="@"
+                  data={fetchUsers}
+                  displayTransform={(id, display) => display}
+                  renderSuggestion={(suggestion, search, highlightedDisplay, index, focused) => (
+                    <div className={`flex items-center gap-2 ${focused ? 'bg-muted rounded-sm' : ''} p-1 cursor-pointer hover:bg-muted`}>
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={(suggestion as any).avatar || '/default-avatar.png'} className="object-cover" />
+                        <AvatarFallback>{suggestion.display[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium">{suggestion.display}</span>
+                    </div>
+                  )}
+                  style={{
+                    color: '#3b82f6',
+                    position: 'relative',
+                    zIndex: 1
+                  }}
+                />
+              </MentionsInput>
+            </div>
           </div>
 
           {/* Image/Video Previews & Upload Box */}

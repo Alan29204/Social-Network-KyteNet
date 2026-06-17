@@ -5,4 +5,5 @@ export enum NotificationType {
   REACTION = 'reaction',
   FOLLOW_REQUEST = 'follow_request',
   SYSTEM = 'system',
+  MENTION = 'mention',
 }

@@ -55,6 +55,7 @@ import { format } from 'date-fns';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MessagePostCard } from '../components/message-post-card';
 import ChatDetailsDrawer from '../components/ChatDetailsDrawer';
+import { CreateChatModal } from '../components/CreateChatModal';
 
 /** 6 fixed reaction emojis (Messenger-style) */
 const REACTION_EMOJIS: Record<string, string> = {
@@ -98,6 +99,7 @@ export default function MessagesPage() {
     type: 'video' | 'image';
   } | null>(null);
   const [isPinnedExpanded, setIsPinnedExpanded] = useState(false);
+  const [showCreateChatModal, setShowCreateChatModal] = useState(false);
   const [forwardTargets, setForwardTargets] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
   const [showInfo, setShowInfo] = useState(false);
@@ -669,10 +671,7 @@ export default function MessagesPage() {
           if (idx === -1) {
             // Room not in list — fallback to refetch
             queryClient.invalidateQueries({
-              queryKey: getChatRoomsControllerGetListChatRoomQueryKey({
-                page: 1,
-                limit: 50,
-              }),
+              queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
             });
             return old;
           }
@@ -1266,7 +1265,10 @@ export default function MessagesPage() {
             <div className="flex items-center gap-2 font-bold text-xl cursor-pointer">
               {user?.username} <span className="text-sm">⌄</span>
             </div>
-            <button className="p-2 hover:bg-muted/50 rounded-full transition-colors">
+            <button 
+              onClick={() => setShowCreateChatModal(true)}
+              className="p-2 hover:bg-muted/50 rounded-full transition-colors"
+            >
               <Edit className="w-6 h-6" />
             </button>
           </div>
@@ -1317,7 +1319,10 @@ export default function MessagesPage() {
                   const targetUser = room.members.find(
                     (m: any) => m.id !== user?.id,
                   );
+                  const isGroup = room.type === 'group';
                   const isActive = room.id === selectedRoomId;
+                  const displayMembers = room.members.filter((m: any) => m.id !== user?.id);
+                  const chatName = isGroup ? room.name : targetUser?.username || 'Người dùng';
 
                   return (
                     <div
@@ -1326,31 +1331,50 @@ export default function MessagesPage() {
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? 'bg-muted/80' : 'hover:bg-muted/50'}`}
                     >
                       <div className="relative shrink-0">
-                        <Avatar className="w-14 h-14">
-                          <AvatarImage
-                            src={
-                              targetUser?.profile_picture_url ||
-                              targetUser?.avatar ||
-                              '/default-avatar.png'
-                            }
-                          />
-                          <AvatarFallback>
-                            {targetUser?.username?.[0]?.toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {targetUser?.is_online && !room.is_blocked && (
+                        {isGroup && (!room.avatar || room.avatar === 'chat-room.png') ? (
+                          <div className="relative w-14 h-14">
+                            <Avatar className="w-10 h-10 absolute top-0 left-0 border-2 border-background">
+                              <AvatarImage src={displayMembers[0]?.profile_picture_url || displayMembers[0]?.avatar || '/default-avatar.png'} />
+                              <AvatarFallback>{displayMembers[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {displayMembers.length > 1 && (
+                              <Avatar className="w-10 h-10 absolute bottom-0 right-0 border-2 border-background">
+                                <AvatarImage src={displayMembers[1]?.profile_picture_url || displayMembers[1]?.avatar || '/default-avatar.png'} />
+                                <AvatarFallback>{displayMembers[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                            )}
+                          </div>
+                        ) : (
+                          <Avatar className="w-14 h-14">
+                            <AvatarImage
+                              src={
+                                isGroup
+                                  ? room.avatar
+                                  : targetUser?.profile_picture_url ||
+                                    targetUser?.avatar ||
+                                    '/default-avatar.png'
+                              }
+                            />
+                            <AvatarFallback>
+                              {chatName[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        {!isGroup && targetUser?.is_online && !room.is_blocked && (
                           <span className="absolute bottom-0.5 right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[15px] truncate">
-                          {targetUser?.username || 'Người dùng'}
+                          {chatName}
                         </p>
                         <p
                           className={`text-sm truncate ${room.unread_count > 0 ? 'text-foreground font-bold' : 'text-muted-foreground'}`}
                         >
                           {room.last_message
-                            ? `${room.last_message.created_by === user?.id ? 'Bạn: ' : ''}${room.last_message.message_status === 'deleted' || room.last_message.message_status === 'DELETED' ? 'đã thu hồi một tin nhắn' : room.last_message.message} · ${formatRelativeTime(room.last_message_at)}`
+                            ? room.last_message.message_type === 'system'
+                              ? room.last_message.message
+                              : `${room.last_message.created_by === user?.id ? 'Bạn: ' : ''}${room.last_message.message_status === 'deleted' || room.last_message.message_status === 'DELETED' ? 'đã thu hồi một tin nhắn' : room.last_message.message} · ${formatRelativeTime(room.last_message_at)}`
                             : 'Bắt đầu cuộc trò chuyện'}
                         </p>
                       </div>
@@ -1417,39 +1441,69 @@ export default function MessagesPage() {
         <div className="flex-1 flex overflow-hidden">
           {/* Right Column - Chat View */}
           <div className="flex-1 flex flex-col bg-background relative overflow-hidden border-r">
-            {(selectedRoomId && otherUser) || isVirtualChat ? (
+            {(selectedRoomId && activeRoom) || isVirtualChat ? (
               <>
                 {/* Chat Header */}
                 <div className="h-[75px] border-b border-border/40 flex items-center justify-between px-6 shrink-0">
                   <div
                     className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() =>
-                      otherUser?.id && navigate(`/profile/${otherUser.id}`)
-                    }
+                    onClick={() => {
+                      if (activeRoom?.type === 'group') {
+                        setShowInfo(!showInfo);
+                      } else {
+                        otherUser?.id && navigate(`/profile/${otherUser.id}`);
+                      }
+                    }}
                   >
                     <div className="relative">
-                      <Avatar className="w-11 h-11">
-                        <AvatarImage
-                          src={
-                            otherUser.profile_picture_url ||
-                            otherUser.avatar ||
-                            '/default-avatar.png'
-                          }
-                        />
-                        <AvatarFallback>
-                          {otherUser.username?.[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      {otherUser.is_online && !activeRoom?.is_blocked && (
+                      {activeRoom?.type === 'group' && (!activeRoom.avatar || activeRoom.avatar === 'chat-room.png') ? (
+                        (() => {
+                          const displayMembers = activeRoom.members?.filter((m: any) => m.id !== user?.id) || [];
+                          return (
+                            <div className="relative w-11 h-11">
+                              <Avatar className="w-8 h-8 absolute top-0 left-0 border-2 border-background">
+                                <AvatarImage src={displayMembers[0]?.profile_picture_url || displayMembers[0]?.avatar || '/default-avatar.png'} />
+                                <AvatarFallback>{displayMembers[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              {displayMembers.length > 1 && (
+                                <Avatar className="w-8 h-8 absolute bottom-0 right-0 border-2 border-background">
+                                  <AvatarImage src={displayMembers[1]?.profile_picture_url || displayMembers[1]?.avatar || '/default-avatar.png'} />
+                                  <AvatarFallback>{displayMembers[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <Avatar className="w-11 h-11">
+                          <AvatarImage
+                            src={
+                              activeRoom?.type === 'group'
+                                ? activeRoom.avatar
+                                : otherUser?.profile_picture_url ||
+                                  otherUser?.avatar ||
+                                  '/default-avatar.png'
+                            }
+                          />
+                          <AvatarFallback>
+                            {(activeRoom?.type === 'group' ? activeRoom.name : otherUser?.username)?.[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      {activeRoom?.type !== 'group' && otherUser?.is_online && !activeRoom?.is_blocked && (
                         <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
                       )}
                     </div>
                     <div>
                       <p className="font-bold text-base">
-                        {otherUser.username || 'Người dùng'}
+                        {activeRoom?.type === 'group'
+                          ? activeRoom.name
+                          : otherUser?.username || 'Người dùng'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {getStatusText(otherUser)}
+                        {activeRoom?.type === 'group'
+                          ? `${activeRoom.members?.length || 0} thành viên`
+                          : getStatusText(otherUser)}
                       </p>
                     </div>
                   </div>
@@ -1561,6 +1615,7 @@ export default function MessagesPage() {
                                     block: 'center',
                                   });
                                   el.classList.add('bg-muted/50');
+
                                   setTimeout(
                                     () => el.classList.remove('bg-muted/50'),
                                     2000,
@@ -1605,6 +1660,7 @@ export default function MessagesPage() {
 
                     return reversedMessages.map((msg: any, idx: number) => {
                       const isMine = msg.created_by === user?.id;
+                      const sender = msg.user || activeRoom?.members?.find((m: any) => m.id === msg.created_by) || otherUser;
                     // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
                     // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
                     const prevMsg =
@@ -1683,6 +1739,28 @@ export default function MessagesPage() {
                     }
 
                     if (
+                      msg.message_status === 'system' ||
+                      msg.message_status === 'SYSTEM'
+                    ) {
+                      return (
+                        <div key={msg.id} id={`msg-${msg.id}`}>
+                          {showTimeSeparator && (
+                            <div className="flex justify-center py-4">
+                              <span className="text-[11px] text-muted-foreground font-medium px-3 py-0.5 rounded-full bg-muted/60">
+                                {format(new Date(msg.created_at), 'HH:mm')}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-center py-2">
+                            <span className="text-[12px] text-muted-foreground font-medium px-4 py-1 rounded-full bg-muted/40 text-center">
+                              {msg.message}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (
                       msg.message_status === 'deleted' ||
                       msg.message_status === 'DELETED'
                     ) {
@@ -1715,16 +1793,13 @@ export default function MessagesPage() {
                                 <Avatar className="w-7 h-7 shrink-0 opacity-50">
                                   <AvatarImage
                                     src={
-                                      msg.user?.profile_picture_url ||
-                                      msg.user?.avatar ||
-                                      otherUser.profile_picture_url ||
-                                      otherUser.avatar ||
+                                      sender?.profile_picture_url ||
+                                      sender?.avatar ||
                                       '/default-avatar.png'
                                     }
                                   />
                                   <AvatarFallback>
-                                    {msg.user?.username?.[0]?.toUpperCase() ||
-                                      otherUser.username?.[0]?.toUpperCase()}
+                                    {sender?.username?.[0]?.toUpperCase() || 'U'}
                                   </AvatarFallback>
                                 </Avatar>
                               ) : (
@@ -1733,7 +1808,7 @@ export default function MessagesPage() {
                             <div className="px-3 py-1.5 text-[14px] italic border border-border/80 text-muted-foreground rounded-2xl bg-transparent select-none">
                               {isMine
                                 ? 'Bạn đã thu hồi một tin nhắn'
-                                : `${msg.user?.username || otherUser.username || 'Người dùng'} đã thu hồi một tin nhắn`}
+                                : `${sender?.username || 'Người dùng'} đã thu hồi một tin nhắn`}
                             </div>
                           </div>
                         </div>
@@ -1775,16 +1850,13 @@ export default function MessagesPage() {
                               <Avatar className="w-7 h-7 shrink-0">
                                 <AvatarImage
                                   src={
-                                    msg.user?.profile_picture_url ||
-                                    msg.user?.avatar ||
-                                    otherUser.profile_picture_url ||
-                                    otherUser.avatar ||
+                                    sender?.profile_picture_url ||
+                                    sender?.avatar ||
                                     '/default-avatar.png'
                                   }
                                 />
                                 <AvatarFallback>
-                                  {msg.user?.username?.[0]?.toUpperCase() ||
-                                    otherUser.username?.[0]?.toUpperCase()}
+                                  {sender?.username?.[0]?.toUpperCase() || 'U'}
                                 </AvatarFallback>
                               </Avatar>
                             ) : (
@@ -2333,30 +2405,60 @@ export default function MessagesPage() {
                   {/* Avatar introduction — shown at the visual TOP (end of list) */}
                   {!hasMore && (
                     <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3 mt-auto">
-                      <Avatar className="w-24 h-24">
-                        <AvatarImage
-                          src={
-                            otherUser.profile_picture_url ||
-                            otherUser.avatar ||
-                            '/default-avatar.png'
-                          }
-                        />
-                        <AvatarFallback>
-                          {otherUser.username?.[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <h2 className="text-xl font-bold">{}</h2>
-                      <p className="text-muted-foreground text-sm">
-                        {otherUser.username}
-                      </p>
-                      <button
-                        className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors"
-                        onClick={() =>
-                          otherUser?.id && navigate(`/profile/${otherUser.id}`)
-                        }
-                      >
-                        Xem trang cá nhân
-                      </button>
+                      {activeRoom?.type === 'group' ? (
+                        <>
+                          {(!activeRoom.avatar || activeRoom.avatar === 'chat-room.png') ? (
+                            <div className="relative w-24 h-24">
+                              <Avatar className="w-16 h-16 absolute top-0 left-0 border-4 border-background">
+                                <AvatarImage src={activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.profile_picture_url || activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.avatar || '/default-avatar.png'} />
+                                <AvatarFallback>{activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              {activeRoom.members?.filter((m: any) => m.id !== user?.id).length > 1 && (
+                                <Avatar className="w-16 h-16 absolute bottom-0 right-0 border-4 border-background">
+                                  <AvatarImage src={activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.profile_picture_url || activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.avatar || '/default-avatar.png'} />
+                                  <AvatarFallback>{activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          ) : (
+                            <Avatar className="w-24 h-24">
+                              <AvatarImage src={activeRoom.avatar} />
+                              <AvatarFallback>{activeRoom.name?.[0]?.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <h2 className="text-xl font-bold">{activeRoom.name}</h2>
+                          <p className="text-muted-foreground text-sm">
+                            {activeRoom.members?.length} thành viên
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Avatar className="w-24 h-24">
+                            <AvatarImage
+                              src={
+                                otherUser.profile_picture_url ||
+                                otherUser.avatar ||
+                                '/default-avatar.png'
+                              }
+                            />
+                            <AvatarFallback>
+                              {otherUser.username?.[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <h2 className="text-xl font-bold">{otherUser.username}</h2>
+                          <p className="text-muted-foreground text-sm">
+                            Instagram
+                          </p>
+                          <button
+                            className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors mt-2"
+                            onClick={() =>
+                              otherUser?.id && navigate(`/profile/${otherUser.id}`)
+                            }
+                          >
+                            Xem trang cá nhân
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -2498,7 +2600,7 @@ export default function MessagesPage() {
                 {/* Chat Input */}
                 {(() => {
                   const myMember = activeRoom?.members?.find((m: any) => m.id === user?.id);
-                  const isAccepted = myMember?.is_accepted !== false; // true or undefined is accepted
+                  const isAccepted = myMember?.status === 'ACCEPTED' || myMember?.status === 'accepted' || myMember?.is_accepted === true || (myMember?.status === undefined && myMember?.is_accepted === undefined);
 
                   if (!isAccepted) {
                     const targetUser = activeRoom?.members?.find((m: any) => m.id !== user?.id);
@@ -2525,19 +2627,16 @@ export default function MessagesPage() {
                             <button
                               className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-bold transition-colors"
                               onClick={() => {
-                                deleteMutation.mutate(
-                                  { roomId: activeRoom.id },
-                                  {
-                                    onSuccess: () => {
-                                      queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
-                                      navigate('/messages');
-                                      toast({ title: 'Đã xóa tin nhắn' });
-                                    }
-                                  }
-                                );
+                                orvalClient({ url: `/chat-rooms/${activeRoom.id}/decline-request`, method: 'POST' })
+                                  .then(() => {
+                                    queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                    navigate('/messages');
+                                    toast({ title: 'Đã từ chối tin nhắn' });
+                                  })
+                                  .catch(() => toast({ title: 'Lỗi khi từ chối', variant: 'destructive' }));
                               }}
                             >
-                              Xóa
+                              Từ chối
                             </button>
                             <button
                               className="px-6 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-xl font-bold transition-colors"
@@ -2984,6 +3083,11 @@ export default function MessagesPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <CreateChatModal 
+        open={showCreateChatModal} 
+        onOpenChange={setShowCreateChatModal} 
+      />
     </>
   );
 }

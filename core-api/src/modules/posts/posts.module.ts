@@ -9,6 +9,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { FeedModule } from 'src/feed/feed.module';
 import { RelationsModule } from 'src/modules/users/relations/relations.module';
 import { forwardRef } from '@nestjs/common';
+import { NotificationModule } from 'src/modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { forwardRef } from '@nestjs/common';
     RedisModule,
     FeedModule,
     forwardRef(() => RelationsModule),
+    forwardRef(() => NotificationModule),
     BullModule.registerQueue({ name: 'create-posts' }),
   ],
   controllers: [PostsController],

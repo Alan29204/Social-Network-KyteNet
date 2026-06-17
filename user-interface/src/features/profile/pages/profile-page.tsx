@@ -26,6 +26,7 @@ export default function ProfilePage() {
           postsCount?: number;
           followersCount?: number;
           followingCount?: number;
+          isFollowing?: boolean;
         }
       }>({
         method: 'GET',

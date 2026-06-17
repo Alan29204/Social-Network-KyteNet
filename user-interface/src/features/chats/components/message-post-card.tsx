@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Lock, FileX2 } from 'lucide-react';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
+import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { useState } from 'react';
 
 interface MessagePostCardProps {
@@ -88,9 +89,12 @@ export function MessagePostCard({ post }: MessagePostCardProps) {
         {/* Caption Preview */}
         {(post.content || post.caption) && (
           <div className="p-3">
-            <p className="text-xs line-clamp-2 opacity-90">
-              {post.content || post.caption}
-            </p>
+            <div className="text-xs line-clamp-2 opacity-90">
+              <PostContentRenderer 
+                content={post.content || post.caption} 
+                taggedUsers={post.tagged_users} 
+              />
+            </div>
           </div>
         )}
       </div>

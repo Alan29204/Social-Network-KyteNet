@@ -9,8 +9,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatRoom } from './entities/chat-room.entity';
+import { ChatMessage } from './entities/chat-message.entity';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { MediaService } from 'src/infra/media/media.service';
+import { ChatMemberStatus } from 'src/common/enums/chat-member-status.enum';
+import { GetListChatRoomDto } from './dto/get-list-chat-room.dto';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { UpdateChatRoomDto } from './dto/update-chat-room.dto';
@@ -22,8 +25,10 @@ import { UpdatePermissionAddMemberDto } from './dto/update-permission-add-member
 import { ChatMembersService } from './chat-members.service';
 import { UpdateChatRoomSettingsDto } from './dto/update-chat-room-settings.dto';
 import { UpdateChatRoomEmojiDto } from './dto/update-chat-room-emoji.dto';
+import { MessageStatusType } from 'src/common/enums/message-status.enum';
 import { GatewayGateway } from 'src/modules/chats/gateway/gategate.gateway';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
+import { User } from 'src/modules/users/entities/user.entity';
 
 @Injectable()
 export class ChatRoomsService {
@@ -32,6 +37,8 @@ export class ChatRoomsService {
     private chatRoomsRepository: Repository<ChatRoom>,
     @InjectRepository(ChatMember)
     private chatMembersRepository: Repository<ChatMember>,
+    @InjectRepository(ChatMessage)
+    private readonly chatMessagesRepository: Repository<ChatMessage>,
     private readonly redisService: RedisService,
     private readonly mediaService: MediaService,
     @Inject(forwardRef(() => ChatMembersService))
@@ -78,8 +85,22 @@ export class ChatRoomsService {
         }
       }
 
+      let roomName = dto.name;
+      if (!roomName && dto.members && dto.members.length > 0) {
+        const allMembersIds = [user.id, ...dto.members];
+        const users = await this.chatRoomsRepository.manager
+          .createQueryBuilder(User, 'user')
+          .select(['user.username'])
+          .where('user.id IN (:...ids)', { ids: allMembersIds })
+          .getMany();
+        roomName = users.map(u => u.username).join(', ');
+        if (roomName.length > 30) {
+          roomName = roomName.substring(0, 27) + '...';
+        }
+      }
+
       const room = await this.chatRoomsRepository.save({
-        name: dto.name,
+        name: roomName || 'Group Chat',
         type: 'group',
         created_by: user.id,
       });
@@ -89,24 +110,67 @@ export class ChatRoomsService {
           chat_room_id: room.id,
           user_id: user.id,
           member_type: MemberType.ADMIN,
+          status: ChatMemberStatus.ACCEPTED,
         },
       ];
 
       if (dto.members && dto.members.length > 0) {
         const otherMembers = dto.members.filter((mId) => mId !== user.id);
-        otherMembers.forEach((mId) => {
+        for (const mId of otherMembers) {
+          const rel = await this.relationsService.getRelation(mId, user.id);
+          const status =
+            rel === 'following'
+              ? ChatMemberStatus.ACCEPTED
+              : ChatMemberStatus.PENDING;
           membersToSave.push({
             chat_room_id: room.id,
             user_id: mId,
             member_type: MemberType.MEMBER,
+            status: status,
           });
-        });
+        }
       }
 
       await this.chatMembersRepository.save(membersToSave);
 
+      await this.chatMessagesRepository.save({
+        chat_room_id: room.id,
+        created_by: user.id,
+        message: 'đã tạo nhóm',
+        message_status: MessageStatusType.SYSTEM,
+      });
+
+      // Update room's last_message_at so it floats to the top of the sidebar
+      await this.chatRoomsRepository.update(room.id, {
+        last_message_at: () => 'CURRENT_TIMESTAMP',
+      });
+
+      // Cache last_message in Redis Hash (for room list preview)
+      const lastMsgKey = `chat_room:last_msg:${room.id}`;
+      await this.redisService.set(
+        lastMsgKey,
+        JSON.stringify({
+          message: 'đã tạo nhóm',
+          message_type: 'system',
+          created_by: user.id,
+          created_at: new Date(),
+        }),
+      );
+
+      const acceptedMembers = membersToSave
+        .filter((m) => m.status === ChatMemberStatus.ACCEPTED)
+        .map((m) => m.user_id);
+
+      const fullRoom = await this.findChatRoomByID(room.id);
+      if (fullRoom) {
+        this.gatewayGateway.server
+          .to(acceptedMembers)
+          .emit('new_group_chat', fullRoom);
+      }
+
       return { message: 'Chat room created', room_id: room.id };
-    } catch {
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
       throw new BadRequestException('Create chat room failed');
     }
   }
@@ -285,10 +349,15 @@ export class ChatRoomsService {
    * Optimized: Uses batch SQL queries and Redis pipeline to avoid N+1 problem.
    * Old approach: ~60 queries for 10 rooms → New approach: ~5 queries total.
    */
-  async getListChatRoom(user: IUser, query: PaginationDto) {
+  async getListChatRoom(user: IUser, query: GetListChatRoomDto) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
+    const type = query.type || 'primary';
+    const statusFilter =
+      type === 'requests'
+        ? ChatMemberStatus.PENDING
+        : ChatMemberStatus.ACCEPTED;
 
     try {
       // Step 1: Fetch chat rooms with members (single query with JOINs)
@@ -300,6 +369,7 @@ export class ChatRoomsService {
           'my_member.user_id = :userId',
           { userId: user.id },
         )
+        .andWhere('my_member.status = :status', { status: statusFilter })
         .andWhere(
           '(my_member.deleted_at IS NULL OR room.last_message_at > my_member.deleted_at)',
         )
@@ -320,6 +390,7 @@ export class ChatRoomsService {
           'my_member.user_id = :userId',
           { userId: user.id },
         )
+        .andWhere('my_member.status = :status', { status: statusFilter })
         .andWhere(
           '(my_member.deleted_at IS NULL OR room.last_message_at > my_member.deleted_at)',
         )
@@ -459,7 +530,7 @@ export class ChatRoomsService {
           is_online: onlineMap.get(m.user_id) || false,
           is_blocked: blockMap.get(m.user_id) || false,
           last_active: m.user?.last_active || null,
-          is_accepted: m.is_accepted,
+          status: m.status,
           unread_count: m.unread_count || 0,
         }));
 
@@ -642,10 +713,10 @@ export class ChatRoomsService {
   }
 
   // Accept a message request
-  async acceptMessageRequest(roomId: string, userId: string) {
+  async acceptMessageRequest(roomId: string, user: IUser) {
     const member = await this.chatMembersRepository.findOneBy({
       chat_room_id: roomId,
-      user_id: userId,
+      user_id: user.id,
     });
 
     if (!member) {
@@ -654,20 +725,64 @@ export class ChatRoomsService {
 
     try {
       await this.chatMembersRepository.update(
-        { chat_room_id: roomId, user_id: userId },
-        { is_accepted: true },
+        { chat_room_id: roomId, user_id: user.id },
+        { status: ChatMemberStatus.ACCEPTED },
       );
 
-      // Clear cache
+      const room = await this.chatRoomsRepository.findOne({
+        where: { id: roomId },
+      });
+      if (room && room.type === 'group') {
+        await this.chatMessagesRepository.save({
+          chat_room_id: roomId,
+          created_by: user.id,
+          message: `đã tham gia nhóm`,
+          message_status: MessageStatusType.SYSTEM,
+        });
+
+        const fullRoom = await this.findChatRoomByID(roomId);
+        if (fullRoom) {
+          const acceptedMembers = await this.chatMembersRepository.find({
+            where: { chat_room_id: roomId, status: ChatMemberStatus.ACCEPTED },
+          });
+          const acceptedMemberIds = acceptedMembers.map((m) => m.user_id);
+          this.gatewayGateway.server
+            .to(acceptedMemberIds)
+            .emit('new_group_chat', fullRoom);
+        }
+      }
+
       await this.redisService.del(`chat-room:${roomId}`);
-      
-      // We might need to clear chat rooms list cache, or frontend handles it via optimistic update
-      // It's usually better if the frontend handles the UI switch immediately.
-      
+
       return { message: 'Message request accepted successfully' };
     } catch (error) {
       console.error('Error accepting message request:', error);
       throw new BadRequestException('Accept message request failed');
+    }
+  }
+
+  async declineMessageRequest(roomId: string, user: IUser) {
+    const member = await this.chatMembersRepository.findOneBy({
+      chat_room_id: roomId,
+      user_id: user.id,
+    });
+
+    if (!member) {
+      throw new NotFoundException('You are not a member of this chat room');
+    }
+
+    try {
+      await this.chatMembersRepository.update(
+        { chat_room_id: roomId, user_id: user.id },
+        { status: ChatMemberStatus.DECLINED },
+      );
+
+      await this.redisService.del(`chat-room:${roomId}`);
+
+      return { message: 'Message request declined successfully' };
+    } catch (error) {
+      console.error('Error declining message request:', error);
+      throw new BadRequestException('Decline message request failed');
     }
   }
 }
