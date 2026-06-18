@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 interface SearchUserItemProps {
   user: {
@@ -30,20 +31,18 @@ export function SearchUserItem({ user, onNavigate }: SearchUserItemProps) {
     >
       <Avatar className="w-11 h-11 shrink-0">
         <AvatarImage
-          src={user.avatar || '/default-avatar.png'}
-          alt={user.username}
+          src={getAvatarUrl(user.avatar)}
+          alt={getDisplayName(user)}
           className="object-cover"
         />
-        <AvatarFallback>
-          {user.username?.[0]?.toUpperCase() || 'U'}
-        </AvatarFallback>
+        <AvatarFallback className="bg-muted" />
       </Avatar>
       <div className="flex flex-col min-w-0">
         <span className="font-semibold text-sm truncate">
-          {user.username || 'Người dùng'}
+          {getDisplayName(user)}
         </span>
         <span className="text-muted-foreground text-xs truncate">
-          {user.full_name || user.email || ''}
+          {user.username ? `@${user.username}` : user.email || ''}
         </span>
       </div>
     </button>

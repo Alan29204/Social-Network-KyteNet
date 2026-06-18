@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePostsControllerCreate, searchControllerSearchUsers } from '@/services/apis/gen/queries';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import {
   Dialog,
@@ -10,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+
 import {
   Select,
   SelectContent,
@@ -78,9 +79,9 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
     if (!query) return;
     try {
       const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
-      const suggestions = res.data?.data.map((u: any) => ({
+      const suggestions = (res as any).data?.data?.map((u: any) => ({
         id: u.id,
-        display: u.username || u.email,
+        display: getDisplayName(u),
         avatar: u.avatar,
       })) || [];
       callback(suggestions);
@@ -258,11 +259,11 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
           {/* User Info & Privacy */}
           <div className="flex items-center gap-3 p-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user?.avatar || '/default-avatar.png'} className="object-cover" />
-              <AvatarFallback>{user?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+              <AvatarImage src={getAvatarUrl(user?.avatar)} className="object-cover" />
+              <AvatarFallback className="bg-muted" />
             </Avatar>
             <div className="flex flex-col gap-1">
-              <span className="font-semibold text-sm">{user?.username || 'Người dùng hiện tại'}</span>
+              <span className="font-semibold text-sm">{getDisplayName(user)}</span>
               <Select value={privacy} onValueChange={setPrivacy}>
                 <SelectTrigger className="h-6 text-xs px-2 border-border focus:ring-0 gap-1 bg-secondary w-fit rounded-md">
                   <SelectValue />
@@ -298,8 +299,8 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 className="mentions-input min-h-[100px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
                 style={{
                   control: { fontSize: '1rem', fontWeight: 'normal', outline: 'none', border: 'none' },
-                  input: { margin: 0, padding: 0, border: 'none', outline: 'none' },
                   highlighter: { padding: 0, border: 'none' },
+                  input: { margin: 0, padding: 0, border: 'none', outline: 'none' },
                   suggestions: {
                     list: {
                       backgroundColor: 'hsl(var(--card))',
@@ -321,12 +322,12 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 <Mention
                   trigger="@"
                   data={fetchUsers}
-                  displayTransform={(id, display) => display}
-                  renderSuggestion={(suggestion, search, highlightedDisplay, index, focused) => (
+                  displayTransform={(_id, display) => display}
+                  renderSuggestion={(suggestion, _search, _highlightedDisplay, _index, focused) => (
                     <div className={`flex items-center gap-2 ${focused ? 'bg-muted rounded-sm' : ''} p-1 cursor-pointer hover:bg-muted`}>
                       <Avatar className="w-8 h-8">
-                        <AvatarImage src={(suggestion as any).avatar || '/default-avatar.png'} className="object-cover" />
-                        <AvatarFallback>{suggestion.display[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                        <AvatarImage src={getAvatarUrl((suggestion as any).avatar)} className="object-cover" />
+                        <AvatarFallback className="bg-muted" />
                       </Avatar>
                       <span className="text-sm font-medium">{suggestion.display}</span>
                     </div>

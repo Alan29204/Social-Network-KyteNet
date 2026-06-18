@@ -8,12 +8,15 @@ import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import { RedisModule } from 'src/infra/redis/redis.module';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
+import { RelationsModule } from 'src/modules/users/relations/relations.module';
+import { forwardRef } from '@nestjs/common';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Comment, Post, User]),
     RedisModule,
     NotificationModule,
+    forwardRef(() => RelationsModule),
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

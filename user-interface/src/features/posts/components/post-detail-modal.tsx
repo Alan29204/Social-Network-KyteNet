@@ -23,9 +23,12 @@ import { useToast } from '@/hooks/use-toast';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
+import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
+import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
@@ -35,7 +38,10 @@ interface PostResponse {
   user: {
     id: string;
     username: string;
+    full_name?: string;
     avatarUrl?: string;
+    avatar?: string;
+    profilePicture?: string;
     privacy?: string;
   };
   createdAt: string;
@@ -80,7 +86,7 @@ export function PostDetailModal({
   const [editOpen, setEditOpen] = useState(false);
   const [commentAction, setCommentAction] = useState<{
     id: string;
-    userId: string;
+    username: string;
   } | null>(null);
 
   // Lấy chi tiết bài viết (bao gồm comments mới nhất)
@@ -210,8 +216,12 @@ export function PostDetailModal({
   const handlePostComment = () => {
     if (!commentText.trim()) return;
 
-    // Tìm tag user từ nội dung text (đơn giản hóa)
     const taggedUserIds: string[] = [];
+    const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+    let match;
+    while ((match = mentionRegex.exec(commentText)) !== null) {
+      taggedUserIds.push(match[1]);
+    }
 
     commentMutation.mutate({
       content: commentText,
@@ -221,10 +231,28 @@ export function PostDetailModal({
     });
   };
 
-  const handleReplyClick = (commentId: string, username: string) => {
-    setReplyingTo({ id: commentId, username, parentId: commentId });
-    setCommentText(`@${username} `);
-    inputRef.current?.focus();
+  const handleReplyClick = (commentId: string, displayName: string, userId: string) => {
+    setReplyingTo({ id: commentId, username: displayName, parentId: commentId });
+    setCommentText(`@[${displayName}](${userId}) `);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+    if (!query) return;
+    try {
+      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
+      const suggestions = (res as any).data?.data?.map((u: any) => ({
+        id: u.id,
+        display: getDisplayName(u),
+        avatarUrl: u.avatar
+      })) || [];
+      callback(suggestions);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      callback([]);
+    }
   };
 
   const pendingToggles = useRef<Record<string, number>>({});
@@ -343,10 +371,10 @@ export function PostDetailModal({
         <Link to={`/profile/${c.user.id}`} onClick={() => onOpenChange(false)}>
           <Avatar className="w-8 h-8 shrink-0 ring-1 ring-border">
             <AvatarImage
-              src={c.user.avatar || '/default-avatar.png'}
+              src={getAvatarUrl(c.user.avatar)}
               className="object-cover"
             />
-            <AvatarFallback>{c.user.username[0]?.toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="bg-muted" />
           </Avatar>
         </Link>
         <div className="flex flex-col gap-1 flex-1">
@@ -356,10 +384,12 @@ export function PostDetailModal({
               onClick={() => onOpenChange(false)}
             >
               <span className="font-semibold text-sm mr-2 hover:text-muted-foreground">
-                {c.user.username}
+                {getDisplayName(c.user)}
               </span>
             </Link>
-            <span className="text-sm whitespace-pre-wrap">{c.content}</span>
+            <span className="text-sm whitespace-pre-wrap">
+              <PostContentRenderer content={c.content} taggedUsers={c.tagged_users} />
+            </span>
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground font-semibold">
             <span>{formatTimeAgo(c.created_at)}</span>
@@ -369,7 +399,8 @@ export function PostDetailModal({
               onClick={() =>
                 handleReplyClick(
                   c.parent_id ? c.parent_id : c.id,
-                  c.user.username,
+                  getDisplayName(c.user),
+                  c.user.id
                 )
               }
             >
@@ -380,7 +411,7 @@ export function PostDetailModal({
               <button
                 className="hover:text-foreground transition-colors ml-1"
                 onClick={() =>
-                  setCommentAction({ id: c.id, userId: c.user.id })
+                  setCommentAction({ id: c.id, username: getDisplayName(c.user) })
                 }
               >
                 <MoreHorizontal className="w-3 h-3 inline-block" />
@@ -412,7 +443,7 @@ export function PostDetailModal({
           <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
             <Repeat className="w-4 h-4" />
             <span className="text-xs font-semibold">
-              {post.user?.username || initialPost.user.username} đã đăng lại
+              {getDisplayName(post.user || initialPost.user)} đã đăng lại
             </span>
           </div>
         )}
@@ -424,18 +455,15 @@ export function PostDetailModal({
             >
               <Avatar className="w-8 h-8 cursor-pointer">
                 <AvatarImage
-                  src={
+                  src={getAvatarUrl(
                     displayPost?.user?.avatarUrl ||
-                    displayPost?.user?.avatar ||
-                    displayPost?.user?.profilePicture ||
-                    '/default-avatar.png'
-                  }
+                      displayPost?.user?.avatar ||
+                      displayPost?.user?.profilePicture,
+                  )}
                   alt="Avatar"
                   className="object-cover"
                 />
-                <AvatarFallback>
-                  {displayPost?.user?.username?.[0]?.toUpperCase()}
-                </AvatarFallback>
+                <AvatarFallback />
               </Avatar>
             </Link>
             <div className="flex items-center gap-2">
@@ -451,7 +479,7 @@ export function PostDetailModal({
                 onClick={() => onOpenChange(false)}
               >
                 <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
-                  {displayPost?.user?.username}
+                  {getDisplayName(displayPost?.user)}
                 </span>
               </Link>
               <span className="text-muted-foreground text-xs">•</span>
@@ -473,7 +501,7 @@ export function PostDetailModal({
             <div className="px-4 pt-3 pb-2 text-sm">
               <PostContentRenderer
                 content={displayPost?.caption || displayPost?.content}
-                taggedUsers={displayPost?.tagged_users || initialPost.tagged_users}
+                taggedUsers={(displayPost as any)?.tagged_users || (initialPost as any)?.tagged_users}
               />
             </div>
           )}
@@ -635,12 +663,9 @@ export function PostDetailModal({
         {/* Thanh nhập Bình luận (Cố định ở dưới cùng) */}
         <div className="border-t border-border bg-card shrink-0 p-3 relative">
           {replyingTo && (
-            <div className="flex items-center justify-between bg-muted p-2 px-3 rounded-t-lg text-xs mb-[-4px]">
-              <span className="text-muted-foreground font-medium">
-                Đang trả lời{' '}
-                <span className="font-bold text-foreground">
-                  @{replyingTo.username}
-                </span>
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 bg-muted/30">
+              <span>
+                Trả lời {replyingTo.username}
               </span>
               <button
                 onClick={() => {
@@ -674,17 +699,76 @@ export function PostDetailModal({
             >
               <Smile className="w-5 h-5" />
             </button>
-            <input
-              ref={inputRef}
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Thêm bình luận..."
-              className="flex-1 bg-transparent border-none focus:outline-none text-sm placeholder:text-muted-foreground"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handlePostComment();
-              }}
-            />
+            <div className="flex-1">
+              <MentionsInput
+                inputRef={inputRef as any}
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Thêm bình luận..."
+                className="mentions-input-comment"
+                onKeyDown={(e: any) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handlePostComment();
+                  }
+                }}
+                style={{
+                  control: {
+                    backgroundColor: 'transparent',
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                  },
+                  highlighter: {
+                    overflow: 'hidden',
+                  },
+                  input: {
+                    margin: 0,
+                    overflow: 'auto',
+                    border: 'none',
+                    outline: 'none',
+                    padding: 0,
+                  },
+                  suggestions: {
+                    list: {
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '0.375rem',
+                      boxShadow: '0 -4px 6px -1px rgb(0 0 0 / 0.1)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 50,
+                      bottom: '100%',
+                      marginBottom: '10px'
+                    },
+                    item: {
+                      padding: '8px 12px',
+                      borderBottom: '1px solid hsl(var(--border))',
+                    },
+                  },
+                }}
+              >
+                <Mention
+                  trigger="@"
+                  data={fetchUsers}
+                  displayTransform={(_id, display) => display}
+                  appendSpaceOnAdd={true}
+                  style={{
+                    color: '#3b82f6',
+                    position: 'relative',
+                    zIndex: 1
+                  }}
+                  renderSuggestion={(suggestion, _search, highlightedDisplay) => (
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors cursor-pointer text-sm">
+                      <Avatar className="w-6 h-6">
+                        <AvatarImage src={getAvatarUrl((suggestion as any).avatarUrl)} />
+                        <AvatarFallback className="bg-muted" />
+                      </Avatar>
+                      <span className="font-medium">{highlightedDisplay}</span>
+                    </div>
+                  )}
+                />
+              </MentionsInput>
+            </div>
             <button
               className="text-primary font-semibold text-sm disabled:opacity-50 shrink-0"
               disabled={!commentText.trim() || commentMutation.isPending}

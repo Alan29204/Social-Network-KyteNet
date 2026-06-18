@@ -3,6 +3,7 @@ export type StoryType = 'image' | 'video' | 'text';
 export interface StoryAuthor {
   id: string;
   username: string;
+  full_name?: string;
   avatar?: string;
 }
 
@@ -28,6 +29,7 @@ export interface StoryGroup {
 export interface StoryViewer {
   id: string;
   username: string;
+  full_name?: string;
   avatar?: string;
   viewed_at: string;
 }

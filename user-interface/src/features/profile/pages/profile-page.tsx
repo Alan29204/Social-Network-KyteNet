@@ -21,6 +21,7 @@ export default function ProfilePage() {
           email: string;
           avatar: string;
           username: string;
+          full_name?: string;
           privacy: string;
           bio?: string;
           postsCount?: number;

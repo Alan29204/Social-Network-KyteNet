@@ -15,12 +15,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useUsersControllerGetProfile } from '@/services/apis/gen/queries';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 export interface ReelData {
   id: string;
   videoUrl: string;
   caption: string;
-  user: { id: string; username: string; avatarUrl?: string; privacy?: string };
+  user: { id: string; username: string; full_name?: string; avatarUrl?: string; avatar?: string; privacy?: string };
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
@@ -209,12 +210,10 @@ export function ReelItem({
           className="flex items-center gap-2"
         >
           <Avatar className="w-9 h-9 border border-white/40">
-            <AvatarImage src={reel.user.avatarUrl} />
-            <AvatarFallback>
-              {reel.user.username?.[0]?.toUpperCase()}
-            </AvatarFallback>
+            <AvatarImage src={getAvatarUrl(reel.user.avatarUrl || reel.user.avatar)} />
+            <AvatarFallback className="bg-muted" />
           </Avatar>
-          <span className="font-semibold text-sm">{reel.user.username}</span>
+          <span className="font-semibold text-sm">{getDisplayName(reel.user)}</span>
         </Link>
         {!isMe && !isLoadingProfile && (
           <>

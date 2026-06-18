@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Link } from 'react-router-dom';
 
 interface PostContentRendererProps {
@@ -8,19 +8,32 @@ interface PostContentRendererProps {
   onShowMore?: () => void;
 }
 
-export function PostContentRenderer({ content, taggedUsers = [], maxLength, onShowMore }: PostContentRendererProps) {
-  if (!content) return null;
+export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], maxLength, onShowMore }: PostContentRendererProps) {
+  if (!content) {
+    if (hashtags && hashtags.length > 0) {
+      return (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+          {hashtags.map((tag, i) => (
+            <span key={i} className="text-snet-purple font-semibold mr-1">
+              #{tag}
+            </span>
+          ))}
+        </p>
+      );
+    }
+    return null;
+  }
 
   const renderContent = () => {
-    // Regex matches @[Display Name](id)
-    const mentionRegex = /(@\[.*?\]\(.*?\))/g;
-    const parts = content.split(mentionRegex);
+    // Regex matches @[Display Name](id) OR #hashtag
+    const tokenRegex = /(@\[.*?\]\(.*?\)|\B#[\p{L}0-9_]+)/gu;
+    const parts = content.split(tokenRegex);
 
     return parts.map((part, index) => {
-      const match = part.match(/@\[(.*?)\]\((.*?)\)/);
-      if (match) {
-        const displayName = match[1];
-        const userId = match[2];
+      const matchMention = part.match(/^@\[(.*?)\]\((.*?)\)$/);
+      if (matchMention) {
+        const displayName = matchMention[1];
+        const userId = matchMention[2];
 
         // Check if user is still tagged
         if (taggedUsers.includes(userId)) {
@@ -39,6 +52,15 @@ export function PostContentRenderer({ content, taggedUsers = [], maxLength, onSh
           return <span key={index}>{displayName}</span>;
         }
       }
+
+      if (part.startsWith('#')) {
+        return (
+          <span key={index} className="text-snet-purple font-semibold">
+            {part}
+          </span>
+        );
+      }
+
       return <span key={index}>{part}</span>;
     });
   };
@@ -73,16 +95,16 @@ export function PostContentRenderer({ content, taggedUsers = [], maxLength, onSh
 }
 
 function TruncatedContent({ content, taggedUsers = [] }: { content: string, taggedUsers?: string[] }) {
-  const mentionRegex = /(@\[.*?\]\(.*?\))/g;
-  const parts = content.split(mentionRegex);
+  const tokenRegex = /(@\[.*?\]\(.*?\)|\B#[\p{L}0-9_]+)/gu;
+  const parts = content.split(tokenRegex);
 
   return (
     <>
       {parts.map((part, index) => {
-        const match = part.match(/@\[(.*?)\]\((.*?)\)/);
-        if (match) {
-          const displayName = match[1];
-          const userId = match[2];
+        const matchMention = part.match(/^@\[(.*?)\]\((.*?)\)$/);
+        if (matchMention) {
+          const displayName = matchMention[1];
+          const userId = matchMention[2];
           if (taggedUsers.includes(userId)) {
             return (
               <Link
@@ -97,6 +119,15 @@ function TruncatedContent({ content, taggedUsers = [] }: { content: string, tagg
           }
           return <span key={index}>{displayName}</span>;
         }
+
+        if (part.startsWith('#')) {
+          return (
+            <span key={index} className="text-snet-purple font-semibold">
+              {part}
+            </span>
+          );
+        }
+
         return <span key={index}>{part}</span>;
       })}
     </>

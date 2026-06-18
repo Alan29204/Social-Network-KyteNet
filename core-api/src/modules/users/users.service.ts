@@ -40,7 +40,15 @@ export class UsersService {
   ) {}
 
   async getAccount(user: IUser) {
-    return user;
+    const userDb = await this.findUserById(user.id);
+    return {
+      id: userDb.id,
+      email: userDb.email,
+      username: userDb.username,
+      full_name: userDb.full_name,
+      avatar: userDb.avatar,
+      role: userDb.role,
+    };
   }
 
   async getHashPassword(password: string): Promise<string> {
@@ -157,6 +165,7 @@ export class UsersService {
         id: user.id,
         email: user.email,
         username: user.username,
+        full_name: user.full_name,
         avatar: user.avatar,
         role: user.role,
       },

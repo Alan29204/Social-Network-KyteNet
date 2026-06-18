@@ -5,6 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Send, X } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
+import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
+import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 
 interface ReelCommentPanelProps {
   postId: string;
@@ -26,11 +30,11 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
   const rootComments = comments.filter((c: any) => !c.parent_id);
 
   const commentMutation = useMutation({
-    mutationFn: (content: string) =>
+    mutationFn: (data: { content: string, post_id: string, tagged_users?: string[] }) =>
       orvalClient({
         url: '/comments',
         method: 'POST',
-        data: { content, post_id: postId },
+        data,
       }),
     onSuccess: () => {
       setText('');
@@ -38,9 +42,37 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
     },
   });
 
+  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+    if (!query) return;
+    try {
+      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
+      const suggestions = (res as any).data?.data?.map((u: any) => ({
+        id: u.id,
+        display: getDisplayName(u),
+        avatarUrl: u.avatar
+      })) || [];
+      callback(suggestions);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      callback([]);
+    }
+  };
+
   const handleSend = () => {
     if (!text.trim() || commentMutation.isPending) return;
-    commentMutation.mutate(text.trim());
+
+    const taggedUserIds: string[] = [];
+    const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+      taggedUserIds.push(match[1]);
+    }
+
+    commentMutation.mutate({
+      content: text,
+      post_id: postId,
+      tagged_users: taggedUserIds
+    });
   };
 
   return (
@@ -74,19 +106,17 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
             <div key={c.id} className="flex gap-3">
               <Avatar className="w-8 h-8 shrink-0">
                 <AvatarImage
-                  src={c.user?.avatar || c.user?.profilePicture}
+                  src={getAvatarUrl(c.user?.avatar || c.user?.profilePicture)}
                   className="object-cover"
                 />
-                <AvatarFallback className="text-xs">
-                  {c.user?.username?.[0]?.toUpperCase() || 'U'}
-                </AvatarFallback>
+                <AvatarFallback className="bg-muted" />
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm">
                   <span className="font-semibold mr-1.5">
-                    {c.user?.username || 'User'}
+                    {getDisplayName(c.user)}
                   </span>
-                  {c.content}
+                  <PostContentRenderer content={c.content} taggedUsers={c.tagged_users} />
                 </p>
                 <span className="text-xs text-muted-foreground">
                   {formatTimeAgo(c.created_at || new Date().toISOString())}
@@ -101,20 +131,82 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
       <div className="flex items-center gap-2 px-4 py-3 border-t border-border shrink-0">
         <Avatar className="w-8 h-8 shrink-0">
           <AvatarImage
-            src={currentUser?.avatar || '/default-avatar.png'}
+            src={getAvatarUrl(currentUser?.avatar)}
             className="object-cover"
           />
-          <AvatarFallback className="text-xs">
-            {currentUser?.username?.[0]?.toUpperCase() || 'U'}
-          </AvatarFallback>
+          <AvatarFallback className="bg-muted" />
         </Avatar>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Thêm bình luận..."
-          className="flex-1 bg-secondary rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-snet-purple"
-        />
+        <div className="flex-1 bg-secondary rounded-xl">
+          <MentionsInput
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e: any) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Thêm bình luận..."
+            className="mentions-input-reel"
+            style={{
+              control: {
+                backgroundColor: 'transparent',
+                fontSize: 14,
+                fontWeight: 'normal',
+                padding: '8px 16px',
+              },
+              highlighter: {
+                overflow: 'hidden',
+                padding: '8px 16px',
+              },
+              input: {
+                margin: 0,
+                overflow: 'auto',
+                border: 'none',
+                outline: 'none',
+                padding: '8px 16px',
+              },
+              suggestions: {
+                list: {
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '0.375rem',
+                  boxShadow: '0 -4px 6px -1px rgb(0 0 0 / 0.1)',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 50,
+                  bottom: '100%',
+                  marginBottom: '10px'
+                },
+                item: {
+                  padding: '8px 12px',
+                  borderBottom: '1px solid hsl(var(--border))',
+                },
+              },
+            }}
+          >
+            <Mention
+              trigger="@"
+              data={fetchUsers}
+              displayTransform={(_id, display) => display}
+              appendSpaceOnAdd={true}
+              style={{
+                color: 'hsl(var(--snet-purple))',
+                position: 'relative',
+                zIndex: 1
+              }}
+              renderSuggestion={(suggestion, _search, highlightedDisplay) => (
+                <div className="flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors cursor-pointer text-sm">
+                  <Avatar className="w-6 h-6">
+                    <AvatarImage src={getAvatarUrl((suggestion as any).avatarUrl)} />
+                    <AvatarFallback className="bg-muted" />
+                  </Avatar>
+                  <span className="font-medium">{highlightedDisplay}</span>
+                </div>
+              )}
+            />
+          </MentionsInput>
+        </div>
         <button
           onClick={handleSend}
           disabled={!text.trim() || commentMutation.isPending}

@@ -275,3 +275,37 @@
 .animate-heart-beat {
   animation: heart-beat 0.4s ease-in-out;
 }
+
+/* Fix react-mentions suggestion list positioning (always upward for bottom inputs) */
+.mentions-input-comment__suggestions,
+.mentions-input-reel__suggestions {
+  bottom: 100% !important;
+  top: auto !important;
+  margin-top: 0 !important;
+}
+
+.mentions-input-comment__suggestions__list,
+.mentions-input-reel__suggestions__list {
+  margin-bottom: 10px !important;
+}
+
+/* Fix react-mentions text double-rendering and invisible text globally */
+.mentions-input textarea,
+.mentions-input-comment textarea,
+.mentions-input-reel textarea {
+  color: transparent !important;
+  caret-color: hsl(var(--foreground)) !important;
+}
+
+.mentions-input__highlighter,
+.mentions-input-comment__highlighter,
+.mentions-input-reel__highlighter {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Force react-mentions hidden substrings to be visible since textarea is transparent */
+.mentions-input__highlighter span,
+.mentions-input-comment__highlighter span,
+.mentions-input-reel__highlighter span {
+  visibility: visible !important;
+}

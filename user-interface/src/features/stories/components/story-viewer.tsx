@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useMarkStoryViewed, useDeleteStory } from '../api';
 import type { StoryGroup } from '../types';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 interface StoryViewerProps {
   groups: StoryGroup[];
@@ -174,13 +175,11 @@ export function StoryViewer({
         {/* Header tác giả */}
         <div className="absolute top-6 left-0 right-0 z-20 flex items-center gap-2 px-3 pt-2">
           <Avatar className="w-8 h-8 border border-white/40">
-            <AvatarImage src={group.user.avatar} />
-            <AvatarFallback>
-              {group.user.username?.[0]?.toUpperCase()}
-            </AvatarFallback>
+            <AvatarImage src={getAvatarUrl(group.user.avatar)} />
+            <AvatarFallback className="bg-muted" />
           </Avatar>
           <span className="text-white text-sm font-semibold drop-shadow">
-            {group.user.username}
+            {getDisplayName(group.user)}
           </span>
           {isOwner && (
             <button

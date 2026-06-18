@@ -10,20 +10,23 @@ export default function ExplorePage() {
   const { ref, inView } = useInView();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useFeedControllerGetForYouFeedInfinite({
-      limit: 10,
-    }, {
-      query: {
-        getNextPageParam: (lastPage: any) => {
-          // cursor pagination meta from feed API
-          const meta = lastPage.meta || lastPage.data?.meta;
-          if (meta && meta.has_more && meta.next_cursor) {
-            return meta.next_cursor;
-          }
-          return undefined;
+    useFeedControllerGetForYouFeedInfinite(
+      {
+        limit: 10,
+      },
+      {
+        query: {
+          getNextPageParam: (lastPage: any) => {
+            // cursor pagination meta from feed API
+            const meta = lastPage.meta || lastPage.data?.meta;
+            if (meta && meta.has_more && meta.next_cursor) {
+              return meta.next_cursor;
+            }
+            return undefined;
+          },
         },
-      }
-    });
+      },
+    );
 
   useEffect(() => {
     if (inView && hasNextPage) {
@@ -34,7 +37,7 @@ export default function ExplorePage() {
   return (
     <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
       {/* Center Feed Area */}
-      <div className="flex flex-col w-full max-w-[470px] mt-8 px-0 sm:px-0">
+      <div className="flex flex-col w-full max-w-[470px] mt-8 px-0 sm:px-0 lg:translate-x-14">
         <div className="flex flex-col">
           {status === 'pending' ? (
             <div className="flex flex-col gap-6 px-4 sm:px-0">
@@ -66,7 +69,11 @@ export default function ExplorePage() {
                           user: {
                             id: post.user?.id || '',
                             username: post.user?.username || 'User',
-                            avatarUrl: post.user?.avatar || post.user?.profilePicture || '',
+                            full_name: post.user?.full_name,
+                            avatarUrl:
+                              post.user?.avatar ||
+                              post.user?.profilePicture ||
+                              '',
                           },
                           createdAt:
                             post.created_at ||
@@ -75,6 +82,7 @@ export default function ExplorePage() {
                           images: post.medias || post.mediaUrls || [],
                           caption: post.content || '',
                           tagged_users: post.tagged_users || [],
+                          hashtags: post.hashtags || [],
                           likesCount:
                             post.likesCount || post.interactions?.likes || 0,
                           commentsCount:
@@ -88,7 +96,16 @@ export default function ExplorePage() {
                             false,
                           isSaved: post.isSaved || false,
                           isReposted: post.interactions?.is_reposted || false,
-                          repostedBy: post.reposted_by || (post.shared_post ? [{ id: post.user?.id, username: post.user?.username }] : undefined),
+                          repostedBy:
+                            post.reposted_by ||
+                            (post.shared_post
+                              ? [
+                                  {
+                                    id: post.user?.id,
+                                    username: post.user?.username,
+                                  },
+                                ]
+                              : undefined),
                           shared_post: post.shared_post
                             ? {
                                 id: post.shared_post.id,
@@ -96,8 +113,11 @@ export default function ExplorePage() {
                                   id: post.shared_post.user?.id || '',
                                   username:
                                     post.shared_post.user?.username || 'User',
+                                  full_name: post.shared_post.user?.full_name,
                                   avatarUrl:
-                                    post.shared_post.user?.avatar || post.shared_post.user?.profilePicture || '',
+                                    post.shared_post.user?.avatar ||
+                                    post.shared_post.user?.profilePicture ||
+                                    '',
                                 },
                                 createdAt:
                                   post.shared_post.created_at ||
@@ -108,7 +128,9 @@ export default function ExplorePage() {
                                   post.shared_post.mediaUrls ||
                                   [],
                                 caption: post.shared_post.content || '',
-                                tagged_users: post.shared_post.tagged_users || [],
+                                tagged_users:
+                                  post.shared_post.tagged_users || [],
+                                hashtags: post.shared_post.hashtags || [],
                               }
                             : undefined,
                         }}
@@ -136,7 +158,7 @@ export default function ExplorePage() {
       </div>
 
       {/* Right Sidebar Area (Only visible on lg+ screens) */}
-      <div className="hidden lg:block ml-16 w-[320px]">
+      <div className="hidden lg:block ml-16 w-[350px] sticky top-6 h-fit translate-x-[25%]">
         <SidebarRight />
       </div>
     </div>

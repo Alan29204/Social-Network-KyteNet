@@ -6,6 +6,7 @@ import { Loader2, UserPlus, Users } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useState, useRef } from 'react';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 function SidebarSuggestionItem({ user }: { user: any }) {
   const [isFollowing, setIsFollowing] = useState(false);
@@ -48,29 +49,25 @@ function SidebarSuggestionItem({ user }: { user: any }) {
         <div className="relative shrink-0">
           <Avatar className="w-10 h-10 ring-2 ring-snet-purple/10 transition-all group-hover:ring-snet-purple/30">
             <AvatarImage
-              src={user.avatar || '/default-avatar.png'}
+              src={getAvatarUrl(user.avatar)}
               className="object-cover"
             />
-            <AvatarFallback className="bg-gradient-to-br from-snet-purple to-snet-pink text-white text-xs uppercase">
-              {user.username?.substring(0, 2) || 'U'}
-            </AvatarFallback>
+            <AvatarFallback className="bg-muted" />
           </Avatar>
           {mutualFriends.length > 0 && (
             <div className="absolute -bottom-0.5 -right-0.5">
               <Avatar className="w-4 h-4 ring-[1.5px] ring-background">
                 <AvatarImage
-                  src={mutualFriends[0].avatar || '/default-avatar.png'}
+                  src={getAvatarUrl(mutualFriends[0].avatar)}
                 />
-                <AvatarFallback className="text-[6px] bg-secondary">
-                  {mutualFriends[0].username?.[0] || '?'}
-                </AvatarFallback>
+                <AvatarFallback className="bg-muted" />
               </Avatar>
             </div>
           )}
         </div>
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-semibold truncate">
-            {user.username}
+            {getDisplayName(user)}
           </span>
           <span
             className="text-xs text-muted-foreground truncate"
@@ -99,9 +96,9 @@ export function SidebarRight() {
 
   const currentUser = {
     id: authUser?.id || '',
-    username: authUser?.username || 'user',
-    name: authUser?.email || '',
-    avatar: authUser?.avatar || '/default-avatar.png',
+    username: getDisplayName(authUser),
+    name: authUser?.username ? `@${authUser.username}` : '',
+    avatar: authUser?.avatar,
   };
 
   const { data: suggestedRes, isLoading } =
@@ -111,7 +108,7 @@ export function SidebarRight() {
     : [];
 
   return (
-    <aside className="hidden lg:flex flex-col w-[320px] pt-6 px-4 h-full animate-fade-in">
+    <aside className="hidden lg:flex flex-col w-full pt-0 px-4 h-full animate-fade-in">
       {/* Current User Card */}
       <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-4 mb-6 card-hover">
         {/* Gradient accent */}
@@ -123,10 +120,8 @@ export function SidebarRight() {
         >
           <div className="relative">
             <Avatar className="w-12 h-12 ring-2 ring-snet-purple/20">
-              <AvatarImage src={currentUser.avatar} className="object-cover" />
-              <AvatarFallback className="bg-gradient-to-br from-snet-purple to-snet-pink text-white">
-                {currentUser.username[0]?.toUpperCase()}
-              </AvatarFallback>
+              <AvatarImage src={getAvatarUrl(currentUser.avatar)} className="object-cover" />
+              <AvatarFallback className="bg-muted" />
             </Avatar>
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-card rounded-full" />
           </div>

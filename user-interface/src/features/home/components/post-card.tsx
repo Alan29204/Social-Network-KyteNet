@@ -30,6 +30,7 @@ import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useFollowStore } from '@/features/profile/stores/follow-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 interface PostCardProps {
   post: {
@@ -37,7 +38,10 @@ interface PostCardProps {
     user: {
       id: string;
       username: string;
+      full_name?: string;
       avatarUrl?: string;
+      avatar?: string;
+      profilePicture?: string;
       privacy?: string;
     };
     createdAt: string;
@@ -49,9 +53,10 @@ interface PostCardProps {
     isLiked?: boolean;
     isSaved?: boolean;
     isReposted?: boolean;
-    repostedBy?: { id: string; username: string }[];
+    repostedBy?: { id: string; username: string; full_name?: string }[];
     shared_post?: any;
     tagged_users?: string[];
+    hashtags?: string[];
     content?: string;
     created_at?: string;
   };
@@ -256,11 +261,11 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
 
   const renderRepostedBy = () => {
     const reposters = post.repostedBy;
-    if (!reposters || reposters.length === 0) return post.user.username;
-    if (reposters.length === 1) return reposters[0].username;
+    if (!reposters || reposters.length === 0) return getDisplayName(post.user);
+    if (reposters.length === 1) return getDisplayName(reposters[0]);
     if (reposters.length === 2)
-      return `${reposters[0].username}, ${reposters[1].username}`;
-    return `${reposters[0].username}, ${reposters[1].username} và ${reposters.length - 2} người khác`;
+      return `${getDisplayName(reposters[0])}, ${getDisplayName(reposters[1])}`;
+    return `${getDisplayName(reposters[0])}, ${getDisplayName(reposters[1])} và ${reposters.length - 2} người khác`;
   };
 
   return (
@@ -290,18 +295,15 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
               <div className="relative">
                 <Avatar className="w-10 h-10 ring-2 ring-snet-purple/20 ring-offset-2 ring-offset-background cursor-pointer transition-all hover:ring-snet-purple/40">
                   <AvatarImage
-                    src={
+                    src={getAvatarUrl(
                       displayPost.user.avatarUrl ||
-                      displayPost.user.avatar ||
-                      displayPost.user.profilePicture ||
-                      '/default-avatar.png'
-                    }
-                    alt={displayPost.user.username}
+                        displayPost.user.avatar ||
+                        displayPost.user.profilePicture,
+                    )}
+                    alt={getDisplayName(displayPost.user)}
                     className="object-cover"
                   />
-                  <AvatarFallback className="bg-gradient-to-br from-snet-purple to-snet-pink text-white text-xs">
-                    {displayPost.user.username?.[0]?.toUpperCase()}
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-muted" />
                 </Avatar>
                 {/* Online indicator (optional - can be dynamic) */}
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
@@ -311,7 +313,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
               <div className="flex items-center gap-2">
                 <Link to={`/profile/${displayPost.user.id}`}>
                   <span className="font-semibold text-sm hover:text-snet-purple transition-colors">
-                    {displayPost.user.username}
+                    {getDisplayName(displayPost.user)}
                   </span>
                 </Link>
                 {showFollowButton && !isMyPost && (
@@ -357,11 +359,12 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
         </div>
 
         {/* Caption (Text Content) */}
-        {(displayPost.caption || displayPost.content) && (
+        {(displayPost.caption || displayPost.content || (displayPost.hashtags && displayPost.hashtags.length > 0)) && (
           <div className="px-4 pb-3">
             <PostContentRenderer
               content={displayPost.caption || displayPost.content}
               taggedUsers={displayPost.tagged_users}
+              hashtags={displayPost.hashtags}
               maxLength={150}
               onShowMore={() => setIsDetailOpen(true)}
             />
@@ -539,12 +542,10 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
           <div className="mt-2 flex items-center gap-2 border-t border-border pt-3">
             <Avatar className="w-7 h-7">
               <AvatarImage
-                src={currentUser?.avatar || '/default-avatar.png'}
+                src={getAvatarUrl(currentUser?.avatar)}
                 className="object-cover"
               />
-              <AvatarFallback className="bg-gradient-to-br from-snet-purple to-snet-pink text-white text-[10px]">
-                {currentUser?.username?.[0]?.toUpperCase() || 'U'}
-              </AvatarFallback>
+              <AvatarFallback className="bg-muted" />
             </Avatar>
             <input
               type="text"

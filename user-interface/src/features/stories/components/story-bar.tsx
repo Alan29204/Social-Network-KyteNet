@@ -6,6 +6,7 @@ import { useStoryFeed } from '../api';
 import { StoryViewer } from './story-viewer';
 import { CreateStoryModal } from './create-story-modal';
 import type { StoryGroup } from '../types';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 export function StoryBar() {
   const currentUser = useAuthStore((s) => s.user);
@@ -40,10 +41,8 @@ export function StoryBar() {
               >
                 <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
                   <Avatar className="w-[58px] h-[58px]">
-                    <AvatarImage src={currentUser?.avatar} />
-                    <AvatarFallback>
-                      {currentUser?.username?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
+                    <AvatarImage src={getAvatarUrl(currentUser?.avatar)} />
+                    <AvatarFallback className="bg-muted" />
                   </Avatar>
                 </div>
               </div>
@@ -96,16 +95,14 @@ export function StoryBar() {
                     >
                       <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
                         <Avatar className="w-[58px] h-[58px]">
-                          <AvatarImage src={group.user.avatar} />
-                          <AvatarFallback>
-                            {group.user.username?.[0]?.toUpperCase()}
-                          </AvatarFallback>
+                          <AvatarImage src={getAvatarUrl(group.user.avatar)} />
+                          <AvatarFallback className="bg-muted" />
                         </Avatar>
                       </div>
                     </div>
                   </button>
                   <span className="text-[10px] text-muted-foreground max-w-[64px] truncate">
-                    {group.user.username}
+                    {getDisplayName(group.user)}
                   </span>
                 </div>
               );

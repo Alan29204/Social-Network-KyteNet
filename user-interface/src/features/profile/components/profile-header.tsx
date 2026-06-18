@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 interface ProfileHeaderProps {
   user: {
@@ -41,6 +42,7 @@ interface ProfileHeaderProps {
     avatar?: string;
     cover_photo?: string | null;
     username: string;
+    full_name?: string;
     bio?: string;
     postsCount?: number;
     followersCount?: number;
@@ -164,20 +166,18 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           >
             <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-background bg-background">
               <AvatarImage
-                src={user?.avatar || '/default-avatar.png'}
-                alt={user?.username}
+                src={getAvatarUrl(user?.avatar)}
+                alt={getDisplayName(user)}
                 className="object-cover"
               />
-              <AvatarFallback className="bg-transparent">
-                <Skeleton className="w-full h-full rounded-full" />
-              </AvatarFallback>
+              <AvatarFallback className="bg-muted" />
             </Avatar>
           </button>
         </div>
 
         <div className="flex-grow flex flex-col gap-4 mt-2 md:mt-20">
           <div className="flex flex-col md:flex-row items-center gap-4">
-            <h1 className="text-2xl font-semibold">{user.username}</h1>
+            <h1 className="text-2xl font-semibold">{getDisplayName(user)}</h1>
             <div className="flex gap-2">
               {isMe ? (
                 <>
@@ -285,7 +285,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           </div>
 
           <div>
-            <p className="font-semibold">{user.username}</p>
+            <p className="font-semibold text-muted-foreground">{user.username ? `@${user.username}` : ''}</p>
             {user.bio && <p className="whitespace-pre-wrap mt-1">{user.bio}</p>}
           </div>
         </div>
@@ -333,12 +333,10 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
             <div className="flex justify-center mb-4">
               <Avatar className="w-24 h-24 border">
                 <AvatarImage
-                  src={user.avatar || '/default-avatar.png'}
+                  src={getAvatarUrl(user.avatar)}
                   className="object-cover"
                 />
-                <AvatarFallback>
-                  {user.username?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
+                <AvatarFallback className="bg-muted" />
               </Avatar>
             </div>
             <AlertDialogTitle className="text-center font-semibold text-lg">

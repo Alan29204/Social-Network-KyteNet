@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { SidebarLeft } from './components/sidebar-left';
 import { GlobalPostModal } from '@/features/posts/components/global-post-modal';
+import { FloatingChat } from '@/features/chats/components/floating-chat';
 
 export function MainLayout() {
   return (
@@ -13,6 +14,7 @@ export function MainLayout() {
       </main>
 
       <GlobalPostModal />
+      <FloatingChat />
     </div>
   );
 }

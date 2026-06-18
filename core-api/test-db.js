@@ -1,15 +1,1 @@
-const { Client } = require('pg');
-const client = new Client({
-  connectionString:
-    'postgresql://postgres:postgres@localhost:5432/social_network',
-});
-client
-  .connect()
-  .then(() =>
-    client.query("SELECT privacy FROM users WHERE username = 'Kevin_11'"),
-  )
-  .then((res) => {
-    console.log('KEVIN PRIVACY IS:', res.rows[0].privacy);
-    client.end();
-  })
-  .catch((e) => console.error(e));
+﻿const { DataSource } = require('typeorm'); const ds = new DataSource({ type: 'postgres', host: 'localhost', port: 5432, username: 'postgres', password: '1', database: 'snet_db' }); ds.initialize().then(() => ds.query('SELECT id, content FROM post LIMIT 10')).then(console.log).then(() => ds.destroy());

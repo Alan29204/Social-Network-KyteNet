@@ -79,7 +79,7 @@ export class SearchService {
 
       const qb = this.userRepository
         .createQueryBuilder('user')
-        .where('(user.username ILIKE :q OR user.email ILIKE :q)', {
+        .where('(user.username ILIKE :q OR user.email ILIKE :q OR user.full_name ILIKE :q)', {
           q: searchTerm,
         });
 
@@ -93,6 +93,7 @@ export class SearchService {
         .select([
           'user.id',
           'user.username',
+          'user.full_name',
           'user.email',
           'user.avatar',
           'user.privacy',

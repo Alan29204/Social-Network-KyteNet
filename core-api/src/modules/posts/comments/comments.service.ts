@@ -16,6 +16,8 @@ import { NotificationService } from 'src/modules/notifications/notifications.ser
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { RelationsService } from 'src/modules/users/relations/relations.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class CommentsService {
@@ -28,6 +30,8 @@ export class CommentsService {
     private readonly userRepository: Repository<User>,
     private readonly redisService: RedisService,
     private readonly notificationService: NotificationService,
+    @Inject(forwardRef(() => RelationsService))
+    private readonly relationsService: RelationsService,
   ) {}
 
   /**
@@ -35,14 +39,73 @@ export class CommentsService {
    */
   async create(user: IUser, dto: CreateCommentDto) {
     try {
+      let taggedUsers = dto.tagged_users || [];
+      if (typeof taggedUsers === 'string') taggedUsers = [(taggedUsers as string)];
+      else if (!Array.isArray(taggedUsers)) taggedUsers = [];
+
+      if (taggedUsers.length > 5) {
+        throw new BadRequestException('Bạn chỉ được phép nhắc đến tối đa 5 người trong một bình luận');
+      }
+
+      let parentComment = null;
+      if (dto.parent_id) {
+        parentComment = await this.commentRepository.findOne({
+          where: { id: dto.parent_id },
+        });
+
+        if (parentComment && parentComment.user_id !== user.id) {
+          const areBlockedByParent = await this.relationsService.areBlocked(user.id, parentComment.user_id);
+          if (areBlockedByParent) {
+            throw new BadRequestException('Không thể gửi bình luận');
+          }
+        }
+      }
+
+      const validTaggedUsers: string[] = [];
+      let commentContent = dto.content || '';
+
+      if (taggedUsers.length > 0) {
+        for (const taggedUserId of taggedUsers) {
+          if (taggedUserId === user.id) continue; // Tự tag bản thân -> bỏ qua (không thông báo)
+          let isValid = true;
+
+          // 1. Block check
+          const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+          if (areBlocked) isValid = false;
+
+          // 2. Mention Privacy check
+          if (isValid) {
+            const taggedUser = await this.userRepository.findOne({ where: { id: taggedUserId } });
+            if (!taggedUser) {
+              isValid = false;
+            } else {
+              const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id);
+              if (taggedUser.mention_privacy === 'nobody') {
+                isValid = false;
+              } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+                isValid = false;
+              }
+            }
+          }
+
+          if (isValid) {
+            validTaggedUsers.push(taggedUserId);
+          } else {
+            // Revert back to plain text
+            const regex = new RegExp(`@\\[(.*?)\\]\\(${taggedUserId}\\)`, 'g');
+            commentContent = commentContent.replace(regex, '@$1');
+          }
+        }
+      }
+
       const comment = new Comment();
       comment.id = uuidv4();
       comment.user_id = user.id;
       comment.post_id = dto.post_id;
-      comment.content = dto.content;
+      comment.content = commentContent;
       comment.medias = [];
       comment.parent_id = dto.parent_id || null;
-      comment.tagged_users = dto.tagged_users || [];
+      comment.tagged_users = validTaggedUsers;
 
       await this.commentRepository.save(comment);
 
@@ -70,10 +133,7 @@ export class CommentsService {
             );
           } else {
             // It's a reply to a parent comment
-            const parentComment = await this.commentRepository.findOne({
-              where: { id: dto.parent_id },
-            });
-            if (parentComment) {
+            if (parentComment && parentComment.user_id !== user.id) {
               await this.notificationService.notifyReplyComment(
                 user.id,
                 actor.username,
@@ -85,8 +145,14 @@ export class CommentsService {
           }
 
           // Notify tagged users
-          if (dto.tagged_users && dto.tagged_users.length > 0) {
-            for (const taggedUserId of dto.tagged_users) {
+          if (comment.tagged_users && comment.tagged_users.length > 0) {
+            for (const taggedUserId of comment.tagged_users) {
+              // Tránh tự tag chính mình (đã loại bỏ ở vòng lặp trên, nhưng cứ đề phòng)
+              if (taggedUserId === user.id) continue;
+
+              // Tránh double notification: Nếu taggedUserId chính là tác giả parent comment, bỏ qua (notifyReplyComment đã ưu tiên)
+              if (parentComment && taggedUserId === parentComment.user_id) continue;
+
               await this.notificationService.notifyTagInComment(
                 user.id,
                 actor.username,
@@ -131,9 +197,54 @@ export class CommentsService {
       }
 
       const oldTags = comment.tagged_users || [];
-      const newTags = dto.tagged_users || oldTags;
+      let newTags = oldTags;
+      let updatedContent = dto.content !== undefined ? dto.content : comment.content;
 
-      comment.content = dto.content;
+      if (dto.tagged_users !== undefined) {
+        let inputTags = dto.tagged_users;
+        if (typeof inputTags === 'string') inputTags = [(inputTags as string)];
+        else if (!Array.isArray(inputTags)) inputTags = [];
+
+        if (inputTags.length > 5) {
+          throw new BadRequestException('Bạn chỉ được phép nhắc đến tối đa 5 người trong một bình luận');
+        }
+
+        const validNewTags: string[] = [];
+
+        if (inputTags.length > 0) {
+          for (const taggedUserId of inputTags) {
+            if (taggedUserId === user.id) continue;
+            let isValid = true;
+
+            const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+            if (areBlocked) isValid = false;
+
+            if (isValid) {
+              const taggedUser = await this.userRepository.findOne({ where: { id: taggedUserId } });
+              if (!taggedUser) {
+                isValid = false;
+              } else {
+                const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id);
+                if (taggedUser.mention_privacy === 'nobody') {
+                  isValid = false;
+                } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+                  isValid = false;
+                }
+              }
+            }
+
+            if (isValid) {
+              validNewTags.push(taggedUserId);
+            } else if (updatedContent) {
+              const regex = new RegExp(`@\\[(.*?)\\]\\(${taggedUserId}\\)`, 'g');
+              updatedContent = updatedContent.replace(regex, '@$1');
+            }
+          }
+        }
+        newTags = validNewTags;
+      }
+
+      comment.content = updatedContent;
       comment.tagged_users = newTags;
 
       await this.commentRepository.save(comment);

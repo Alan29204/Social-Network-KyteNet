@@ -12,6 +12,7 @@ export function FeedPostItem({ post }: { post: any }) {
         user: {
           id: post.user?.id || '',
           username: post.user?.username || 'User',
+          full_name: post.user?.full_name,
           avatarUrl: post.user?.avatar || post.user?.profilePicture || '',
         },
         createdAt:
@@ -22,13 +23,14 @@ export function FeedPostItem({ post }: { post: any }) {
         commentsCount: post.commentsCount || post.interactions?.comments || 0,
         repostsCount: post.interactions?.reposts || 0,
         tagged_users: post.tagged_users || [],
+        hashtags: post.hashtags || [],
         isLiked: post.isLiked || post.interactions?.is_liked || false,
         isSaved: post.isSaved || false,
         isReposted: post.interactions?.is_reposted || false,
         repostedBy:
           post.reposted_by ||
           (post.shared_post
-            ? [{ id: post.user?.id, username: post.user?.username }]
+            ? [{ id: post.user?.id, username: post.user?.username, full_name: post.user?.full_name }]
             : undefined),
         shared_post: post.shared_post
           ? {
@@ -36,6 +38,7 @@ export function FeedPostItem({ post }: { post: any }) {
               user: {
                 id: post.shared_post.user?.id || '',
                 username: post.shared_post.user?.username || 'User',
+                full_name: post.shared_post.user?.full_name,
                 avatarUrl:
                   post.shared_post.user?.avatar ||
                   post.shared_post.user?.profilePicture ||
@@ -49,6 +52,7 @@ export function FeedPostItem({ post }: { post: any }) {
                 post.shared_post.medias || post.shared_post.mediaUrls || [],
               caption: post.shared_post.content || '',
               tagged_users: post.shared_post.tagged_users || [],
+              hashtags: post.shared_post.hashtags || [],
             }
           : undefined,
       }}

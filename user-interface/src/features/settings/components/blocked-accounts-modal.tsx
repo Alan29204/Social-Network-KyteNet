@@ -26,6 +26,7 @@ import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useBlockUser } from '@/features/profile/hooks/use-block-user';
 import { Loader2 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
+import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
 interface BlockedAccountsModalProps {
   open: boolean;
@@ -112,19 +113,17 @@ export function BlockedAccountsModal({
                     <div className="flex items-center gap-3 overflow-hidden">
                       <Avatar className="w-10 h-10 border border-white/10 shrink-0">
                         <AvatarImage
-                          src={item.user?.avatar || undefined}
+                          src={getAvatarUrl(item.user?.avatar)}
                           className="object-cover"
                         />
-                        <AvatarFallback>
-                          {item.user?.username?.[0]?.toUpperCase()}
-                        </AvatarFallback>
+                        <AvatarFallback className="bg-muted" />
                       </Avatar>
                       <div className="flex flex-col overflow-hidden">
                         <span className="font-semibold text-sm truncate">
-                          {item.user?.username}
+                          {getDisplayName(item.user)}
                         </span>
                         <span className="text-xs text-muted-foreground truncate">
-                          {item.user?.full_name}
+                          {item.user?.username ? `@${item.user.username}` : ''}
                         </span>
                       </div>
                     </div>

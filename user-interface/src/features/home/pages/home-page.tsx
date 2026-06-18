@@ -83,7 +83,7 @@ export default function HomePage() {
   return (
     <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
       {/* Center Feed Area */}
-      <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6 px-0 sm:px-0">
+      <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6 px-0 sm:px-0 lg:translate-x-14">
         {/* Stories Bar */}
         <StoryBar />
 
@@ -252,7 +252,7 @@ export default function HomePage() {
       </div>
 
       {/* Right Sidebar Area (Only visible on lg+ screens) */}
-      <div className="hidden lg:block ml-16 w-[320px]">
+      <div className="hidden lg:block ml-16 w-[350px] sticky top-6 h-fit translate-x-[25%]">
         <SidebarRight />
       </div>
 
