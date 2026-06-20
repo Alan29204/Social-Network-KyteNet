@@ -5,6 +5,7 @@ import {
   Get,
   BadRequestException,
   Param,
+  ParseUUIDPipe,
   Query,
   forwardRef,
   Inject,
@@ -17,6 +18,7 @@ import { RelationType } from 'src/common/enums/relation.enum';
 import { RelationsService } from './relations.service';
 import { UpdateRelationDto } from './dto/update-relation.dto';
 import { UsersService } from 'src/modules/users/users.service';
+import { UserIdDto } from './dto/user-id.dto';
 
 @ApiTags('Relations')
 @Controller('relations')
@@ -60,7 +62,7 @@ export class RelationsController {
   })
   async getListRelation(
     @User() user: IUser,
-    @Param('user_id') user_id: string,
+    @Param('user_id', ParseUUIDPipe) user_id: string,
     @Query('relation') relation: RelationType,
     @Query('mode') mode?: 'followers' | 'following',
     @Query('page') page: number = 1,
@@ -82,7 +84,10 @@ export class RelationsController {
   @Delete('follower/:id')
   @ResponseMessage('Remove follower successfully')
   @ApiOperation({ summary: 'Remove a user from your followers list' })
-  async removeFollower(@User() user: IUser, @Param('id') followerId: string) {
+  async removeFollower(
+    @User() user: IUser,
+    @Param('id', ParseUUIDPipe) followerId: string,
+  ) {
     return this.relationShipsService.removeFollower(user.id, followerId);
   }
 
@@ -99,21 +104,15 @@ export class RelationsController {
   @Post('block')
   @ResponseMessage('User blocked successfully')
   @ApiOperation({ summary: 'Block a user (absolute override)' })
-  blockUser(@User() user: IUser, @Body() body: { user_id: string }) {
-    if (!body?.user_id) {
-      throw new BadRequestException('user_id is required');
-    }
-    return this.relationShipsService.blockUser(user, body.user_id);
+  blockUser(@User() user: IUser, @Body() dto: UserIdDto) {
+    return this.relationShipsService.blockUser(user, dto.user_id);
   }
 
   @Post('unblock')
   @ResponseMessage('User unblocked successfully')
   @ApiOperation({ summary: 'Unblock a user (does not restore follow)' })
-  unblockUser(@User() user: IUser, @Body() body: { user_id: string }) {
-    if (!body?.user_id) {
-      throw new BadRequestException('user_id is required');
-    }
-    return this.relationShipsService.unblockUser(user, body.user_id);
+  unblockUser(@User() user: IUser, @Body() dto: UserIdDto) {
+    return this.relationShipsService.unblockUser(user, dto.user_id);
   }
 
   @Get('blocked/list')
@@ -145,27 +144,24 @@ export class RelationsController {
   @Post('requests/accept')
   @ResponseMessage('Follow request accepted successfully')
   @ApiOperation({ summary: 'Accept a follow request' })
-  acceptFollowRequest(@User() user: IUser, @Body() body: { user_id: string }) {
-    if (!body?.user_id) {
-      throw new BadRequestException('user_id is required');
-    }
-    return this.relationShipsService.acceptFollowRequest(user, body.user_id);
+  acceptFollowRequest(@User() user: IUser, @Body() dto: UserIdDto) {
+    return this.relationShipsService.acceptFollowRequest(user, dto.user_id);
   }
 
   @Post('requests/reject')
   @ResponseMessage('Follow request rejected successfully')
   @ApiOperation({ summary: 'Reject a follow request' })
-  rejectFollowRequest(@User() user: IUser, @Body() body: { user_id: string }) {
-    if (!body?.user_id) {
-      throw new BadRequestException('user_id is required');
-    }
-    return this.relationShipsService.rejectFollowRequest(user, body.user_id);
+  rejectFollowRequest(@User() user: IUser, @Body() dto: UserIdDto) {
+    return this.relationShipsService.rejectFollowRequest(user, dto.user_id);
   }
 
   @Get(':user_id')
   @ResponseMessage('Get relation between 2 users successfully')
   @ApiOperation({ summary: 'Get relation between 2 users' })
-  async getRelation(@User() user: IUser, @Param('user_id') user_id: string) {
+  async getRelation(
+    @User() user: IUser,
+    @Param('user_id', ParseUUIDPipe) user_id: string,
+  ) {
     const relation = await this.relationShipsService.getRelation(
       user.id,
       user_id,

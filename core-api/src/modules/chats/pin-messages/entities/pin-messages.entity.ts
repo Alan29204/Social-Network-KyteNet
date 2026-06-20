@@ -16,11 +16,11 @@ export class PinMessage {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   chat_room_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   chat_message_id: string;
 
   @OneToOne(() => ChatMessage, (chatMessage) => chatMessage.pin_messages)

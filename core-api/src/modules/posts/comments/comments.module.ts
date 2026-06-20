@@ -10,6 +10,7 @@ import { RedisModule } from 'src/infra/redis/redis.module';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
 import { RelationsModule } from 'src/modules/users/relations/relations.module';
 import { forwardRef } from '@nestjs/common';
+import { PostsModule } from 'src/modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { forwardRef } from '@nestjs/common';
     RedisModule,
     NotificationModule,
     forwardRef(() => RelationsModule),
+    PostsModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

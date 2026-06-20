@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   Query,
@@ -48,7 +49,7 @@ export class SaveListsController {
   @ResponseMessage('Cập nhật bộ sưu tập thành công')
   @ApiOperation({ summary: 'Đổi tên bộ sưu tập' })
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateSaveListDto: UpdateSaveListDto,
     @User() user: IUser,
   ) {
@@ -58,7 +59,7 @@ export class SaveListsController {
   @Delete(':id')
   @ResponseMessage('Xóa bộ sưu tập thành công')
   @ApiOperation({ summary: 'Xóa bộ sưu tập' })
-  remove(@Param('id') id: string, @User() user: IUser) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.saveListsService.remove(id, user);
   }
 }

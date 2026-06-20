@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -54,19 +55,19 @@ export class AdminsController {
 
   @Patch('users/:id/ban')
   @ApiOperation({ summary: 'Admin: Ban a user' })
-  banUser(@Param('id') id: string) {
+  banUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.banUser(id, true);
   }
 
   @Patch('users/:id/unban')
   @ApiOperation({ summary: 'Admin: Unban a user' })
-  unbanUser(@Param('id') id: string) {
+  unbanUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.banUser(id, false);
   }
 
   @Delete('users/:id')
   @ApiOperation({ summary: 'Admin: Delete a user' })
-  deleteUser(@Param('id') id: string) {
+  deleteUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.deleteUser(id);
   }
 
@@ -81,7 +82,7 @@ export class AdminsController {
 
   @Delete('posts/:id')
   @ApiOperation({ summary: 'Admin: Force-delete a post' })
-  deletePost(@Param('id') id: string) {
+  deletePost(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.deletePost(id);
   }
 
@@ -101,7 +102,10 @@ export class AdminsController {
 
   @Patch('reports/:id/resolve')
   @ApiOperation({ summary: 'Admin: Resolve or reject a report' })
-  resolveReport(@Param('id') id: string, @Body() dto: ResolveReportDto) {
+  resolveReport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResolveReportDto,
+  ) {
     return this.adminsService.resolveReport(id, dto.admin_note, dto.status);
   }
 }

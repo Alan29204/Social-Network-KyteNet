@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -9,6 +9,14 @@ import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
+import { useToast } from '@/hooks/use-toast';
+import {
+  getApiErrorMessage,
+  getMutationPost,
+  getPostAuthorId,
+  invalidatePostSurfaces,
+  replacePostInLists,
+} from '@/features/posts/utils/post-cache';
 
 interface EditPostModalProps {
   post: any;
@@ -20,7 +28,18 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
   const [content, setContent] = useState(post.content || post.caption || '');
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!open) return;
+
+    setContent(post.content || post.caption || '');
+    setShowConfirm(false);
+    setConfirmAction(null);
+    setErrorMessage('');
+  }, [open, post.id, post.content, post.caption]);
 
   const updatePostMutation = useMutation({
     mutationFn: (taggedUserIds: string[]) => {
@@ -41,17 +60,32 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
         },
       });
     },
-    onSuccess: async () => {
-      // Đợi tải lại dữ liệu ngầm xong
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['infinite'] }),
-        queryClient.invalidateQueries({ queryKey: ['postDetail'] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] })
-      ]);
+    onSuccess: async (response: any) => {
+      const updatedPost = getMutationPost(response);
+      if (updatedPost) {
+        replacePostInLists(queryClient, updatedPost);
+      }
 
+      await invalidatePostSurfaces(queryClient, {
+        userId: getPostAuthorId(updatedPost) || getPostAuthorId(post),
+        postId: updatedPost?.id || post.id,
+        includeSearch: true,
+      });
+
+      setErrorMessage('');
       onOpenChange(false);
       setShowConfirm(false);
-    }
+      toast({ title: 'Đã chỉnh sửa bài viết' });
+    },
+    onError: (error: any) => {
+      setShowConfirm(false);
+      setErrorMessage(
+        getApiErrorMessage(
+          error,
+          'Không thể cập nhật bài viết. Vui lòng thử lại.',
+        ),
+      );
+    },
   });
 
   const handleClose = () => {
@@ -127,8 +161,13 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
               confirmAction === 'cancel' ? 'text-red-500' : 'text-blue-500'
             }`}
             onClick={handleConfirm}
+            disabled={updatePostMutation.isPending}
           >
-            {confirmAction === 'save' ? 'Lưu' : 'Thoát'}
+            {updatePostMutation.isPending
+              ? 'Đang lưu...'
+              : confirmAction === 'save'
+                ? 'Lưu'
+                : 'Thoát'}
           </button>
           <div className="h-[1px] w-full bg-border"></div>
           <button 
@@ -163,6 +202,11 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
         </div>
         
         <div className="p-4">
+          {errorMessage && (
+            <div className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
           <div className="mentions-input-wrapper relative border-none">
             <MentionsInput
               value={content}

@@ -28,6 +28,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  getMutationPost,
+  getPostAuthorId,
+  invalidatePostSurfaces,
+  upsertPostInLists,
+} from '@/features/posts/utils/post-cache';
 
 interface CreatePostModalProps {
   open: boolean;
@@ -126,15 +132,20 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   const { mutate: createPost, isPending } = usePostsControllerCreate({
     mutation: {
-      onSuccess: async () => {
+      onSuccess: async (response: any) => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setPostStatus('success');
 
-        // Đợi tải lại dữ liệu ngầm xong
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['infinite'] }),
-          queryClient.invalidateQueries({ queryKey: ['profile'] })
-        ]);
+        const createdPost = getMutationPost(response);
+        if (createdPost && user?.id) {
+          upsertPostInLists(queryClient, createdPost, { userId: user.id });
+        }
+
+        await invalidatePostSurfaces(queryClient, {
+          userId: user?.id || getPostAuthorId(createdPost),
+          postId: createdPost?.id,
+          includeSearch: true,
+        });
 
         setTimeout(() => {
           // Reset state after success
@@ -274,9 +285,9 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                       <Globe className="w-3 h-3" /> Công khai
                     </div>
                   </SelectItem>
-                  <SelectItem value="friend">
+                  <SelectItem value="follower">
                     <div className="flex items-center gap-2">
-                      <Users className="w-3 h-3" /> Bạn bè
+                      <Users className="w-3 h-3" /> Người theo dõi
                     </div>
                   </SelectItem>
                   <SelectItem value="private">

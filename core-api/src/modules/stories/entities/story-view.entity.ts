@@ -18,11 +18,11 @@ export class StoryView {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   story_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   viewer_id: string;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })

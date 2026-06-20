@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { NotificationType } from 'src/common/enums/notification.enum';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Reaction } from './entities/reaction.entity';
@@ -10,6 +14,8 @@ import { RedisService } from 'src/infra/redis/redis.service';
 import { NotificationService } from 'src/modules/notifications/notifications.service';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
+import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
+import { PostVisibilityService } from 'src/modules/posts/post-visibility.service';
 
 @Injectable()
 export class ReactionsService {
@@ -20,8 +26,11 @@ export class ReactionsService {
     private readonly postRepository: Repository<Post>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
     private readonly redisService: RedisService,
     private readonly notificationService: NotificationService,
+    private readonly postVisibilityService: PostVisibilityService,
   ) {}
 
   /**
@@ -36,6 +45,28 @@ export class ReactionsService {
     if (!postId && !commentId) {
       throw new BadRequestException('Either postId or commentId must be provided');
     }
+
+    let targetPostId = postId;
+    let commentOwnerId = null;
+    if (commentId) {
+      const comment = await this.commentRepository.findOne({
+        where: { id: commentId },
+      });
+      if (!comment || comment.is_hidden) {
+        throw new NotFoundException('Comment is not available');
+      }
+      if (postId && postId !== comment.post_id) {
+        throw new BadRequestException('Comment does not belong to this post');
+      }
+      targetPostId = comment.post_id;
+      commentOwnerId = comment.user_id;
+    }
+
+    if (!targetPostId) {
+      throw new BadRequestException('Post ID is required');
+    }
+
+    await this.postVisibilityService.assertCanViewPost(targetPostId, user.id);
 
     const reactionType = reaction || ReactionType.LIKE;
 
@@ -89,24 +120,6 @@ export class ReactionsService {
       result = { message: 'Reacted', reaction: reactionType };
     }
 
-    // Resolve targetPostId for cache invalidation
-    let targetPostId = postId;
-    let commentOwnerId = null;
-    if (!targetPostId && commentId) {
-      try {
-        const commentRows = await this.reactionRepository.manager.query(
-          'SELECT post_id, user_id FROM comment WHERE id = $1',
-          [commentId],
-        );
-        if (commentRows?.length > 0) {
-          targetPostId = commentRows[0].post_id;
-          commentOwnerId = commentRows[0].user_id;
-        }
-      } catch (e) {
-        console.error('Failed to resolve post_id from comment:', e);
-      }
-    }
-
     // Invalidate post cache
     if (targetPostId) {
       await this.redisService.del(`post:${targetPostId}`);
@@ -151,10 +164,23 @@ export class ReactionsService {
   /**
    * Get reaction summary for a post (counts per type).
    */
-  async getReactionSummary(postId: string) {
-    const reactions = await this.reactionRepository.find({
-      where: { post_id: postId },
-    });
+  async getReactionSummary(postId: string, user: IUser) {
+    await this.postVisibilityService.assertCanViewPost(postId, user.id);
+
+    const { blockedUserIds } =
+      await this.postVisibilityService.getViewerContext(user.id);
+    const qb = this.reactionRepository
+      .createQueryBuilder('reaction')
+      .where('reaction.post_id = :postId', { postId })
+      .andWhere('reaction.is_hidden = false');
+
+    if (blockedUserIds.length > 0) {
+      qb.andWhere('reaction.user_id NOT IN (:...blockedUserIds)', {
+        blockedUserIds,
+      });
+    }
+
+    const reactions = await qb.getMany();
 
     const summary: Record<string, number> = {};
     for (const type of Object.values(ReactionType)) {
@@ -165,6 +191,61 @@ export class ReactionsService {
     return {
       total: reactions.length,
       breakdown: summary,
+    };
+  }
+
+  async getPostReactionUsers(
+    postId: string,
+    user: IUser,
+    page: number = 1,
+    limit: number = 20,
+    reaction: ReactionType = ReactionType.LIKE,
+  ) {
+    await this.postVisibilityService.assertCanViewPost(postId, user.id);
+
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.min(50, Math.max(1, Math.floor(Number(limit) || 20)));
+
+    const { blockedUserIds } =
+      await this.postVisibilityService.getViewerContext(user.id);
+    const baseQb = this.reactionRepository
+      .createQueryBuilder('reaction')
+      .innerJoin(User, 'reaction_user', 'reaction_user.id = reaction.user_id')
+      .select('reaction_user.id', 'id')
+      .addSelect('reaction_user.username', 'username')
+      .addSelect('reaction_user.full_name', 'full_name')
+      .addSelect('reaction_user.avatar', 'avatar')
+      .addSelect('reaction.reaction', 'reaction')
+      .addSelect('reaction.created_at', 'reacted_at')
+      .where('reaction.post_id = :postId', { postId })
+      .andWhere('reaction.reaction = :reaction', { reaction })
+      .andWhere('reaction.is_hidden = false');
+
+    if (blockedUserIds.length > 0) {
+      baseQb.andWhere('reaction.user_id NOT IN (:...blockedUserIds)', {
+        blockedUserIds,
+      });
+    }
+
+    const qb = baseQb
+      .clone()
+      .orderBy('reaction.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await Promise.all([
+      qb.getRawMany(),
+      baseQb.getCount(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        last_page: Math.ceil(total / limit),
+      },
     };
   }
 }

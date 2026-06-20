@@ -35,7 +35,7 @@ export class ChatRoom {
   @Column({ nullable: true })
   avatar: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   created_by: string;
 
   @Column({ type: 'enum', enum: MemberType, default: MemberType.MEMBER })

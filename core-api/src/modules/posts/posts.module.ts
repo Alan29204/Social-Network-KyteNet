@@ -10,6 +10,7 @@ import { FeedModule } from 'src/feed/feed.module';
 import { RelationsModule } from 'src/modules/users/relations/relations.module';
 import { forwardRef } from '@nestjs/common';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
+import { PostVisibilityService } from './post-visibility.service';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { NotificationModule } from 'src/modules/notifications/notifications.modu
     BullModule.registerQueue({ name: 'create-posts' }),
   ],
   controllers: [PostsController],
-  providers: [PostsService],
-  exports: [PostsService],
+  providers: [PostsService, PostVisibilityService],
+  exports: [PostsService, PostVisibilityService],
 })
 export class PostsModule {}

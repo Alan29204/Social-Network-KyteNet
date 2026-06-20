@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -12,7 +13,7 @@ import { Transform } from 'class-transformer';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 
 export class UpdatePostDto {
-  // @IsUUID()
+  @IsUUID()
   @IsNotEmpty()
   @ApiProperty({
     example: '452a1e21-d4eb-4f14-a52f-fbfaf0bb7d99',
@@ -38,6 +39,7 @@ export class UpdatePostDto {
     return value;
   })
   @IsArray()
+  @IsString({ each: true })
   medias: string[];
 
   @IsOptional()
@@ -47,6 +49,7 @@ export class UpdatePostDto {
     return value;
   })
   @IsArray()
+  @IsString({ each: true })
   @ApiProperty({
     example: ['StarWars', 'CloneWars'],
     description: 'hashtags',
@@ -66,6 +69,7 @@ export class UpdatePostDto {
     return value;
   })
   @IsArray()
+  @IsUUID('all', { each: true })
   @ApiProperty({ example: ['uuid1', 'uuid2'], description: 'tagged_users', required: false })
   tagged_users?: string[];
 }

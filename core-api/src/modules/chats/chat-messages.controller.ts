@@ -5,6 +5,7 @@ import {
   Get,
   Inject,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -92,7 +93,7 @@ export class ChatMessagesController {
   @ApiQuery({ name: 'cursor', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   getMessageHistory(
-    @Param('roomId') roomId: string,
+    @Param('roomId', ParseUUIDPipe) roomId: string,
     @User() user: IUser,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
@@ -121,7 +122,7 @@ export class ChatMessagesController {
     },
   })
   async editMessage(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @User() user: IUser,
     @Body('message') message: string,
   ) {
@@ -150,7 +151,10 @@ export class ChatMessagesController {
   @Delete(':id')
   @ResponseMessage('Delete message successfully')
   @ApiOperation({ summary: 'Delete a message' })
-  async deleteMessage(@Param('id') id: string, @User() user: IUser) {
+  async deleteMessage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @User() user: IUser,
+  ) {
     const result = await this.chatMessagesService.deleteMessage(id, user.id);
 
     // Broadcast delete event to all room members
@@ -184,7 +188,7 @@ export class ChatMessagesController {
     },
   })
   async toggleReaction(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @User() user: IUser,
     @Body('reaction_type') reactionType: string,
   ) {

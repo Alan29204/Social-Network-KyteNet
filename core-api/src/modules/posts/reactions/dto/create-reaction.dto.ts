@@ -1,15 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { ReactionType } from 'src/common/enums/reaction.enum';
 
 export class CreateReactionDto {
   @IsOptional()
-  @IsString()
+  @IsUUID()
   @ApiProperty({ required: false, description: 'Post ID' })
   postId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   @ApiProperty({ required: false, description: 'Comment ID' })
   commentId?: string;
 

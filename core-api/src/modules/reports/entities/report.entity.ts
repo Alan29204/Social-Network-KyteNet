@@ -49,19 +49,19 @@ export class Report {
   status: ReportStatus;
 
   /** ID of the user who filed the report */
-  @Column()
+  @Column({ type: 'uuid' })
   reporter_id: string;
 
   /** ID of the reported post (if type = post) */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   reported_post_id: string;
 
   /** ID of the reported user (if type = user) */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   reported_user_id: string;
 
   /** ID of the reported message (if type = message) */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   reported_message_id: string;
 
   /** Admin note on resolution */
@@ -82,4 +82,8 @@ export class Report {
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reported_user_id' })
   reported_user: User;
+
+  @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'reported_message_id' })
+  reported_message: ChatMessage;
 }

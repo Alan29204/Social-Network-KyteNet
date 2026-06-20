@@ -18,11 +18,11 @@ export class ChatMember {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   chat_room_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Index()

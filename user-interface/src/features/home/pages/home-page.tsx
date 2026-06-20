@@ -10,7 +10,7 @@ import { FeedPostItem } from '@/features/home/components/feed-post-item';
 import { StoryBar } from '@/features/stories/components/story-bar';
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { Loader2, Compass, RefreshCw, Sparkles } from 'lucide-react';
+import { Loader2, Compass, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type FeedTab = 'following' | 'foryou' | 'recommended';
@@ -111,7 +111,6 @@ export default function HomePage() {
             }`}
           >
             <span className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5" />
               Dành cho bạn
             </span>
           </button>
@@ -179,11 +178,7 @@ export default function HomePage() {
           ) : posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-4 animate-fade-in">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center mb-4 animate-float">
-                {activeTab === 'recommended' ? (
-                  <Sparkles className="w-10 h-10 text-snet-purple" />
-                ) : (
-                  <Compass className="w-10 h-10 text-snet-purple" />
-                )}
+                <Compass className="w-10 h-10 text-snet-purple" />
               </div>
               <h3 className="text-lg font-semibold mb-2 font-heading">
                 {activeTab === 'recommended'
@@ -202,7 +197,6 @@ export default function HomePage() {
               {activeTab === 'recommended' &&
                 recommendedSource === 'personalized' && (
                   <div className="mx-4 sm:mx-0 mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-snet-purple/10 to-snet-pink/10 px-4 py-2.5">
-                    <Sparkles className="w-4 h-4 text-snet-purple shrink-0" />
                     <span className="text-xs text-muted-foreground">
                       Gợi ý dựa trên sở thích và lịch sử tương tác của bạn.
                     </span>

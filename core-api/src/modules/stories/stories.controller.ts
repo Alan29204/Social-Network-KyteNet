@@ -8,12 +8,11 @@ import {
   UseInterceptors,
   UploadedFile,
   ParseFilePipeBuilder,
+  ParseUUIDPipe,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { isUUID } from 'class-validator';
 import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
@@ -67,31 +66,28 @@ export class StoriesController {
   @Get('user/:userId')
   @ResponseMessage('Lấy story của user thành công')
   @ApiOperation({ summary: 'Lấy story còn hạn của một user' })
-  getUserStories(@Param('userId') userId: string) {
-    if (!isUUID(userId)) {
-      throw new BadRequestException(`Invalid user ID: ${userId}`);
-    }
+  getUserStories(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.storiesService.getUserStories(userId);
   }
 
   @Post(':id/view')
   @ResponseMessage('Đã đánh dấu xem story')
   @ApiOperation({ summary: 'Đánh dấu đã xem story' })
-  markViewed(@Param('id') id: string, @User() user: IUser) {
+  markViewed(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.storiesService.markViewed(id, user);
   }
 
   @Get(':id/viewers')
   @ResponseMessage('Danh sách người xem story')
   @ApiOperation({ summary: 'Lấy danh sách người đã xem (chỉ chủ story)' })
-  getViewers(@Param('id') id: string, @User() user: IUser) {
+  getViewers(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.storiesService.getViewers(id, user);
   }
 
   @Delete(':id')
   @ResponseMessage('Xóa story thành công')
   @ApiOperation({ summary: 'Xóa story' })
-  remove(@Param('id') id: string, @User() user: IUser) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.storiesService.remove(id, user);
   }
 }

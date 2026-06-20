@@ -23,7 +23,7 @@ export class Post {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Index()
@@ -38,14 +38,14 @@ export class Post {
   @Column('text', { array: true, default: '{}' })
   hashtags: string[];
 
-  @Column('text', { array: true, default: '{}' })
+  @Column('uuid', { array: true, default: () => "'{}'" })
   tagged_users: string[];
 
   @Column({ default: PrivacyType.PUBLIC, enum: PrivacyType })
   privacy: PrivacyType;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   shared_post_id: string;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })

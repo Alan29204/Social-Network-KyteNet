@@ -2,30 +2,83 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  getApiErrorMessage,
+  getMutationPostId,
+  getPostAuthorId,
+  invalidatePostSurfaces,
+  removePostFromLists,
+  restorePostSurfaces,
+  snapshotPostSurfaces,
+} from '@/features/posts/utils/post-cache';
 
 interface PostActionModalProps {
   post: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditClick: () => void;
+  onDeleted?: (postId: string) => void;
 }
 
-export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostActionModalProps) {
+export function PostActionModal({
+  post,
+  open,
+  onOpenChange,
+  onEditClick,
+  onDeleted,
+}: PostActionModalProps) {
   const { user: currentUser } = useAuthStore();
   const queryClient = useQueryClient();
-  const isOwner = currentUser?.id === post?.user?.id;
+  const { toast } = useToast();
+  const isOwner = currentUser?.id === (post?.user?.id || post?.user_id);
 
   const [reportReason, setReportReason] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const deletePostMutation = useMutation({
+  useEffect(() => {
+    if (!open) {
+      setReportReason(null);
+      setShowDeleteConfirm(false);
+      setErrorMessage('');
+    }
+  }, [open]);
+
+  const deletePostMutation = useMutation<
+    any,
+    any,
+    void,
+    { snapshots: ReturnType<typeof snapshotPostSurfaces> }
+  >({
     mutationFn: () => orvalClient({ url: `/posts/${post.id}`, method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+    onMutate: () => {
+      setErrorMessage('');
+      const snapshots = snapshotPostSurfaces(queryClient);
+      removePostFromLists(queryClient, post.id);
+      return { snapshots };
+    },
+    onSuccess: async (response: any) => {
+      const deletedPostId = getMutationPostId(response, post.id);
+      removePostFromLists(queryClient, deletedPostId);
+      await invalidatePostSurfaces(queryClient, {
+        userId: getPostAuthorId(post),
+        postId: deletedPostId,
+        includeSearch: true,
+      });
+      setShowDeleteConfirm(false);
       onOpenChange(false);
+      onDeleted?.(deletedPostId);
+      toast({ title: 'Đã xóa bài viết' });
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.snapshots) {
+        restorePostSurfaces(queryClient, context.snapshots);
+      }
+      setErrorMessage(
+        getApiErrorMessage(error, 'Không thể xóa bài viết. Vui lòng thử lại.'),
+      );
     },
   });
 
@@ -44,10 +97,12 @@ export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostA
 
   const removeTagMutation = useMutation({
     mutationFn: () => orvalClient({ url: `/posts/${post.id}/remove-tag`, method: 'POST' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
+    onSuccess: async () => {
+      await invalidatePostSurfaces(queryClient, {
+        userId: getPostAuthorId(post),
+        postId: post.id,
+        includeSearch: true,
+      });
       onOpenChange(false);
     },
   });
@@ -57,6 +112,53 @@ export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostA
     alert('Đã sao chép liên kết!');
     onOpenChange(false);
   };
+
+  if (showDeleteConfirm) {
+    return (
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (deletePostMutation.isPending) return;
+          if (!nextOpen) setShowDeleteConfirm(false);
+          onOpenChange(nextOpen);
+        }}
+      >
+        <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden rounded-xl border-none">
+          <DialogTitle className="sr-only">Xác nhận xóa bài viết</DialogTitle>
+          <div className="p-4 text-center">
+            <h3 className="font-bold text-lg mb-2">Xóa bài viết?</h3>
+            <p className="text-sm text-muted-foreground">
+              Bài viết sẽ bị xóa khỏi trang cá nhân, bảng tin và kết quả tìm kiếm.
+            </p>
+            {errorMessage && (
+              <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {errorMessage}
+              </p>
+            )}
+          </div>
+          <div className="h-[1px] w-full bg-border"></div>
+          <button
+            className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80 disabled:opacity-60"
+            onClick={() => deletePostMutation.mutate()}
+            disabled={deletePostMutation.isPending}
+          >
+            {deletePostMutation.isPending ? 'Đang xóa...' : 'Xóa'}
+          </button>
+          <div className="h-[1px] w-full bg-border"></div>
+          <button
+            className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80 disabled:opacity-60"
+            onClick={() => {
+              setShowDeleteConfirm(false);
+              setErrorMessage('');
+            }}
+            disabled={deletePostMutation.isPending}
+          >
+            Quay lại
+          </button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (reportReason !== null) {
     // Show report reasons
@@ -102,7 +204,10 @@ export function PostActionModal({ post, open, onOpenChange, onEditClick }: PostA
           <>
             <button 
               className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
-              onClick={() => deletePostMutation.mutate()}
+              onClick={() => {
+                setErrorMessage('');
+                setShowDeleteConfirm(true);
+              }}
             >
               Xóa
             </button>

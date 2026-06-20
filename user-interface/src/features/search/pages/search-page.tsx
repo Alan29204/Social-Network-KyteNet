@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, X, Loader2, Sparkles } from 'lucide-react';
+import { Search, X, Loader2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PostCard } from '@/features/home/components/post-card';
 import { SearchUserItem } from '@/features/search/components/search-user-item';
@@ -235,9 +235,7 @@ export default function SearchPage() {
               <TabsTrigger value="users">Mọi người</TabsTrigger>
               <TabsTrigger value="posts">Bài viết</TabsTrigger>
               <TabsTrigger value="hashtag">Hashtag</TabsTrigger>
-              <TabsTrigger value="semantic" className="gap-1">
-                <Sparkles className="w-3.5 h-3.5" /> AI
-              </TabsTrigger>
+              <TabsTrigger value="semantic">AI</TabsTrigger>
             </TabsList>
 
             {/* Tab Tất cả */}
@@ -298,7 +296,6 @@ export default function SearchPage() {
             {/* Tab AI Semantic */}
             <TabsContent value="semantic" className="mt-4">
               <div className="flex items-center gap-2 px-3 mb-3 text-xs text-muted-foreground">
-                <Sparkles className="w-4 h-4 text-primary" />
                 {semanticSource === 'keyword_fallback'
                   ? 'Đang dùng tìm kiếm từ khóa dự phòng'
                   : 'Tìm kiếm theo ngữ nghĩa bằng AI'}

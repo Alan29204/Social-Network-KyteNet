@@ -15,11 +15,11 @@ export class PinChat {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   chat_room_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @ManyToOne(() => ChatRoom, (chatRoom) => chatRoom.pin_chats)

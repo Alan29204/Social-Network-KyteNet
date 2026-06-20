@@ -16,7 +16,7 @@ export class SaveList {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Index()

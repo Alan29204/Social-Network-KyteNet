@@ -3,9 +3,9 @@ import {
   Get,
   Body,
   Param,
+  ParseUUIDPipe,
   Patch,
   Delete,
-  BadRequestException,
   NotFoundException,
   Post,
   UseInterceptors,
@@ -26,7 +26,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { SearchUserMessageResponseDto } from './dto/search-user-message.dto';
-import { isUUID } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
 import { AfterSignUpDto } from './dto/after-signup.dto';
@@ -91,11 +90,10 @@ export class UsersController {
   @Get(':user_id')
   @ResponseMessage('Find user by ID successfully')
   @ApiOperation({ summary: 'Find user by ID' })
-  async getProfile(@Param('user_id') user_id: string, @User() user: IUser) {
-    if (!isUUID(user_id)) {
-      throw new BadRequestException(`Invalid ID format: ${user_id}`);
-    }
-
+  async getProfile(
+    @Param('user_id', ParseUUIDPipe) user_id: string,
+    @User() user: IUser,
+  ) {
     // Absolute Override: nếu bị chặn (2 chiều) -> coi như không tồn tại (404)
     if (user.id !== user_id) {
       const blocked = await (

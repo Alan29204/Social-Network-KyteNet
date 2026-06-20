@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -23,7 +31,7 @@ export class CommentsController {
   @ResponseMessage('Update comment successfully')
   @ApiOperation({ summary: 'Update comment' })
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @User() user: IUser,
     @Body() dto: UpdateCommentDto,
   ) {
@@ -33,7 +41,7 @@ export class CommentsController {
   @Delete(':id')
   @ResponseMessage('Delete comment successfully')
   @ApiOperation({ summary: 'Delete comment' })
-  remove(@Param('id') id: string, @User() user: IUser) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.commentsService.remove(id, user);
   }
 }

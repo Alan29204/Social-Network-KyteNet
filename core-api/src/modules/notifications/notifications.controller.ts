@@ -5,6 +5,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Delete,
@@ -72,7 +73,10 @@ export class NotificationController {
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark a notification as read' })
   @ResponseMessage('Mark notification as read successfully')
-  markAsRead(@User() user: IUser, @Param('id') notiUserId: string) {
+  markAsRead(
+    @User() user: IUser,
+    @Param('id', ParseUUIDPipe) notiUserId: string,
+  ) {
     return this.notificationService.markAsRead(user.id, notiUserId);
   }
 
@@ -80,7 +84,10 @@ export class NotificationController {
   @Patch(':id/unread')
   @ApiOperation({ summary: 'Mark a notification as unread' })
   @ResponseMessage('Mark notification as unread successfully')
-  markAsUnread(@User() user: IUser, @Param('id') notiUserId: string) {
+  markAsUnread(
+    @User() user: IUser,
+    @Param('id', ParseUUIDPipe) notiUserId: string,
+  ) {
     return this.notificationService.markAsUnread(user.id, notiUserId);
   }
 
@@ -96,7 +103,10 @@ export class NotificationController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a notification' })
   @ResponseMessage('Delete notification successfully')
-  deleteNotification(@User() user: IUser, @Param('id') notiUserId: string) {
+  deleteNotification(
+    @User() user: IUser,
+    @Param('id', ParseUUIDPipe) notiUserId: string,
+  ) {
     return this.notificationService.deleteNotification(user.id, notiUserId);
   }
 

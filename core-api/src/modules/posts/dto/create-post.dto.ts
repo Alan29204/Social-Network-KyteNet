@@ -1,9 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsArray,
   IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -28,6 +30,8 @@ export class CreatePostDto {
     if (typeof value === 'string') return value.split(',').map((item) => item.trim());
     return value;
   })
+  @IsArray()
+  @IsString({ each: true })
   hashtags: string[];
 
   @IsOptional()
@@ -40,6 +44,8 @@ export class CreatePostDto {
     if (typeof value === 'string') return value.split(',').map((item) => item.trim());
     return value;
   })
+  @IsArray()
+  @IsUUID('all', { each: true })
   tagged_users: string[];
 
   @IsEnum(PrivacyType)

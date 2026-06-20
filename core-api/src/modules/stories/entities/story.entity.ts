@@ -24,7 +24,7 @@ export class Story {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Column({ type: 'enum', enum: StoryType, default: StoryType.IMAGE })

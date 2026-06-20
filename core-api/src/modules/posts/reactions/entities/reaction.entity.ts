@@ -3,6 +3,7 @@ import { Post } from 'src/modules/posts/entities/post.entity';
 import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -16,19 +17,22 @@ export class Reaction {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   post_id: string;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   comment_id: string;
 
   @Column({ enum: ReactionType, default: ReactionType.LIKE })
   reaction: ReactionType;
+
+  @CreateDateColumn({ type: 'timestamp with time zone' })
+  created_at: Date;
 
   /** Ẩn do hành động chặn (block sweep). Không khôi phục khi unblock. */
   @Index()

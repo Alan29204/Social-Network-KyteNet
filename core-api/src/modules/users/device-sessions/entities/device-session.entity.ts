@@ -41,7 +41,7 @@ export class DeviceSession {
   updated_at: Date;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @ManyToOne(() => User, (user) => user.device_sessions)

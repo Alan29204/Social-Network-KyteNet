@@ -223,6 +223,11 @@ export type ResetPasswordDto = {
   new_password: string;
 };
 
+export type UserIdDto = {
+  /** Target user ID */
+  user_id: string;
+};
+
 export type UpdateRelationDtoRelation = typeof UpdateRelationDtoRelation[keyof typeof UpdateRelationDtoRelation];
 
 
@@ -590,6 +595,7 @@ export type Reaction = {
   post_id: string;
   comment_id: string;
   reaction: ReactionReaction;
+  created_at: string;
   is_hidden: boolean;
   post: Post;
   comment: Comment;
@@ -1224,7 +1230,44 @@ export type PostsControllerCreateBody = {
   'medias-posts'?: Blob[];
 };
 
+export type PostsControllerCreate201DataPost = { [key: string]: unknown };
+
+export type PostsControllerCreate201Data = {
+  message?: string;
+  post?: PostsControllerCreate201DataPost;
+};
+
+export type PostsControllerCreate201 = {
+  statusCode?: number;
+  message?: string;
+  data?: PostsControllerCreate201Data;
+};
+
+export type PostsControllerUpdate200DataPost = { [key: string]: unknown };
+
+export type PostsControllerUpdate200Data = {
+  message?: string;
+  post?: PostsControllerUpdate200DataPost;
+};
+
+export type PostsControllerUpdate200 = {
+  statusCode?: number;
+  message?: string;
+  data?: PostsControllerUpdate200Data;
+};
+
 export type PostsControllerFindOne200 = { [key: string]: unknown };
+
+export type PostsControllerRemove200Data = {
+  message?: string;
+  post_id?: string;
+};
+
+export type PostsControllerRemove200 = {
+  statusCode?: number;
+  message?: string;
+  data?: PostsControllerRemove200Data;
+};
 
 export type SavePostsControllerGetMySavedPostsParams = {
 page?: number;
@@ -1239,6 +1282,65 @@ limit?: number;
 export type SaveListsControllerFindAllParams = {
 page?: number;
 limit?: number;
+};
+
+export type ReactionsControllerGetPostReactionUsersParams = {
+page?: number;
+limit?: number;
+reaction?: ReactionsControllerGetPostReactionUsersReaction;
+};
+
+export type ReactionsControllerGetPostReactionUsersReaction = typeof ReactionsControllerGetPostReactionUsersReaction[keyof typeof ReactionsControllerGetPostReactionUsersReaction];
+
+
+export const ReactionsControllerGetPostReactionUsersReaction = {
+  like: 'like',
+  love: 'love',
+  haha: 'haha',
+  wow: 'wow',
+  sad: 'sad',
+  angry: 'angry',
+} as const;
+
+export type ReactionsControllerGetPostReactionUsers200DataDataItemReaction = typeof ReactionsControllerGetPostReactionUsers200DataDataItemReaction[keyof typeof ReactionsControllerGetPostReactionUsers200DataDataItemReaction];
+
+
+export const ReactionsControllerGetPostReactionUsers200DataDataItemReaction = {
+  like: 'like',
+  love: 'love',
+  haha: 'haha',
+  wow: 'wow',
+  sad: 'sad',
+  angry: 'angry',
+} as const;
+
+export type ReactionsControllerGetPostReactionUsers200DataDataItem = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  reaction?: ReactionsControllerGetPostReactionUsers200DataDataItemReaction;
+  reacted_at?: string;
+};
+
+export type ReactionsControllerGetPostReactionUsers200DataMeta = {
+  total?: number;
+  page?: number;
+  limit?: number;
+  last_page?: number;
+};
+
+export type ReactionsControllerGetPostReactionUsers200Data = {
+  data?: ReactionsControllerGetPostReactionUsers200DataDataItem[];
+  meta?: ReactionsControllerGetPostReactionUsers200DataMeta;
+};
+
+export type ReactionsControllerGetPostReactionUsers200 = {
+  statusCode?: number;
+  message?: string;
+  data?: ReactionsControllerGetPostReactionUsers200Data;
 };
 
 export type AdminsControllerListUsersParams = {
@@ -2996,14 +3098,14 @@ export const getRelationsControllerBlockUserUrl = () => {
 /**
  * @summary Block a user (absolute override)
  */
-export const relationsControllerBlockUser = async ( options?: RequestInit): Promise<relationsControllerBlockUserResponse> => {
+export const relationsControllerBlockUser = async (userIdDto: UserIdDto, options?: RequestInit): Promise<relationsControllerBlockUserResponse> => {
 
   return orvalClient<relationsControllerBlockUserResponse>(getRelationsControllerBlockUserUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userIdDto)
   }
 );}
 
@@ -3011,8 +3113,8 @@ export const relationsControllerBlockUser = async ( options?: RequestInit): Prom
 
 
 export const getRelationsControllerBlockUserMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,{data: UserIdDto}, TContext> => {
 
 const mutationKey = ['relationsControllerBlockUser'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3024,10 +3126,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerBlockUser>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerBlockUser>>, {data: UserIdDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  relationsControllerBlockUser(requestOptions)
+          return  relationsControllerBlockUser(data,requestOptions)
         }
 
 
@@ -3038,18 +3140,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RelationsControllerBlockUserMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerBlockUser>>>
-
+    export type RelationsControllerBlockUserMutationBody = UserIdDto
     export type RelationsControllerBlockUserMutationError = unknown
 
     /**
  * @summary Block a user (absolute override)
  */
 export const useRelationsControllerBlockUser = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerBlockUser>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof relationsControllerBlockUser>>,
         TError,
-        void,
+        {data: UserIdDto},
         TContext
       > => {
       return useMutation(getRelationsControllerBlockUserMutationOptions(options), queryClient);
@@ -3078,14 +3180,14 @@ export const getRelationsControllerUnblockUserUrl = () => {
 /**
  * @summary Unblock a user (does not restore follow)
  */
-export const relationsControllerUnblockUser = async ( options?: RequestInit): Promise<relationsControllerUnblockUserResponse> => {
+export const relationsControllerUnblockUser = async (userIdDto: UserIdDto, options?: RequestInit): Promise<relationsControllerUnblockUserResponse> => {
 
   return orvalClient<relationsControllerUnblockUserResponse>(getRelationsControllerUnblockUserUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userIdDto)
   }
 );}
 
@@ -3093,8 +3195,8 @@ export const relationsControllerUnblockUser = async ( options?: RequestInit): Pr
 
 
 export const getRelationsControllerUnblockUserMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,{data: UserIdDto}, TContext> => {
 
 const mutationKey = ['relationsControllerUnblockUser'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3106,10 +3208,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, {data: UserIdDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  relationsControllerUnblockUser(requestOptions)
+          return  relationsControllerUnblockUser(data,requestOptions)
         }
 
 
@@ -3120,18 +3222,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RelationsControllerUnblockUserMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerUnblockUser>>>
-
+    export type RelationsControllerUnblockUserMutationBody = UserIdDto
     export type RelationsControllerUnblockUserMutationError = unknown
 
     /**
  * @summary Unblock a user (does not restore follow)
  */
 export const useRelationsControllerUnblockUser = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerUnblockUser>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof relationsControllerUnblockUser>>,
         TError,
-        void,
+        {data: UserIdDto},
         TContext
       > => {
       return useMutation(getRelationsControllerUnblockUserMutationOptions(options), queryClient);
@@ -3546,14 +3648,14 @@ export const getRelationsControllerAcceptFollowRequestUrl = () => {
 /**
  * @summary Accept a follow request
  */
-export const relationsControllerAcceptFollowRequest = async ( options?: RequestInit): Promise<relationsControllerAcceptFollowRequestResponse> => {
+export const relationsControllerAcceptFollowRequest = async (userIdDto: UserIdDto, options?: RequestInit): Promise<relationsControllerAcceptFollowRequestResponse> => {
 
   return orvalClient<relationsControllerAcceptFollowRequestResponse>(getRelationsControllerAcceptFollowRequestUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userIdDto)
   }
 );}
 
@@ -3561,8 +3663,8 @@ export const relationsControllerAcceptFollowRequest = async ( options?: RequestI
 
 
 export const getRelationsControllerAcceptFollowRequestMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,{data: UserIdDto}, TContext> => {
 
 const mutationKey = ['relationsControllerAcceptFollowRequest'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3574,10 +3676,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, {data: UserIdDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  relationsControllerAcceptFollowRequest(requestOptions)
+          return  relationsControllerAcceptFollowRequest(data,requestOptions)
         }
 
 
@@ -3588,18 +3690,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RelationsControllerAcceptFollowRequestMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>>
-
+    export type RelationsControllerAcceptFollowRequestMutationBody = UserIdDto
     export type RelationsControllerAcceptFollowRequestMutationError = unknown
 
     /**
  * @summary Accept a follow request
  */
 export const useRelationsControllerAcceptFollowRequest = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof relationsControllerAcceptFollowRequest>>,
         TError,
-        void,
+        {data: UserIdDto},
         TContext
       > => {
       return useMutation(getRelationsControllerAcceptFollowRequestMutationOptions(options), queryClient);
@@ -3628,14 +3730,14 @@ export const getRelationsControllerRejectFollowRequestUrl = () => {
 /**
  * @summary Reject a follow request
  */
-export const relationsControllerRejectFollowRequest = async ( options?: RequestInit): Promise<relationsControllerRejectFollowRequestResponse> => {
+export const relationsControllerRejectFollowRequest = async (userIdDto: UserIdDto, options?: RequestInit): Promise<relationsControllerRejectFollowRequestResponse> => {
 
   return orvalClient<relationsControllerRejectFollowRequestResponse>(getRelationsControllerRejectFollowRequestUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userIdDto)
   }
 );}
 
@@ -3643,8 +3745,8 @@ export const relationsControllerRejectFollowRequest = async ( options?: RequestI
 
 
 export const getRelationsControllerRejectFollowRequestMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,{data: UserIdDto}, TContext> => {
 
 const mutationKey = ['relationsControllerRejectFollowRequest'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3656,10 +3758,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, {data: UserIdDto}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  relationsControllerRejectFollowRequest(requestOptions)
+          return  relationsControllerRejectFollowRequest(data,requestOptions)
         }
 
 
@@ -3670,18 +3772,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RelationsControllerRejectFollowRequestMutationResult = NonNullable<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>>
-
+    export type RelationsControllerRejectFollowRequestMutationBody = UserIdDto
     export type RelationsControllerRejectFollowRequestMutationError = unknown
 
     /**
  * @summary Reject a follow request
  */
 export const useRelationsControllerRejectFollowRequest = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>, TError,{data: UserIdDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof relationsControllerRejectFollowRequest>>,
         TError,
-        void,
+        {data: UserIdDto},
         TContext
       > => {
       return useMutation(getRelationsControllerRejectFollowRequestMutationOptions(options), queryClient);
@@ -8311,7 +8413,7 @@ export type postsControllerCreateResponse200 = {
 }
 
 export type postsControllerCreateResponse201 = {
-  data: void
+  data: PostsControllerCreate201
   status: 201
 }
 
@@ -8409,7 +8511,7 @@ export const usePostsControllerCreate = <TError = unknown,
     }
 
 export type postsControllerUpdateResponse200 = {
-  data: void
+  data: PostsControllerUpdate200
   status: 200
 }
 
@@ -8604,7 +8706,7 @@ export function usePostsControllerFindOne<TData = Awaited<ReturnType<typeof post
 
 
 export type postsControllerRemoveResponse200 = {
-  data: void
+  data: PostsControllerRemove200
   status: 200
 }
 
@@ -10401,6 +10503,213 @@ export function useReactionsControllerGetReactionSummary<TData = Awaited<ReturnT
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getReactionsControllerGetReactionSummaryQueryOptions(postId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type reactionsControllerGetPostReactionUsersResponse200 = {
+  data: ReactionsControllerGetPostReactionUsers200
+  status: 200
+}
+
+export type reactionsControllerGetPostReactionUsersResponseSuccess = (reactionsControllerGetPostReactionUsersResponse200) & {
+  headers: Headers;
+};
+;
+
+export type reactionsControllerGetPostReactionUsersResponse = (reactionsControllerGetPostReactionUsersResponseSuccess)
+
+export const getReactionsControllerGetPostReactionUsersUrl = (postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/reactions/posts/${postId}/users?${stringifiedParams}` : `/reactions/posts/${postId}/users`
+}
+
+/**
+ * @summary Get users who reacted to a post
+ */
+export const reactionsControllerGetPostReactionUsers = async (postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: RequestInit): Promise<reactionsControllerGetPostReactionUsersResponse> => {
+
+  return orvalClient<reactionsControllerGetPostReactionUsersResponse>(getReactionsControllerGetPostReactionUsersUrl(postId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReactionsControllerGetPostReactionUsersInfiniteQueryKey = (postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams,) => {
+    return [
+    'infinite', `/reactions/posts/${postId}/users`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+export const getReactionsControllerGetPostReactionUsersQueryKey = (postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams,) => {
+    return [
+    `/reactions/posts/${postId}/users`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getReactionsControllerGetPostReactionUsersInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, ReactionsControllerGetPostReactionUsersParams['page']>, TError = unknown>(postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReactionsControllerGetPostReactionUsersInfiniteQueryKey(postId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']> = ({ signal, pageParam }) => reactionsControllerGetPostReactionUsers(postId,{...params, 'page': pageParam ?? params?.['page']}, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: postId !== null && postId !== undefined, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReactionsControllerGetPostReactionUsersInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>>
+export type ReactionsControllerGetPostReactionUsersInfiniteQueryError = unknown
+
+
+export function useReactionsControllerGetPostReactionUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, ReactionsControllerGetPostReactionUsersParams['page']>, TError = unknown>(
+ postId: string,
+    params: undefined |  ReactionsControllerGetPostReactionUsersParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>,
+          TError,
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReactionsControllerGetPostReactionUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, ReactionsControllerGetPostReactionUsersParams['page']>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>,
+          TError,
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, QueryKey
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReactionsControllerGetPostReactionUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, ReactionsControllerGetPostReactionUsersParams['page']>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get users who reacted to a post
+ */
+
+export function useReactionsControllerGetPostReactionUsersInfinite<TData = InfiniteData<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, ReactionsControllerGetPostReactionUsersParams['page']>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData, QueryKey, ReactionsControllerGetPostReactionUsersParams['page']>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReactionsControllerGetPostReactionUsersInfiniteQueryOptions(postId,params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const getReactionsControllerGetPostReactionUsersQueryOptions = <TData = Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError = unknown>(postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReactionsControllerGetPostReactionUsersQueryKey(postId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>> = ({ signal }) => reactionsControllerGetPostReactionUsers(postId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: postId !== null && postId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ReactionsControllerGetPostReactionUsersQueryResult = NonNullable<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>>
+export type ReactionsControllerGetPostReactionUsersQueryError = unknown
+
+
+export function useReactionsControllerGetPostReactionUsers<TData = Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError = unknown>(
+ postId: string,
+    params: undefined |  ReactionsControllerGetPostReactionUsersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>,
+          TError,
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReactionsControllerGetPostReactionUsers<TData = Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>,
+          TError,
+          Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useReactionsControllerGetPostReactionUsers<TData = Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get users who reacted to a post
+ */
+
+export function useReactionsControllerGetPostReactionUsers<TData = Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError = unknown>(
+ postId: string,
+    params?: ReactionsControllerGetPostReactionUsersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof reactionsControllerGetPostReactionUsers>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getReactionsControllerGetPostReactionUsersQueryOptions(postId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

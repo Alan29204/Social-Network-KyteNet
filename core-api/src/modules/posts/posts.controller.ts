@@ -10,7 +10,7 @@ import {
   HttpStatus,
   ParseFilePipeBuilder,
   UploadedFiles,
-  BadRequestException,
+  ParseUUIDPipe,
   Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
@@ -20,9 +20,48 @@ import { SharePostDto } from './dto/share-post.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { isUUID } from 'class-validator';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Doc } from 'src/common/decorators/doc.decorator';
+import { OptionalUuidPipe } from 'src/common/pipes/optional-uuid.pipe';
+
+const postMutationResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        post: {
+          type: 'object',
+          additionalProperties: true,
+        },
+      },
+    },
+  },
+};
+
+const deletePostResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        post_id: { type: 'string', format: 'uuid' },
+      },
+    },
+  },
+};
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -56,7 +95,7 @@ export class PostsController {
   findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('user_id') user_id?: string,
+    @Query('user_id', new OptionalUuidPipe()) user_id?: string,
     @Query('is_repost') is_repost?: string,
     @Query('media_type') media_type?: 'image' | 'video',
     @User() user?: IUser,
@@ -78,6 +117,11 @@ export class PostsController {
   @ResponseMessage('Create post successfully')
   @ApiOperation({ summary: 'Create post' })
   @ApiConsumes('multipart/form-data')
+  @ApiResponse({
+    status: 201,
+    description: 'Create post successfully',
+    schema: postMutationResponseSchema,
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -133,10 +177,7 @@ export class PostsController {
   @Get(':id')
   @ResponseMessage('Find post by id successfully')
   @ApiOperation({ summary: 'Find post by id' })
-  findOne(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) {
-      throw new BadRequestException(`Invalid ID format: ${id}`);
-    }
+  findOne(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.postsService.findOne(user, id);
   }
 
@@ -156,6 +197,11 @@ export class PostsController {
   @ResponseMessage('Cập nhật bài viết thành công')
   @ApiOperation({ summary: 'Cập nhật bài viết' })
   @ApiBody({ type: UpdatePostDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Update post successfully',
+    schema: postMutationResponseSchema,
+  })
   update(@User() user: IUser, @Body() dto: UpdatePostDto) {
     return this.postsService.update(user, dto);
   }
@@ -163,7 +209,12 @@ export class PostsController {
   @Delete(':id')
   @ResponseMessage('Xóa bài viết thành công')
   @ApiOperation({ summary: 'Xóa bài viết' })
-  remove(@Param('id') id: string, @User() user: IUser) {
+  @ApiResponse({
+    status: 200,
+    description: 'Delete post successfully',
+    schema: deletePostResponseSchema,
+  })
+  remove(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.postsService.remove(id, user);
   }
 
@@ -173,10 +224,7 @@ export class PostsController {
   @Doc({
     summary: 'Remove tag from post',
   })
-  removeTag(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) {
-      throw new BadRequestException(`Invalid ID format: ${id}`);
-    }
+  removeTag(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.postsService.removeTag(id, user.id);
   }
 }

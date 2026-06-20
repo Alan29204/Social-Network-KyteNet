@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Param, Post, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ChatMembersService } from './chat-members.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
@@ -60,7 +68,10 @@ export class ChatMembersController {
   @Delete('leave-room/:chat_room_id')
   @ResponseMessage('Leave chat room successfully')
   @ApiOperation({ summary: 'Leave a chat room' })
-  leaveRoom(@Param('chat_room_id') chat_room_id: string, @User() user: IUser) {
+  leaveRoom(
+    @Param('chat_room_id', ParseUUIDPipe) chat_room_id: string,
+    @User() user: IUser,
+  ) {
     return this.chatMembersService.leaveRoom(chat_room_id, user);
   }
 }

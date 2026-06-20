@@ -18,6 +18,7 @@ import { User } from 'src/modules/users/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { PostVisibilityService } from 'src/modules/posts/post-visibility.service';
 
 @Injectable()
 export class CommentsService {
@@ -32,6 +33,7 @@ export class CommentsService {
     private readonly notificationService: NotificationService,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
+    private readonly postVisibilityService: PostVisibilityService,
   ) {}
 
   /**
@@ -39,6 +41,8 @@ export class CommentsService {
    */
   async create(user: IUser, dto: CreateCommentDto) {
     try {
+      await this.postVisibilityService.assertCanViewPost(dto.post_id, user.id);
+
       let taggedUsers = dto.tagged_users || [];
       if (typeof taggedUsers === 'string') taggedUsers = [(taggedUsers as string)];
       else if (!Array.isArray(taggedUsers)) taggedUsers = [];
@@ -53,7 +57,15 @@ export class CommentsService {
           where: { id: dto.parent_id },
         });
 
-        if (parentComment && parentComment.user_id !== user.id) {
+        if (!parentComment || parentComment.is_hidden) {
+          throw new NotFoundException('Parent comment is not available');
+        }
+
+        if (parentComment.post_id !== dto.post_id) {
+          throw new BadRequestException('Parent comment does not belong to this post');
+        }
+
+        if (parentComment.user_id !== user.id) {
           const areBlockedByParent = await this.relationsService.areBlocked(user.id, parentComment.user_id);
           if (areBlockedByParent) {
             throw new BadRequestException('Không thể gửi bình luận');

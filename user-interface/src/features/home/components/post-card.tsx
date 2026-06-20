@@ -14,7 +14,6 @@ import {
   MoreHorizontal,
   Repeat,
   Check,
-  Sparkles,
   Share2,
 } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
@@ -31,6 +30,7 @@ import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useFollowStore } from '@/features/profile/stores/follow-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
+import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
 
 interface PostCardProps {
   post: {
@@ -115,6 +115,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [likesOpen, setLikesOpen] = useState(false);
 
   // Local state for debounced optimistic repost
   const [localReposted, setLocalReposted] = useState(post.isReposted);
@@ -339,14 +340,6 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Premium badge */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hover:bg-snet-purple/5 hover:text-snet-purple w-8 h-8 rounded-full"
-            >
-              <Sparkles className="w-4 h-4 text-snet-purple/60" />
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -439,8 +432,9 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-5">
             <button
-              className="flex items-center gap-1.5 group transition-all"
+              className="group transition-all"
               onClick={handleLikePost}
+              aria-label={localLiked ? 'Bỏ thích bài viết' : 'Thích bài viết'}
             >
               <div
                 className={`relative transition-all duration-200 ${localLiked ? 'scale-110' : 'group-hover:scale-110'}`}
@@ -453,14 +447,17 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                   }`}
                 />
               </div>
-              {localLikesCount > 0 && (
-                <span
-                  className={`text-xs font-semibold ${localLiked ? 'text-red-500' : 'text-foreground/70'}`}
-                >
-                  {localLikesCount}
-                </span>
-              )}
             </button>
+            {localLikesCount > 0 && (
+              <button
+                className={`-ml-4 text-xs font-semibold hover:underline ${
+                  localLiked ? 'text-red-500' : 'text-foreground/70'
+                }`}
+                onClick={() => setLikesOpen(true)}
+              >
+                {localLikesCount}
+              </button>
+            )}
 
             <button
               className="flex items-center gap-1.5 group transition-all"
@@ -577,6 +574,10 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
           open={actionOpen}
           onOpenChange={setActionOpen}
           onEditClick={() => setEditOpen(true)}
+          onDeleted={() => {
+            setActionOpen(false);
+            setIsDetailOpen(false);
+          }}
         />
       )}
 
@@ -604,6 +605,12 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
           onSaved={() => setLocalSaved(true)}
         />
       )}
+
+      <PostLikesModal
+        postId={displayPost.id}
+        open={likesOpen}
+        onOpenChange={setLikesOpen}
+      />
     </article>
   );
 }

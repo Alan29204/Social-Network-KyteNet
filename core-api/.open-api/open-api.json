@@ -450,6 +450,16 @@
         "operationId": "RelationsController_blockUser",
         "summary": "Block a user (absolute override)",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserIdDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -465,6 +475,16 @@
         "operationId": "RelationsController_unblockUser",
         "summary": "Unblock a user (does not restore follow)",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserIdDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -544,6 +564,16 @@
         "operationId": "RelationsController_acceptFollowRequest",
         "summary": "Accept a follow request",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserIdDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -559,6 +589,16 @@
         "operationId": "RelationsController_rejectFollowRequest",
         "summary": "Reject a follow request",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserIdDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -1871,7 +1911,34 @@
             }
           },
           "201": {
-            "description": ""
+            "description": "Create post successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "post": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1894,7 +1961,34 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Update post successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "post": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1947,7 +2041,34 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Delete post successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "post_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -2397,6 +2518,137 @@
         "responses": {
           "200": {
             "description": ""
+          }
+        },
+        "tags": [
+          "Reactions"
+        ]
+      }
+    },
+    "/reactions/posts/{postId}/users": {
+      "get": {
+        "operationId": "ReactionsController_getPostReactionUsers",
+        "summary": "Get users who reacted to a post",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "reaction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "like",
+                "love",
+                "haha",
+                "wow",
+                "sad",
+                "angry"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get users who reacted to a post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string"
+                              },
+                              "full_name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "reaction": {
+                                "type": "string",
+                                "enum": [
+                                  "like",
+                                  "love",
+                                  "haha",
+                                  "wow",
+                                  "sad",
+                                  "angry"
+                                ]
+                              },
+                              "reacted_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "number"
+                            },
+                            "page": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "last_page": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3448,6 +3700,18 @@
           "new_password"
         ]
       },
+      "UserIdDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Target user ID"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
       "UpdateRelationDto": {
         "type": "object",
         "properties": {
@@ -4139,6 +4403,10 @@
               "angry"
             ]
           },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
           "is_hidden": {
             "type": "boolean"
           },
@@ -4155,6 +4423,7 @@
           "post_id",
           "comment_id",
           "reaction",
+          "created_at",
           "is_hidden",
           "post",
           "comment"

@@ -31,7 +31,7 @@ export class Notification {
   target_type: string;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   target_id: string;
 
   @CreateDateColumn()

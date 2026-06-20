@@ -25,7 +25,9 @@ export default function PostPage() {
   if (isError || !postData?.data) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background gap-4">
-        <p className="text-muted-foreground">Bài viết không tồn tại hoặc đã bị xóa.</p>
+        <p className="text-muted-foreground">
+          Bài viết không khả dụng, đã bị xóa hoặc bạn không có quyền xem.
+        </p>
         <button onClick={() => navigate('/')} className="text-primary hover:underline">
           Quay lại trang chủ
         </button>

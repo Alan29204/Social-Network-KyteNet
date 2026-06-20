@@ -20,10 +20,10 @@ export class Comment {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   @Index()
   post_id: string;
 
@@ -38,11 +38,11 @@ export class Comment {
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   @Index()
   parent_id: string;
 
-  @Column('text', { array: true, nullable: true })
+  @Column('uuid', { array: true, default: () => "'{}'" })
   tagged_users: string[];
 
   /** Ẩn do hành động chặn (block sweep). Không khôi phục khi unblock. */

@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   NotFoundException,
+  ParseUUIDPipe,
   Delete,
   UseInterceptors,
   UploadedFile,
@@ -17,7 +18,6 @@ import { CreateChatRoomDto } from './dto/create-chat-room.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { UpdateChatRoomDto } from './dto/update-chat-room.dto';
-import { isUUID } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import IdDto from 'src/common/dto/id.dto';
 import { GetListChatRoomDto } from './dto/get-list-chat-room.dto';
@@ -40,8 +40,7 @@ export class ChatRoomsController {
   @Get(':id')
   @ResponseMessage('Find chat room success')
   @ApiOperation({ summary: 'Find chat room by ID' })
-  findChatRoomById(@Param('id') id: string) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+  findChatRoomById(@Param('id', ParseUUIDPipe) id: string) {
     const room = this.chatRoomsService.findChatRoomByID(id);
     if (!room) throw new NotFoundException('Not found chat room');
 
@@ -59,7 +58,7 @@ export class ChatRoomsController {
   @ResponseMessage('Get or create direct chat success')
   @ApiOperation({ summary: 'Get or create a direct (1-on-1) chat' })
   getOrCreateDirectChat(
-    @Param('targetUserId') targetUserId: string,
+    @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
     @User() user: IUser,
   ) {
     return this.chatRoomsService.getOrCreateDirectChat(user.id, targetUserId);
@@ -68,8 +67,7 @@ export class ChatRoomsController {
   @Post(':id/read')
   @ResponseMessage('Mark room as read success')
   @ApiOperation({ summary: 'Mark all messages in room as read for user' })
-  markRoomAsRead(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+  markRoomAsRead(@Param('id', ParseUUIDPipe) id: string, @User() user: IUser) {
     return this.chatRoomsService.markRoomAsRead(id, user.id);
   }
 
@@ -109,11 +107,10 @@ export class ChatRoomsController {
   @ResponseMessage('Update chat room settings success')
   @ApiOperation({ summary: 'Update chat room settings (mute/unmute)' })
   updateSettings(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateChatRoomSettingsDto,
     @User() user: IUser,
   ) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
     return this.chatRoomsService.updateChatRoomSettings(id, user.id, dto);
   }
 
@@ -121,11 +118,10 @@ export class ChatRoomsController {
   @ResponseMessage('Update chat room emoji success')
   @ApiOperation({ summary: 'Update quick emoji for chat room' })
   updateEmoji(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateChatRoomEmojiDto,
     @User() user: IUser,
   ) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
     return this.chatRoomsService.updateChatRoomEmoji(id, user.id, dto);
   }
 
@@ -134,24 +130,30 @@ export class ChatRoomsController {
   @ApiOperation({
     summary: 'Soft delete history of a chat room for current user',
   })
-  softDeleteHistory(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+  softDeleteHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @User() user: IUser,
+  ) {
     return this.chatRoomsService.softDeleteHistory(id, user.id);
   }
 
   @Post(':id/accept-request')
   @ResponseMessage('Accept message request success')
   @ApiOperation({ summary: 'Accept a message request' })
-  acceptMessageRequest(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+  acceptMessageRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @User() user: IUser,
+  ) {
     return this.chatRoomsService.acceptMessageRequest(id, user);
   }
 
   @Post(':id/decline-request')
   @ResponseMessage('Decline message request success')
   @ApiOperation({ summary: 'Decline a message request' })
-  declineMessageRequest(@Param('id') id: string, @User() user: IUser) {
-    if (!isUUID(id)) throw new NotFoundException('Id does not type uuid');
+  declineMessageRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @User() user: IUser,
+  ) {
     return this.chatRoomsService.declineMessageRequest(id, user);
   }
 }

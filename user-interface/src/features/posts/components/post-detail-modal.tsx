@@ -17,6 +17,8 @@ import {
   Smile,
   X,
   Repeat,
+  FileX2,
+  Loader2,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +34,7 @@ import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
+import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
 
 interface PostResponse {
   id: string;
@@ -62,6 +65,24 @@ interface PostDetailModalProps {
   defaultCommentId?: string | null;
 }
 
+const sortCommentsForDisplay = (comments: any[]) => {
+  const allComments = Array.isArray(comments) ? [...comments] : [];
+  const roots = allComments
+    .filter((comment) => !comment.parent_id)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  const children = allComments
+    .filter((comment) => !!comment.parent_id)
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+
+  return [...roots, ...children];
+};
+
 export function PostDetailModal({
   post: initialPost,
   open,
@@ -84,13 +105,14 @@ export function PostDetailModal({
 
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [likesOpen, setLikesOpen] = useState(false);
   const [commentAction, setCommentAction] = useState<{
     id: string;
     username: string;
   } | null>(null);
 
   // Lấy chi tiết bài viết (bao gồm comments mới nhất)
-  const { data: queryData, isLoading } = useQuery({
+  const { data: queryData, isLoading, isError } = useQuery({
     queryKey: ['postDetail', initialPost.id],
     queryFn: () =>
       orvalClient<any>({ url: `/posts/${initialPost.id}`, method: 'GET' }),
@@ -125,8 +147,9 @@ export function PostDetailModal({
   }, [open, initialPost.id]);
 
 
+  const isPostUnavailable = isError || (!isLoading && queryData && !queryData?.data);
   const post = queryData?.data || initialPost;
-  const comments = post?.comments || [];
+  const comments = sortCommentsForDisplay(post?.comments || []);
   const displayPost = post?.shared_post || post;
   const isRepost = !!post?.shared_post;
   const isMyPost = currentUser?.id === (post?.user?.id || initialPost.user.id);
@@ -433,6 +456,45 @@ export function PostDetailModal({
     );
   };
 
+  if (isLoading && !initialPost.user?.id) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[420px] p-8 bg-card border-none rounded-xl">
+          <DialogTitle className="sr-only">Đang tải bài viết</DialogTitle>
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (isPostUnavailable) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[420px] p-8 bg-card border-none rounded-xl">
+          <DialogTitle className="sr-only">Bài viết không khả dụng</DialogTitle>
+          <div className="flex flex-col items-center justify-center gap-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <FileX2 className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold">
+                Bài viết không khả dụng
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Bài viết không tồn tại, đã bị xóa hoặc bạn không có quyền xem.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Đóng
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0">
@@ -570,20 +632,27 @@ export function PostDetailModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <button
-                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
+                  className="hover:text-muted-foreground transition-colors"
                   onClick={handleLikePost}
+                  aria-label={
+                    post?.interactions?.is_liked || initialPost.isLiked
+                      ? 'Bỏ thích bài viết'
+                      : 'Thích bài viết'
+                  }
                 >
                   <Heart
                     className={`w-6 h-6 ${post?.interactions?.is_liked || initialPost.isLiked ? 'fill-red-500 text-red-500' : ''}`}
                   />
-                  {((post?.interactions?.likes ?? initialPost.likesCount) ||
-                    0) > 0 && (
-                    <span className="text-sm font-semibold">
-                      {(post?.interactions?.likes ?? initialPost.likesCount) ||
-                        0}
-                    </span>
-                  )}
                 </button>
+                {((post?.interactions?.likes ?? initialPost.likesCount) ||
+                  0) > 0 && (
+                  <button
+                    className="-ml-5 text-sm font-semibold hover:underline"
+                    onClick={() => setLikesOpen(true)}
+                  >
+                    {(post?.interactions?.likes ?? initialPost.likesCount) || 0}
+                  </button>
+                )}
                 <button
                   className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
                   onClick={() => inputRef.current?.focus()}
@@ -789,6 +858,10 @@ export function PostDetailModal({
             onOpenChange(false);
             setEditOpen(true);
           }}
+          onDeleted={() => {
+            setActionOpen(false);
+            onOpenChange(false);
+          }}
         />
       )}
 
@@ -799,6 +872,12 @@ export function PostDetailModal({
           onOpenChange={setEditOpen}
         />
       )}
+
+      <PostLikesModal
+        postId={displayPost?.id || initialPost.id}
+        open={likesOpen}
+        onOpenChange={setLikesOpen}
+      />
 
       {commentAction && (
         <Dialog

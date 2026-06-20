@@ -28,6 +28,7 @@ import {
   extractHashtagsFromContent,
   normalizePostHashtags,
 } from 'src/common/utils/searchableText';
+import { PostVisibilityService } from './post-visibility.service';
 
 @Injectable()
 export class PostsService {
@@ -44,6 +45,7 @@ export class PostsService {
     private readonly relationsService: RelationsService,
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
+    private readonly postVisibilityService: PostVisibilityService,
   ) {}
 
   /** Base URL + headers cho các call nội bộ tới ai-services. */
@@ -99,6 +101,50 @@ export class PostsService {
         `[Embedding] Failed to upsert embedding for post ${postId}:`,
         (err as Error)?.message,
       );
+    }
+  }
+
+  private sortCommentsForDisplay(postData: any): void {
+    if (!postData) return;
+
+    const sortPostComments = (targetPost: any) => {
+      const comments = Array.isArray(targetPost?.comments)
+        ? [...targetPost.comments]
+        : [];
+      if (comments.length === 0) return;
+
+      const roots = comments
+        .filter((comment) => !comment.parent_id)
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime(),
+        );
+      const childrenByParent = comments
+        .filter((comment) => !!comment.parent_id)
+        .reduce<Record<string, any[]>>((acc, comment) => {
+          if (!acc[comment.parent_id]) acc[comment.parent_id] = [];
+          acc[comment.parent_id].push(comment);
+          return acc;
+        }, {});
+
+      Object.values(childrenByParent).forEach((children) => {
+        children.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime(),
+        );
+      });
+
+      targetPost.comments = roots.flatMap((root) => [
+        root,
+        ...(childrenByParent[root.id] || []),
+      ]);
+    };
+
+    sortPostComments(postData);
+    if (postData.shared_post) {
+      sortPostComments(postData.shared_post);
     }
   }
 
@@ -170,12 +216,16 @@ export class PostsService {
           },
         };
 
+        this.sortCommentsForDisplay(postData);
+
         await this.redisService.set(
           `post:${id}`,
           JSON.stringify(postData),
           300,
         );
       }
+
+      this.sortCommentsForDisplay(postData);
 
       // Calculate is_liked runtime (after cache retrieval)
       if (currentUser) {
@@ -355,8 +405,11 @@ export class PostsService {
         }
       }
 
+      const createdPost = await this.findPostByID(newPost.id, user);
+
       return {
         message: 'Create post successfully',
+        post: createdPost,
       };
     } catch (err) {
       console.error('ERROR CREATING POST:', err);
@@ -380,7 +433,8 @@ export class PostsService {
     content?: string,
     privacy?: string,
   ) {
-    const originalPost = await this.findPostByID(postId);
+    await this.postVisibilityService.assertCanViewPost(postId, user.id);
+    const originalPost = await this.findPostByID(postId, user);
     if (!originalPost) {
       throw new NotFoundException(`Post id: ${postId} does not exist`);
     }
@@ -503,37 +557,7 @@ export class PostsService {
         }
       }
 
-      if (currentUser) {
-        const followingIds = await this.relationsService.getFollowingIds(
-          currentUser.id,
-        );
-        const blockedUserIds = await this.relationsService.getAllBlockedUserIds(
-          currentUser.id,
-        );
-        if (blockedUserIds.length > 0) {
-          qb.andWhere('post.user_id NOT IN (:...blockedUserIds)', {
-            blockedUserIds,
-          });
-          qb.andWhere(
-            '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blockedUserIds))',
-            { blockedUserIds },
-          );
-        }
-
-        if (followingIds.length > 0) {
-          qb.andWhere(
-            '(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))',
-            { pub: 'public', cid: currentUser.id, followingIds },
-          );
-        } else {
-          qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', {
-            pub: 'public',
-            cid: currentUser.id,
-          });
-        }
-      } else {
-        qb.andWhere('user.privacy = :pub', { pub: 'public' });
-      }
+      await this.postVisibilityService.applyVisibilityQuery(qb, currentUser?.id);
 
       const [posts, total] = await qb.getManyAndCount();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -616,7 +640,9 @@ export class PostsService {
   }
 
   async findOne(user: IUser, id: string) {
-    return this.findPostByID(id, user);
+    await this.postVisibilityService.assertCanViewPost(id, user.id);
+    const post = await this.findPostByID(id, user);
+    return post;
   }
 
   async update(user: IUser, dto: UpdatePostDto) {
@@ -717,7 +743,9 @@ export class PostsService {
         );
       }
 
-      return { message: 'Update post successfully' };
+      const updatedPost = await this.findPostByID(dto.id, user);
+
+      return { message: 'Update post successfully', post: updatedPost };
     } catch {
       throw new InternalServerErrorException('Error when updating post');
     }
@@ -773,7 +801,7 @@ export class PostsService {
       // Đồng bộ: xóa embedding khỏi ChromaDB (best-effort)
       await this.deletePostEmbedding(id);
 
-      return { message: 'Delete post successfully' };
+      return { message: 'Delete post successfully', post_id: id };
     } catch (err) {
       console.error('DELETE POST ERROR:', err);
       if (err instanceof BadRequestException) throw err;

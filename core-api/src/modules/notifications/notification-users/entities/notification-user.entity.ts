@@ -15,11 +15,11 @@ export class NotificationUser {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   notification_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @Index()

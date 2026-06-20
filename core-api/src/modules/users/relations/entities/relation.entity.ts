@@ -18,11 +18,11 @@ export class Relation {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   request_side_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   accept_side_id: string;
 
   @ManyToOne(() => User, (user) => user.sent_relations)

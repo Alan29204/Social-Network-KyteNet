@@ -17,11 +17,11 @@ export class SavePost {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   save_list_id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   post_id: string;
 
   @ManyToOne(() => SaveList, (saveList) => saveList.save_posts)

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateCommentDto {
   @IsString()
@@ -8,6 +8,8 @@ export class UpdateCommentDto {
   content: string;
 
   @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
   @ApiProperty({
     example: ['user-id-1', 'user-id-2'],
     description: 'tagged user IDs',

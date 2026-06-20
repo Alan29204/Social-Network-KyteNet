@@ -22,10 +22,10 @@ export class ChatMessage {
   id: string;
 
   @Index()
-  @Column()
+  @Column({ type: 'uuid' })
   chat_room_id: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   created_by: string;
 
   @Column()
@@ -59,7 +59,7 @@ export class ChatMessage {
   pin_messages: PinMessage;
 
   /** ID of the message being replied to (nullable) */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   reply_to_id: string;
 
   /** The message being replied to */
@@ -72,7 +72,7 @@ export class ChatMessage {
   reactions: MessageReaction[];
 
   /** The post being shared in this message (nullable) */
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   shared_post_id: string;
 
   @ManyToOne(() => Post, { nullable: true })
