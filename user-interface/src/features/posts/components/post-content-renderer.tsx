@@ -4,8 +4,21 @@ import { Link } from 'react-router-dom';
 interface PostContentRendererProps {
   content?: string;
   taggedUsers?: string[];
+  hashtags?: string[];
   maxLength?: number;
   onShowMore?: () => void;
+}
+
+function getSafePreview(content: string, maxLength: number) {
+  const preview = content.slice(0, maxLength);
+  const lastMentionStart = preview.lastIndexOf('@[');
+  const lastMentionClose = preview.lastIndexOf(')');
+
+  if (lastMentionStart > lastMentionClose) {
+    return preview.slice(0, lastMentionStart).trimEnd();
+  }
+
+  return preview;
 }
 
 export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], maxLength, onShowMore }: PostContentRendererProps) {
@@ -13,7 +26,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
     if (hashtags && hashtags.length > 0) {
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-          {hashtags.map((tag, i) => (
+          {hashtags.map((tag: string, i: number) => (
             <span key={i} className="text-snet-purple font-semibold mr-1">
               #{tag}
             </span>
@@ -68,12 +81,10 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
   const isTruncated = maxLength && content.length > maxLength;
   
   if (isTruncated) {
+    const preview = getSafePreview(content, maxLength) + '...';
     return (
       <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-        {/* We need to truncate the raw string but preserve mentions if possible. 
-            For simplicity, we truncate raw string and render. If a mention gets cut, it's a bit tricky. 
-            Let's just slice the raw string and then render. */}
-        <TruncatedContent content={content.slice(0, maxLength) + '...'} taggedUsers={taggedUsers} />
+        <TruncatedContent content={preview} taggedUsers={taggedUsers} />
         <button
           onClick={(e) => {
             e.stopPropagation();

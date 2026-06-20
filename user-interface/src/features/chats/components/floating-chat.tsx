@@ -2,8 +2,11 @@ import { useLocation } from 'react-router-dom';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
 import { FloatingChatList } from './floating-chat-list';
 import { FloatingChatRoom } from './floating-chat-room';
-import { Send } from 'lucide-react';
 import { useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
+
+type FloatingRoomSummary = {
+  unread_count?: number;
+};
 
 export function FloatingChat() {
   const location = useLocation();
@@ -14,8 +17,12 @@ export function FloatingChat() {
     limit: 50, // Get enough to check total unread
   });
   
-  const rooms = roomsRes?.data?.data || [];
-  const unreadTotal = rooms.reduce((acc: number, room: any) => acc + (room.unread_count || 0), 0);
+  const roomsPayload = roomsRes as unknown as { data?: { data?: FloatingRoomSummary[] } };
+  const rooms = roomsPayload?.data?.data || [];
+  const unreadTotal = rooms.reduce(
+    (acc, room) => acc + (room.unread_count || 0),
+    0,
+  );
 
   // Không hiển thị ở trang tin nhắn hoặc trang chỉnh sửa hồ sơ
   if (location.pathname.startsWith('/messages') || location.pathname === '/profile/edit') {

@@ -34,15 +34,298 @@ export type ChatbotDto = {
   prompt: string;
 };
 
-export type RelationRelationType = typeof RelationRelationType[keyof typeof RelationRelationType];
+export type LoginDto = {
+  email: string;
+  /** @minLength 6 */
+  password: string;
+  deviceId: string;
+};
+
+export type SearchUserMessageItemDto = {
+  /** User ID */
+  id: string;
+  /** Username */
+  username: string;
+  /** Full name */
+  full_name?: string;
+  /** Avatar URL */
+  avatar?: string;
+  /** Privacy setting */
+  privacy?: string;
+  /** Message privacy setting */
+  message_privacy?: string;
+  /** Ranking score (2 = following, 1 = others) */
+  rank?: number;
+  /** Mutual friend count */
+  mutual_count?: number;
+};
+
+export type SearchUserMessageResponseDto = {
+  /** List of matched users */
+  data: SearchUserMessageItemDto[];
+};
+
+/**
+ * gender
+ */
+export type UpdateUserDtoGender = typeof UpdateUserDtoGender[keyof typeof UpdateUserDtoGender];
 
 
-export const RelationRelationType = {
+export const UpdateUserDtoGender = {
+  male: 'male',
+  female: 'female',
+  other: 'other',
+} as const;
+
+/**
+ * privacy
+ */
+export type UpdateUserDtoPrivacy = typeof UpdateUserDtoPrivacy[keyof typeof UpdateUserDtoPrivacy];
+
+
+export const UpdateUserDtoPrivacy = {
+  public: 'public',
+  follower: 'follower',
+  private: 'private',
+} as const;
+
+/**
+ * mention privacy
+ */
+export type UpdateUserDtoMentionPrivacy = typeof UpdateUserDtoMentionPrivacy[keyof typeof UpdateUserDtoMentionPrivacy];
+
+
+export const UpdateUserDtoMentionPrivacy = {
+  everyone: 'everyone',
+  following: 'following',
+  nobody: 'nobody',
+} as const;
+
+/**
+ * message privacy
+ */
+export type UpdateUserDtoMessagePrivacy = typeof UpdateUserDtoMessagePrivacy[keyof typeof UpdateUserDtoMessagePrivacy];
+
+
+export const UpdateUserDtoMessagePrivacy = {
+  everyone: 'everyone',
+  following: 'following',
+} as const;
+
+export type UpdateUserDto = {
+  /**
+     * Your last username
+     * @minLength 2
+     * @maxLength 20
+     */
+  username: string;
+  /**
+     * Your full name
+     * @minLength 2
+     * @maxLength 50
+     */
+  full_name: string;
+  /**
+     * bio
+     * @minLength 5
+     * @maxLength 100
+     */
+  bio: string;
+  /**
+     * website
+     * @minLength 5
+     * @maxLength 100
+     */
+  website: string;
+  /** Birthday */
+  birthday: string;
+  /** gender */
+  gender: UpdateUserDtoGender;
+  /**
+     * address
+     * @minLength 5
+     * @maxLength 100
+     */
+  address: string;
+  /** privacy */
+  privacy: UpdateUserDtoPrivacy;
+  /** mention privacy */
+  mention_privacy: UpdateUserDtoMentionPrivacy;
+  /** message privacy */
+  message_privacy: UpdateUserDtoMessagePrivacy;
+  /** Cờ để xóa avatar hiện tại */
+  removeAvatar?: string;
+  /** File ảnh đại diện người dùng */
+  'avatar-user'?: Blob;
+};
+
+/**
+ * gender
+ */
+export type AfterSignUpDtoGender = typeof AfterSignUpDtoGender[keyof typeof AfterSignUpDtoGender];
+
+
+export const AfterSignUpDtoGender = {
+  male: 'male',
+  female: 'female',
+  other: 'other',
+} as const;
+
+export type AfterSignUpDto = {
+  /** email */
+  email: string;
+  /**
+     * password
+     * @minLength 8
+     * @maxLength 15
+     */
+  password: string;
+  /** Your avatar */
+  avatar: string;
+  /**
+     * Your last username
+     * @minLength 2
+     * @maxLength 20
+     */
+  username: string;
+  /**
+     * Your full name
+     * @minLength 2
+     * @maxLength 50
+     */
+  full_name: string;
+  /** bio */
+  bio: string;
+  /** website */
+  website: string;
+  /** birthday */
+  birthday: string;
+  /** gender */
+  gender: AfterSignUpDtoGender;
+  /** address */
+  address: string;
+};
+
+export type ForgotPasswordDto = {
+  /** Email tài khoản cần khôi phục */
+  email: string;
+};
+
+export type ResetPasswordDto = {
+  /** Email tài khoản */
+  email: string;
+  /** Mã xác thực OTP gửi qua email */
+  reset_code: string;
+  /**
+     * Mật khẩu mới
+     * @minLength 6
+     */
+  new_password: string;
+};
+
+export type UpdateRelationDtoRelation = typeof UpdateRelationDtoRelation[keyof typeof UpdateRelationDtoRelation];
+
+
+export const UpdateRelationDtoRelation = {
   following: 'following',
   block: 'block',
   none: 'none',
   pending: 'pending',
 } as const;
+
+/**
+ * Action to perform: restrict, unrestrict
+ */
+export type UpdateRelationDtoAction = { [key: string]: unknown };
+
+export type UpdateRelationDto = {
+  /** ID user other */
+  user_id: string;
+  relation?: UpdateRelationDtoRelation;
+  /** Action to perform: restrict, unrestrict */
+  action?: UpdateRelationDtoAction;
+};
+
+export type NotificationActorDto = {
+  id: string;
+  username: string;
+  /** @nullable */
+  avatar: string | null;
+};
+
+export type NotificationMetadataDto = {
+  actors: NotificationActorDto[];
+  /** @nullable */
+  thumbnail?: string | null;
+  /** @nullable */
+  reaction?: string | null;
+  /** @nullable */
+  comment_type?: string | null;
+  /** @nullable */
+  relation_type?: string | null;
+};
+
+export type NotificationItemDtoNotificationType = typeof NotificationItemDtoNotificationType[keyof typeof NotificationItemDtoNotificationType];
+
+
+export const NotificationItemDtoNotificationType = {
+  like: 'like',
+  comment: 'comment',
+  follow: 'follow',
+  reaction: 'reaction',
+  follow_request: 'follow_request',
+  system: 'system',
+  mention: 'mention',
+} as const;
+
+export type NotificationItemDto = {
+  id: string;
+  notification_id: string;
+  title: string;
+  message: string;
+  notification_type: NotificationItemDtoNotificationType;
+  /** @nullable */
+  target_type: string | null;
+  /** @nullable */
+  target_id: string | null;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+  metadata: NotificationMetadataDto | null;
+};
+
+export type NotificationPaginationMetaDto = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type NotificationListResponseDto = {
+  data: NotificationItemDto[];
+  meta: NotificationPaginationMetaDto;
+};
+
+export type UnreadCountResponseDto = {
+  unread_count: number;
+};
+
+export type CreateNotiSystemDto = {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  message: string;
+};
+
+export type DeleteNotificationUserDto = {
+  noti_user_id: string;
+};
 
 export type UserGender = typeof UserGender[keyof typeof UserGender];
 
@@ -97,17 +380,26 @@ export const UserRole = {
   banned: 'banned',
 } as const;
 
-export type DeviceSession = {
+export type RelationRelationType = typeof RelationRelationType[keyof typeof RelationRelationType];
+
+
+export const RelationRelationType = {
+  following: 'following',
+  block: 'block',
+  none: 'none',
+  pending: 'pending',
+} as const;
+
+export type Relation = {
   id: string;
-  device_id: string;
-  ip_address: string;
-  secret_key: string;
-  refresh_token: string;
-  expired_at: string;
+  request_side_id: string;
+  accept_side_id: string;
+  request_side: User;
+  accept_side: User;
+  relation_type: RelationRelationType;
+  is_restricted: boolean;
+  is_mutual: boolean;
   created_at: string;
-  updated_at: string;
-  user_id: string;
-  user: User;
 };
 
 export type NotificationNotificationType = typeof NotificationNotificationType[keyof typeof NotificationNotificationType];
@@ -438,309 +730,17 @@ export type User = {
   waiting_members: WaitingMembers[];
 };
 
-export type Relation = {
+export type DeviceSession = {
   id: string;
-  request_side_id: string;
-  accept_side_id: string;
-  request_side: User;
-  accept_side: User;
-  relation_type: RelationRelationType;
-  is_restricted: boolean;
-  is_mutual: boolean;
-  created_at: string;
-};
-
-export type LoginDto = {
-  email: string;
-  /** @minLength 6 */
-  password: string;
-  deviceId: string;
-};
-
-export type SearchUserMessageItemDto = {
-  /** User ID */
-  id: string;
-  /** Username */
-  username: string;
-  /** Full name */
-  full_name?: string;
-  /** Avatar URL */
-  avatar?: string;
-  /** Privacy setting */
-  privacy?: string;
-  /** Message privacy setting */
-  message_privacy?: string;
-  /** Ranking score (2 = following, 1 = others) */
-  rank?: number;
-  /** Mutual friend count */
-  mutual_count?: number;
-};
-
-export type SearchUserMessageResponseDto = {
-  /** List of matched users */
-  data: SearchUserMessageItemDto[];
-};
-
-/**
- * gender
- */
-export type UpdateUserDtoGender = typeof UpdateUserDtoGender[keyof typeof UpdateUserDtoGender];
-
-
-export const UpdateUserDtoGender = {
-  male: 'male',
-  female: 'female',
-  other: 'other',
-} as const;
-
-/**
- * privacy
- */
-export type UpdateUserDtoPrivacy = typeof UpdateUserDtoPrivacy[keyof typeof UpdateUserDtoPrivacy];
-
-
-export const UpdateUserDtoPrivacy = {
-  public: 'public',
-  follower: 'follower',
-  private: 'private',
-} as const;
-
-/**
- * mention privacy
- */
-export type UpdateUserDtoMentionPrivacy = typeof UpdateUserDtoMentionPrivacy[keyof typeof UpdateUserDtoMentionPrivacy];
-
-
-export const UpdateUserDtoMentionPrivacy = {
-  everyone: 'everyone',
-  following: 'following',
-  nobody: 'nobody',
-} as const;
-
-/**
- * message privacy
- */
-export type UpdateUserDtoMessagePrivacy = typeof UpdateUserDtoMessagePrivacy[keyof typeof UpdateUserDtoMessagePrivacy];
-
-
-export const UpdateUserDtoMessagePrivacy = {
-  everyone: 'everyone',
-  following: 'following',
-} as const;
-
-export type UpdateUserDto = {
-  /**
-     * Your last username
-     * @minLength 2
-     * @maxLength 20
-     */
-  username: string;
-  /**
-     * Your full name
-     * @minLength 2
-     * @maxLength 50
-     */
-  full_name: string;
-  /**
-     * bio
-     * @minLength 5
-     * @maxLength 100
-     */
-  bio: string;
-  /**
-     * website
-     * @minLength 5
-     * @maxLength 100
-     */
-  website: string;
-  /** Birthday */
-  birthday: string;
-  /** gender */
-  gender: UpdateUserDtoGender;
-  /**
-     * address
-     * @minLength 5
-     * @maxLength 100
-     */
-  address: string;
-  /** privacy */
-  privacy: UpdateUserDtoPrivacy;
-  /** mention privacy */
-  mention_privacy: UpdateUserDtoMentionPrivacy;
-  /** message privacy */
-  message_privacy: UpdateUserDtoMessagePrivacy;
-  /** Cờ để xóa avatar hiện tại */
-  removeAvatar?: string;
-  /** File ảnh đại diện người dùng */
-  'avatar-user'?: Blob;
-};
-
-/**
- * gender
- */
-export type AfterSignUpDtoGender = typeof AfterSignUpDtoGender[keyof typeof AfterSignUpDtoGender];
-
-
-export const AfterSignUpDtoGender = {
-  male: 'male',
-  female: 'female',
-  other: 'other',
-} as const;
-
-export type AfterSignUpDto = {
-  /** email */
-  email: string;
-  /**
-     * password
-     * @minLength 8
-     * @maxLength 15
-     */
-  password: string;
-  /** Your avatar */
-  avatar: string;
-  /**
-     * Your last username
-     * @minLength 2
-     * @maxLength 20
-     */
-  username: string;
-  /**
-     * Your full name
-     * @minLength 2
-     * @maxLength 50
-     */
-  full_name: string;
-  /** bio */
-  bio: string;
-  /** website */
-  website: string;
-  /** birthday */
-  birthday: string;
-  /** gender */
-  gender: AfterSignUpDtoGender;
-  /** address */
-  address: string;
-};
-
-export type ForgotPasswordDto = {
-  /** Email tài khoản cần khôi phục */
-  email: string;
-};
-
-export type ResetPasswordDto = {
-  /** Email tài khoản */
-  email: string;
-  /** Mã xác thực OTP gửi qua email */
-  reset_code: string;
-  /**
-     * Mật khẩu mới
-     * @minLength 6
-     */
-  new_password: string;
-};
-
-export type UpdateRelationDtoRelation = typeof UpdateRelationDtoRelation[keyof typeof UpdateRelationDtoRelation];
-
-
-export const UpdateRelationDtoRelation = {
-  following: 'following',
-  block: 'block',
-  none: 'none',
-  pending: 'pending',
-} as const;
-
-/**
- * Action to perform: restrict, unrestrict
- */
-export type UpdateRelationDtoAction = { [key: string]: unknown };
-
-export type UpdateRelationDto = {
-  /** ID user other */
-  user_id: string;
-  relation?: UpdateRelationDtoRelation;
-  /** Action to perform: restrict, unrestrict */
-  action?: UpdateRelationDtoAction;
-};
-
-export type NotificationActorDto = {
-  id: string;
-  username: string;
-  /** @nullable */
-  avatar: string | null;
-};
-
-export type NotificationMetadataDto = {
-  actors: NotificationActorDto[];
-  /** @nullable */
-  thumbnail?: string | null;
-  /** @nullable */
-  reaction?: string | null;
-  /** @nullable */
-  comment_type?: string | null;
-  /** @nullable */
-  relation_type?: string | null;
-};
-
-export type NotificationItemDtoNotificationType = typeof NotificationItemDtoNotificationType[keyof typeof NotificationItemDtoNotificationType];
-
-
-export const NotificationItemDtoNotificationType = {
-  like: 'like',
-  comment: 'comment',
-  follow: 'follow',
-  reaction: 'reaction',
-  follow_request: 'follow_request',
-  system: 'system',
-  mention: 'mention',
-} as const;
-
-export type NotificationItemDto = {
-  id: string;
-  notification_id: string;
-  title: string;
-  message: string;
-  notification_type: NotificationItemDtoNotificationType;
-  /** @nullable */
-  target_type: string | null;
-  /** @nullable */
-  target_id: string | null;
-  is_read: boolean;
+  device_id: string;
+  ip_address: string;
+  secret_key: string;
+  refresh_token: string;
+  expired_at: string;
   created_at: string;
   updated_at: string;
-  metadata: NotificationMetadataDto | null;
-};
-
-export type NotificationPaginationMetaDto = {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-};
-
-export type NotificationListResponseDto = {
-  data: NotificationItemDto[];
-  meta: NotificationPaginationMetaDto;
-};
-
-export type UnreadCountResponseDto = {
-  unread_count: number;
-};
-
-export type CreateNotiSystemDto = {
-  /**
-     * @minLength 1
-     * @maxLength 64
-     */
-  title: string;
-  /**
-     * @minLength 1
-     * @maxLength 256
-     */
-  message: string;
-};
-
-export type DeleteNotificationUserDto = {
-  noti_user_id: string;
+  user_id: string;
+  user: User;
 };
 
 export type CreateChatRoomDto = {
@@ -867,6 +867,8 @@ export type UpdatePostDto = {
   content: string;
   /** medias */
   medias: string[];
+  /** hashtags */
+  hashtags?: string[];
   /** privacy */
   privacy: UpdatePostDtoPrivacy;
   /** tagged_users */
@@ -1034,7 +1036,7 @@ export type Story = {
   views: StoryView[];
 };
 
-export type UsersControllerGetAccount200 = { [key: string]: unknown };
+export type UsersControllerFindAll200Item = { [key: string]: unknown };
 
 export type UsersControllerSearchUsersForMessageParams = {
 /**
@@ -1513,7 +1515,7 @@ export const useAppControllerChatbot = <TError = unknown,
     }
 
 export type usersControllerFindAllResponse200 = {
-  data: User[]
+  data: UsersControllerFindAll200Item[]
   status: 200
 }
 
@@ -1533,7 +1535,7 @@ export const getUsersControllerFindAllUrl = () => {
 }
 
 /**
- * @summary Get all users
+ * @summary Admin: Get all users
  */
 export const usersControllerFindAll = async ( options?: RequestInit): Promise<usersControllerFindAllResponse> => {
 
@@ -1604,7 +1606,7 @@ export function useUsersControllerFindAll<TData = Awaited<ReturnType<typeof user
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Get all users
+ * @summary Admin: Get all users
  */
 
 export function useUsersControllerFindAll<TData = Awaited<ReturnType<typeof usersControllerFindAll>>, TError = unknown>(
@@ -1626,7 +1628,7 @@ export function useUsersControllerFindAll<TData = Awaited<ReturnType<typeof user
 
 
 export type usersControllerGetAccountResponse200 = {
-  data: UsersControllerGetAccount200
+  data: void
   status: 200
 }
 

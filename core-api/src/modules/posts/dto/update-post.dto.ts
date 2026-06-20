@@ -40,6 +40,20 @@ export class UpdatePostDto {
   @IsArray()
   medias: string[];
 
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return value.split(',').map((item) => item.trim());
+    return value;
+  })
+  @IsArray()
+  @ApiProperty({
+    example: ['StarWars', 'CloneWars'],
+    description: 'hashtags',
+    required: false,
+  })
+  hashtags?: string[];
+
   @IsEnum(PrivacyType)
   @IsNotEmpty()
   @ApiProperty({ example: PrivacyType.PUBLIC, description: 'privacy' })

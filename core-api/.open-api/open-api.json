@@ -51,7 +51,7 @@
     "/users": {
       "get": {
         "operationId": "UsersController_findAll",
-        "summary": "Get all users",
+        "summary": "Admin: Get all users",
         "parameters": [],
         "responses": {
           "200": {
@@ -61,7 +61,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/User"
+                    "type": "object"
                   }
                 }
               }
@@ -3144,6 +3144,591 @@
           "prompt"
         ]
       },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "test@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "123456"
+          },
+          "deviceId": {
+            "type": "string",
+            "example": "unique-device-id"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "deviceId"
+        ]
+      },
+      "SearchUserMessageItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Full name"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "Avatar URL"
+          },
+          "privacy": {
+            "type": "string",
+            "description": "Privacy setting"
+          },
+          "message_privacy": {
+            "type": "string",
+            "description": "Message privacy setting"
+          },
+          "rank": {
+            "type": "number",
+            "description": "Ranking score (2 = following, 1 = others)"
+          },
+          "mutual_count": {
+            "type": "number",
+            "description": "Mutual friend count"
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ]
+      },
+      "SearchUserMessageResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "List of matched users",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchUserMessageItemDto"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 20,
+            "example": "Thành",
+            "description": "Your last username"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "example": "Nguyễn Tuấn Thành",
+            "description": "Your full name"
+          },
+          "bio": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 100,
+            "example": "Good boy",
+            "description": "bio"
+          },
+          "website": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 100,
+            "example": "https://github.com/ntthanh2603",
+            "description": "website"
+          },
+          "birthday": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-02-11 08:14:57.142000",
+            "description": "Birthday"
+          },
+          "gender": {
+            "enum": [
+              "male",
+              "female",
+              "other"
+            ],
+            "type": "string",
+            "example": "male",
+            "description": "gender"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 100,
+            "example": "Cau Giay, Ha Noi",
+            "description": "address"
+          },
+          "privacy": {
+            "enum": [
+              "public",
+              "follower",
+              "private"
+            ],
+            "type": "string",
+            "example": "public",
+            "description": "privacy"
+          },
+          "mention_privacy": {
+            "enum": [
+              "everyone",
+              "following",
+              "nobody"
+            ],
+            "type": "string",
+            "example": "everyone",
+            "description": "mention privacy"
+          },
+          "message_privacy": {
+            "enum": [
+              "everyone",
+              "following"
+            ],
+            "type": "string",
+            "example": "everyone",
+            "description": "message privacy"
+          },
+          "removeAvatar": {
+            "type": "string",
+            "example": "true",
+            "description": "Cờ để xóa avatar hiện tại"
+          },
+          "avatar-user": {
+            "type": "string",
+            "format": "binary",
+            "description": "File ảnh đại diện người dùng"
+          }
+        },
+        "required": [
+          "username",
+          "full_name",
+          "bio",
+          "website",
+          "birthday",
+          "gender",
+          "address",
+          "privacy",
+          "mention_privacy",
+          "message_privacy"
+        ]
+      },
+      "AfterSignUpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@gmail.com",
+            "description": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 15,
+            "example": "12345678",
+            "description": "password"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "abc.jpg",
+            "description": "Your avatar"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 20,
+            "example": "Nguyễn Tuấn Thành",
+            "description": "Your last username"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "example": "Nguyễn Tuấn Thành",
+            "description": "Your full name"
+          },
+          "bio": {
+            "type": "string",
+            "example": "Good boy",
+            "description": "bio"
+          },
+          "website": {
+            "type": "string",
+            "example": "https://github.com/ntthanh2603",
+            "description": "website"
+          },
+          "birthday": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2025-02-11 08:14:57.142000",
+            "description": "birthday"
+          },
+          "gender": {
+            "enum": [
+              "male",
+              "female",
+              "other"
+            ],
+            "type": "string",
+            "example": "male",
+            "description": "gender"
+          },
+          "address": {
+            "type": "string",
+            "example": "Cau Giay, Ha Noi",
+            "description": "address"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "avatar",
+          "username",
+          "full_name",
+          "bio",
+          "website",
+          "birthday",
+          "gender",
+          "address"
+        ]
+      },
+      "ForgotPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com",
+            "description": "Email tài khoản cần khôi phục"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com",
+            "description": "Email tài khoản"
+          },
+          "reset_code": {
+            "type": "string",
+            "example": "123456",
+            "description": "Mã xác thực OTP gửi qua email"
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "newpassword123",
+            "description": "Mật khẩu mới"
+          }
+        },
+        "required": [
+          "email",
+          "reset_code",
+          "new_password"
+        ]
+      },
+      "UpdateRelationDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "example": "123123123123",
+            "description": "ID user other"
+          },
+          "relation": {
+            "enum": [
+              "following",
+              "block",
+              "none",
+              "pending"
+            ],
+            "type": "string",
+            "example": "following"
+          },
+          "action": {
+            "type": "object",
+            "example": "restrict",
+            "description": "Action to perform: restrict, unrestrict"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "NotificationActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar"
+        ]
+      },
+      "NotificationMetadataDto": {
+        "type": "object",
+        "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationActorDto"
+            }
+          },
+          "thumbnail": {
+            "type": "string",
+            "nullable": true
+          },
+          "reaction": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "actors"
+        ]
+      },
+      "NotificationItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notification_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "notification_type": {
+            "enum": [
+              "like",
+              "comment",
+              "follow",
+              "reaction",
+              "follow_request",
+              "system",
+              "mention"
+            ],
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMetadataDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "notification_id",
+          "title",
+          "message",
+          "notification_type",
+          "target_type",
+          "target_id",
+          "is_read",
+          "created_at",
+          "updated_at",
+          "metadata"
+        ]
+      },
+      "NotificationPaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "unread_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unread_count"
+        ]
+      },
+      "CreateNotiSystemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "example": "Thông báo hệ thống"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "example": "Hệ thống quá tốt"
+          }
+        },
+        "required": [
+          "title",
+          "message"
+        ]
+      },
+      "DeleteNotificationUserDto": {
+        "type": "object",
+        "properties": {
+          "noti_user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "noti_user_id"
+        ]
+      },
+      "DeviceSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "secret_key": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "expired_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "device_id",
+          "ip_address",
+          "secret_key",
+          "refresh_token",
+          "expired_at",
+          "created_at",
+          "updated_at",
+          "user_id",
+          "user"
+        ]
+      },
       "Relation": {
         "type": "object",
         "properties": {
@@ -3909,11 +4494,11 @@
             "type": "string"
           },
           "permission_add_member": {
+            "type": "string",
             "enum": [
               "admin",
               "member"
-            ],
-            "type": "string"
+            ]
           },
           "created_at": {
             "format": "date-time",
@@ -3924,6 +4509,7 @@
             "type": "string"
           },
           "reaction_default": {
+            "type": "string",
             "enum": [
               "like",
               "love",
@@ -3931,8 +4517,7 @@
               "wow",
               "sad",
               "angry"
-            ],
-            "type": "string"
+            ]
           },
           "quick_emoji": {
             "type": "string"
@@ -4214,591 +4799,6 @@
           "waiting_members"
         ]
       },
-      "DeviceSession": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "device_id": {
-            "type": "string"
-          },
-          "ip_address": {
-            "type": "string"
-          },
-          "secret_key": {
-            "type": "string"
-          },
-          "refresh_token": {
-            "type": "string"
-          },
-          "expired_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "device_id",
-          "ip_address",
-          "secret_key",
-          "refresh_token",
-          "expired_at",
-          "created_at",
-          "updated_at",
-          "user_id",
-          "user"
-        ]
-      },
-      "LoginDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "test@example.com"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 6,
-            "example": "123456"
-          },
-          "deviceId": {
-            "type": "string",
-            "example": "unique-device-id"
-          }
-        },
-        "required": [
-          "email",
-          "password",
-          "deviceId"
-        ]
-      },
-      "SearchUserMessageItemDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "User ID"
-          },
-          "username": {
-            "type": "string",
-            "description": "Username"
-          },
-          "full_name": {
-            "type": "string",
-            "description": "Full name"
-          },
-          "avatar": {
-            "type": "string",
-            "description": "Avatar URL"
-          },
-          "privacy": {
-            "type": "string",
-            "description": "Privacy setting"
-          },
-          "message_privacy": {
-            "type": "string",
-            "description": "Message privacy setting"
-          },
-          "rank": {
-            "type": "number",
-            "description": "Ranking score (2 = following, 1 = others)"
-          },
-          "mutual_count": {
-            "type": "number",
-            "description": "Mutual friend count"
-          }
-        },
-        "required": [
-          "id",
-          "username"
-        ]
-      },
-      "SearchUserMessageResponseDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "description": "List of matched users",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SearchUserMessageItemDto"
-            }
-          }
-        },
-        "required": [
-          "data"
-        ]
-      },
-      "UpdateUserDto": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 20,
-            "example": "Thành",
-            "description": "Your last username"
-          },
-          "full_name": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 50,
-            "example": "Nguyễn Tuấn Thành",
-            "description": "Your full name"
-          },
-          "bio": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 100,
-            "example": "Good boy",
-            "description": "bio"
-          },
-          "website": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 100,
-            "example": "https://github.com/ntthanh2603",
-            "description": "website"
-          },
-          "birthday": {
-            "format": "date-time",
-            "type": "string",
-            "example": "2025-02-11 08:14:57.142000",
-            "description": "Birthday"
-          },
-          "gender": {
-            "enum": [
-              "male",
-              "female",
-              "other"
-            ],
-            "type": "string",
-            "example": "male",
-            "description": "gender"
-          },
-          "address": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 100,
-            "example": "Cau Giay, Ha Noi",
-            "description": "address"
-          },
-          "privacy": {
-            "enum": [
-              "public",
-              "follower",
-              "private"
-            ],
-            "type": "string",
-            "example": "public",
-            "description": "privacy"
-          },
-          "mention_privacy": {
-            "enum": [
-              "everyone",
-              "following",
-              "nobody"
-            ],
-            "type": "string",
-            "example": "everyone",
-            "description": "mention privacy"
-          },
-          "message_privacy": {
-            "enum": [
-              "everyone",
-              "following"
-            ],
-            "type": "string",
-            "example": "everyone",
-            "description": "message privacy"
-          },
-          "removeAvatar": {
-            "type": "string",
-            "example": "true",
-            "description": "Cờ để xóa avatar hiện tại"
-          },
-          "avatar-user": {
-            "type": "string",
-            "format": "binary",
-            "description": "File ảnh đại diện người dùng"
-          }
-        },
-        "required": [
-          "username",
-          "full_name",
-          "bio",
-          "website",
-          "birthday",
-          "gender",
-          "address",
-          "privacy",
-          "mention_privacy",
-          "message_privacy"
-        ]
-      },
-      "AfterSignUpDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "user@gmail.com",
-            "description": "email"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 8,
-            "maxLength": 15,
-            "example": "12345678",
-            "description": "password"
-          },
-          "avatar": {
-            "type": "string",
-            "example": "abc.jpg",
-            "description": "Your avatar"
-          },
-          "username": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 20,
-            "example": "Nguyễn Tuấn Thành",
-            "description": "Your last username"
-          },
-          "full_name": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 50,
-            "example": "Nguyễn Tuấn Thành",
-            "description": "Your full name"
-          },
-          "bio": {
-            "type": "string",
-            "example": "Good boy",
-            "description": "bio"
-          },
-          "website": {
-            "type": "string",
-            "example": "https://github.com/ntthanh2603",
-            "description": "website"
-          },
-          "birthday": {
-            "format": "date-time",
-            "type": "string",
-            "example": "2025-02-11 08:14:57.142000",
-            "description": "birthday"
-          },
-          "gender": {
-            "enum": [
-              "male",
-              "female",
-              "other"
-            ],
-            "type": "string",
-            "example": "male",
-            "description": "gender"
-          },
-          "address": {
-            "type": "string",
-            "example": "Cau Giay, Ha Noi",
-            "description": "address"
-          }
-        },
-        "required": [
-          "email",
-          "password",
-          "avatar",
-          "username",
-          "full_name",
-          "bio",
-          "website",
-          "birthday",
-          "gender",
-          "address"
-        ]
-      },
-      "ForgotPasswordDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "user@example.com",
-            "description": "Email tài khoản cần khôi phục"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "ResetPasswordDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "user@example.com",
-            "description": "Email tài khoản"
-          },
-          "reset_code": {
-            "type": "string",
-            "example": "123456",
-            "description": "Mã xác thực OTP gửi qua email"
-          },
-          "new_password": {
-            "type": "string",
-            "minLength": 6,
-            "example": "newpassword123",
-            "description": "Mật khẩu mới"
-          }
-        },
-        "required": [
-          "email",
-          "reset_code",
-          "new_password"
-        ]
-      },
-      "UpdateRelationDto": {
-        "type": "object",
-        "properties": {
-          "user_id": {
-            "type": "string",
-            "example": "123123123123",
-            "description": "ID user other"
-          },
-          "relation": {
-            "enum": [
-              "following",
-              "block",
-              "none",
-              "pending"
-            ],
-            "type": "string",
-            "example": "following"
-          },
-          "action": {
-            "type": "object",
-            "example": "restrict",
-            "description": "Action to perform: restrict, unrestrict"
-          }
-        },
-        "required": [
-          "user_id"
-        ]
-      },
-      "NotificationActorDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "avatar": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "avatar"
-        ]
-      },
-      "NotificationMetadataDto": {
-        "type": "object",
-        "properties": {
-          "actors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationActorDto"
-            }
-          },
-          "thumbnail": {
-            "type": "string",
-            "nullable": true
-          },
-          "reaction": {
-            "type": "string",
-            "nullable": true
-          },
-          "comment_type": {
-            "type": "string",
-            "nullable": true
-          },
-          "relation_type": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "actors"
-        ]
-      },
-      "NotificationItemDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "notification_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "notification_type": {
-            "enum": [
-              "like",
-              "comment",
-              "follow",
-              "reaction",
-              "follow_request",
-              "system",
-              "mention"
-            ],
-            "type": "string"
-          },
-          "target_type": {
-            "type": "string",
-            "nullable": true
-          },
-          "target_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_read": {
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "metadata": {
-            "nullable": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NotificationMetadataDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "notification_id",
-          "title",
-          "message",
-          "notification_type",
-          "target_type",
-          "target_id",
-          "is_read",
-          "created_at",
-          "updated_at",
-          "metadata"
-        ]
-      },
-      "NotificationPaginationMetaDto": {
-        "type": "object",
-        "properties": {
-          "total": {
-            "type": "number"
-          },
-          "page": {
-            "type": "number"
-          },
-          "limit": {
-            "type": "number"
-          },
-          "totalPages": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "total",
-          "page",
-          "limit",
-          "totalPages"
-        ]
-      },
-      "NotificationListResponseDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationItemDto"
-            }
-          },
-          "meta": {
-            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
-          }
-        },
-        "required": [
-          "data",
-          "meta"
-        ]
-      },
-      "UnreadCountResponseDto": {
-        "type": "object",
-        "properties": {
-          "unread_count": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "unread_count"
-        ]
-      },
-      "CreateNotiSystemDto": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "example": "Thông báo hệ thống"
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "example": "Hệ thống quá tốt"
-          }
-        },
-        "required": [
-          "title",
-          "message"
-        ]
-      },
-      "DeleteNotificationUserDto": {
-        "type": "object",
-        "properties": {
-          "noti_user_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "noti_user_id"
-        ]
-      },
       "CreateChatRoomDto": {
         "type": "object",
         "properties": {
@@ -5020,6 +5020,17 @@
               "img3.jpg"
             ],
             "description": "medias",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hashtags": {
+            "example": [
+              "StarWars",
+              "CloneWars"
+            ],
+            "description": "hashtags",
             "type": "array",
             "items": {
               "type": "string"

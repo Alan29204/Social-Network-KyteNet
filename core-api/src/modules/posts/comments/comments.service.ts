@@ -171,7 +171,13 @@ export class CommentsService {
         message: 'Comment created successfully',
         comment_id: comment.id,
       };
-    } catch {
+    } catch (err) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException
+      ) {
+        throw err;
+      }
       throw new InternalServerErrorException('Error creating comment');
     }
   }

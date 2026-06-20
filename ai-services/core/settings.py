@@ -16,6 +16,7 @@ class Settings(BaseSettings):
   # ChromaDB
   CHROMA_DB_HOST: str
   CHROMA_DB_PORT: int
+  EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
   # Backend NestJS
   PORT_NEST: int

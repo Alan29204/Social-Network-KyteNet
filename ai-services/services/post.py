@@ -5,7 +5,8 @@ from fastapi import HTTPException
 from schemas.posts import PostsBase
 from services.ai import AIService
 from schemas.paginated_query import PaginatedQuery
-from typing import List
+from services.searchable_text import build_searchable_text
+from typing import List, Optional
 
 
 class PostService:
@@ -67,12 +68,16 @@ class PostService:
           "details": details
       }
 
-    async def embed_post(self, post_id: str, content: str):
+    async def embed_post(self, post_id: str, content: Optional[str] = None, hashtags: Optional[List[str]] = None):
         """Embed post content and store in ChromaDB."""
         try:
+            searchable_text = build_searchable_text(content, hashtags)
+            if not searchable_text:
+                await self.chromadb.delete_by_id(post_id)
+                return {"message": f"No searchable text for post {post_id}; embedding deleted"}
             return await self.chromadb.create_with_text({
                 "id": post_id,
-                "text": content,
+                "text": searchable_text,
             })
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error embedding post: {str(e)}")
@@ -100,15 +105,20 @@ class PostService:
                 query = text(
                     """
                     SELECT post_id FROM (
-                        SELECT post_id, created_at FROM reaction
-                        WHERE user_id = :uid AND post_id IS NOT NULL
+                        SELECT r.post_id, p.created_at
+                        FROM reaction r
+                        JOIN post p ON p.id = r.post_id
+                        WHERE r.user_id = :uid AND r.post_id IS NOT NULL
                         UNION ALL
-                        SELECT sp.post_id, sp.created_at
+                        SELECT sp.post_id, p.created_at
                         FROM save_post sp
                         JOIN save_list sl ON sl.id = sp.save_list_id
-                        WHERE sl.user_id = :uid
+                        JOIN post p ON p.id = sp.post_id
+                        WHERE sl.user_id = CAST(:uid AS uuid)
                         UNION ALL
-                        SELECT id AS post_id, created_at FROM post WHERE user_id = :uid
+                        SELECT id AS post_id, created_at
+                        FROM post
+                        WHERE user_id = CAST(:uid AS uuid)
                     ) t
                     ORDER BY created_at DESC
                     LIMIT :lim
@@ -120,7 +130,7 @@ class PostService:
                 seen = set()
                 ids = []
                 for r in rows:
-                    pid = r["post_id"]
+                    pid = str(r["post_id"]) if r["post_id"] else None
                     if pid and pid not in seen:
                         seen.add(pid)
                         ids.append(pid)
@@ -156,27 +166,54 @@ class PostService:
         )
         return {"post_ids": result.get("ids", []), "source": "personalized"}
 
-    async def reindex_all(self, batch_size: int = 200):
+    async def reindex_all(self, batch_size: int = 200, reset: bool = True):
         """Embed lại toàn bộ post public vào ChromaDB (backfill dữ liệu cũ)."""
         async for db in get_db():
             try:
+                if reset:
+                    self.chromadb.reset_collection()
+
                 query = text(
-                    "SELECT id, content FROM post WHERE content IS NOT NULL AND content <> ''"
+                    """
+                    SELECT id, content, hashtags
+                    FROM post
+                    WHERE
+                      (content IS NOT NULL AND content <> '')
+                      OR (hashtags IS NOT NULL AND cardinality(hashtags) > 0)
+                    """
                 )
                 result = await db.execute(query)
                 rows = result.mappings().all()
 
                 count = 0
+                skipped = 0
+                failed = 0
                 for r in rows:
                     try:
+                        searchable_text = build_searchable_text(
+                            r["content"],
+                            r["hashtags"],
+                        )
+                        if not searchable_text:
+                            skipped += 1
+                            continue
                         await self.chromadb.create_with_text(
-                            {"id": r["id"], "text": r["content"]}
+                            {"id": r["id"], "text": searchable_text}
                         )
                         count += 1
-                    except Exception:
+                    except Exception as e:
+                        print(f"[Reindex] Failed to index post {r['id']}: {e}")
+                        failed += 1
                         # Bỏ qua bài lỗi, tiếp tục
                         continue
 
-                return {"message": "Reindex completed", "total": len(rows), "indexed": count}
+                return {
+                    "message": "Reindex completed",
+                    "total": len(rows),
+                    "indexed": count,
+                    "skipped": skipped,
+                    "failed": failed,
+                    "reset": reset,
+                }
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Reindex error: {str(e)}")

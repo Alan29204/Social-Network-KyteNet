@@ -23,6 +23,11 @@ import { RelationsService } from 'src/modules/users/relations/relations.service'
 import { forwardRef, Inject } from '@nestjs/common';
 import { NotificationService } from 'src/modules/notifications/notifications.service';
 import { NotificationType } from 'src/common/enums/notification.enum';
+import {
+  buildPostSearchableText,
+  extractHashtagsFromContent,
+  normalizePostHashtags,
+} from 'src/common/utils/searchableText';
 
 @Injectable()
 export class PostsService {
@@ -72,17 +77,21 @@ export class PostsService {
   /** Cập nhật/embed lại nội dung bài viết trong ChromaDB (best-effort). */
   private async upsertPostEmbedding(
     postId: string,
-    content: string,
+    content?: string | null,
+    hashtags?: string[] | string | null,
   ): Promise<void> {
-    if (!content?.trim()) {
-      // Nội dung trống -> xóa embedding cũ nếu có
+    const searchableText = buildPostSearchableText(content, hashtags);
+
+    if (!searchableText) {
+      // Không còn nội dung/hashtag có thể tìm kiếm -> xóa embedding cũ nếu có
       await this.deletePostEmbedding(postId);
       return;
     }
+
     try {
       await axios.post(
         `${this.aiBaseUrl}/posts/embed`,
-        { post_id: postId, content },
+        { post_id: postId, content: searchableText, hashtags },
         { headers: this.aiHeaders, timeout: 5000 },
       );
     } catch (err) {
@@ -233,46 +242,62 @@ export class PostsService {
       newPost.user_id = user.id;
       newPost.content = dto?.content;
       newPost.medias = medias;
-      let hashtags = dto.hashtags || [];
-      if (typeof hashtags === 'string') hashtags = [(hashtags as string)];
-      else if (!Array.isArray(hashtags)) hashtags = [];
+      let hashtags = normalizePostHashtags(dto.hashtags);
+      if (hashtags.length === 0) {
+        hashtags = extractHashtagsFromContent(dto.content);
+      }
       newPost.hashtags = hashtags;
 
       let taggedUsers = dto.tagged_users || [];
-      if (typeof taggedUsers === 'string') taggedUsers = [(taggedUsers as string)];
+      if (typeof taggedUsers === 'string')
+        taggedUsers = [taggedUsers as string];
       else if (!Array.isArray(taggedUsers)) taggedUsers = [];
 
       const validTaggedUsers: string[] = [];
       let postContent = dto?.content || '';
       const userRepository = this.repository.manager.getRepository(User);
-      const authorUser = await userRepository.findOne({ where: { id: user.id } });
+      const authorUser = await userRepository.findOne({
+        where: { id: user.id },
+      });
 
       if (taggedUsers.length > 0) {
         for (const taggedUserId of taggedUsers) {
           if (taggedUserId === user.id) continue;
 
           let isValid = true;
-          
+
           // 1. Data Collision (Block)
-          const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+          const areBlocked = await this.relationsService.areBlocked(
+            user.id,
+            taggedUserId,
+          );
           if (areBlocked) isValid = false;
 
           if (isValid) {
-            const taggedUser = await userRepository.findOne({ where: { id: taggedUserId } });
+            const taggedUser = await userRepository.findOne({
+              where: { id: taggedUserId },
+            });
             if (!taggedUser) {
               isValid = false;
             } else {
-              const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id); // From Tagged User to Author
+              const relationBtoA = await this.relationsService.getRelation(
+                taggedUserId,
+                user.id,
+              ); // From Tagged User to Author
 
               // 2. Tagged User's Privacy
               if (taggedUser.mention_privacy === 'nobody') {
                 isValid = false;
-              } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+              } else if (
+                taggedUser.mention_privacy === 'following' &&
+                relationBtoA !== 'following'
+              ) {
                 isValid = false;
               }
 
               // 3. Author's Post & Account Privacy
-              const isAuthorPrivate = authorUser?.privacy === 'private' || dto.privacy === 'private';
+              const isAuthorPrivate =
+                authorUser?.privacy === 'private' || dto.privacy === 'private';
               if (isValid && isAuthorPrivate && relationBtoA !== 'following') {
                 isValid = false;
               }
@@ -306,6 +331,11 @@ export class PostsService {
           author_id: newPost.user_id,
           created_at: newPost.created_at.toISOString(),
           content: newPost.content || '',
+          hashtags: newPost.hashtags || [],
+          searchable_text: buildPostSearchableText(
+            newPost.content,
+            newPost.hashtags,
+          ),
         },
         {
           removeOnComplete: true,
@@ -403,6 +433,12 @@ export class PostsService {
           post_id: sharedPost.id,
           author_id: sharedPost.user_id,
           created_at: sharedPost.created_at.toISOString(),
+          content: sharedPost.content || '',
+          hashtags: sharedPost.hashtags || [],
+          searchable_text: buildPostSearchableText(
+            sharedPost.content,
+            sharedPost.hashtags,
+          ),
         },
         { removeOnComplete: true, removeOnFail: true },
       );
@@ -427,6 +463,9 @@ export class PostsService {
     currentUser?: IUser,
   ) {
     try {
+      page = Math.max(1, Math.floor(Number(page) || 1));
+      limit = Math.max(1, Math.floor(Number(limit) || 10));
+
       const qb = this.repository
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
@@ -590,35 +629,55 @@ export class PostsService {
 
     try {
       let updatedTaggedUsers = dto.tagged_users;
-      if (typeof updatedTaggedUsers === 'string') updatedTaggedUsers = [(updatedTaggedUsers as string)];
-      else if (updatedTaggedUsers && !Array.isArray(updatedTaggedUsers)) updatedTaggedUsers = [];
+      if (typeof updatedTaggedUsers === 'string')
+        updatedTaggedUsers = [updatedTaggedUsers as string];
+      else if (updatedTaggedUsers && !Array.isArray(updatedTaggedUsers))
+        updatedTaggedUsers = [];
 
       let postContent = dto.content;
-      
+      let updatedHashtags =
+        dto.hashtags !== undefined
+          ? normalizePostHashtags(dto.hashtags)
+          : undefined;
+
       if (updatedTaggedUsers && updatedTaggedUsers.length > 0) {
         const validTaggedUsers: string[] = [];
         const userRepository = this.repository.manager.getRepository(User);
-        const authorUser = await userRepository.findOne({ where: { id: user.id } });
+        const authorUser = await userRepository.findOne({
+          where: { id: user.id },
+        });
 
         for (const taggedUserId of updatedTaggedUsers) {
           if (taggedUserId === user.id) continue;
           let isValid = true;
-          
-          const areBlocked = await this.relationsService.areBlocked(user.id, taggedUserId);
+
+          const areBlocked = await this.relationsService.areBlocked(
+            user.id,
+            taggedUserId,
+          );
           if (areBlocked) isValid = false;
 
           if (isValid) {
-            const taggedUser = await userRepository.findOne({ where: { id: taggedUserId } });
+            const taggedUser = await userRepository.findOne({
+              where: { id: taggedUserId },
+            });
             if (!taggedUser) {
               isValid = false;
             } else {
-              const relationBtoA = await this.relationsService.getRelation(taggedUserId, user.id);
+              const relationBtoA = await this.relationsService.getRelation(
+                taggedUserId,
+                user.id,
+              );
               if (taggedUser.mention_privacy === 'nobody') {
                 isValid = false;
-              } else if (taggedUser.mention_privacy === 'following' && relationBtoA !== 'following') {
+              } else if (
+                taggedUser.mention_privacy === 'following' &&
+                relationBtoA !== 'following'
+              ) {
                 isValid = false;
               }
-              const isAuthorPrivate = authorUser?.privacy === 'private' || dto.privacy === 'private';
+              const isAuthorPrivate =
+                authorUser?.privacy === 'private' || dto.privacy === 'private';
               if (isValid && isAuthorPrivate && relationBtoA !== 'following') {
                 isValid = false;
               }
@@ -635,16 +694,27 @@ export class PostsService {
         updatedTaggedUsers = validTaggedUsers;
       }
 
+      if (postContent !== undefined && updatedHashtags === undefined) {
+        updatedHashtags = extractHashtagsFromContent(postContent);
+      }
+
       await this.repository.update(dto.id, {
         ...(postContent !== undefined && { content: postContent }),
         privacy: dto.privacy,
+        ...(updatedHashtags !== undefined && { hashtags: updatedHashtags }),
         ...(updatedTaggedUsers && { tagged_users: updatedTaggedUsers }),
       });
       await this.redisService.del(`post:${dto.id}`);
 
-      // Đồng bộ embedding khi nội dung thay đổi (best-effort)
-      if (dto.content !== undefined) {
-        await this.upsertPostEmbedding(dto.id, dto.content || '');
+      // Đồng bộ embedding khi nội dung/hashtag thay đổi (best-effort)
+      if (postContent !== undefined || updatedHashtags !== undefined) {
+        await this.upsertPostEmbedding(
+          dto.id,
+          postContent !== undefined ? postContent : post.content || '',
+          updatedHashtags !== undefined
+            ? updatedHashtags
+            : post.hashtags || [],
+        );
       }
 
       return { message: 'Update post successfully' };
@@ -735,7 +805,11 @@ export class PostsService {
 
       // Update embedding in Chromadb because content changed
       if (post.content !== undefined) {
-        await this.upsertPostEmbedding(post.id, post.content || '');
+        await this.upsertPostEmbedding(
+          post.id,
+          post.content || '',
+          post.hashtags || [],
+        );
       }
 
       return { message: 'Remove tag successfully' };

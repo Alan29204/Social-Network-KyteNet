@@ -13,12 +13,13 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useRegister } from '@/features/auth/apis/auth-api';
+import { toast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
   full_name: z.string().min(2, 'Họ và tên phải có ít nhất 2 ký tự').max(50, 'Họ và tên không được vượt quá 50 ký tự'),
   username: z.string().min(2, 'Tên người dùng phải có ít nhất 2 ký tự').max(20, 'Tên người dùng không được vượt quá 20 ký tự'),
-  password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+  password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Mật khẩu xác nhận không khớp",
@@ -46,12 +47,19 @@ export default function RegisterPage() {
     
     registerMutation.mutate(payload, {
       onSuccess: () => {
-        alert('Đăng ký thành công! Vui lòng đăng nhập.');
+        toast({
+          title: 'Đăng ký thành công',
+          description: 'Vui lòng đăng nhập để tiếp tục.',
+        });
         navigate('/login');
       },
       onError: (err) => {
         console.error('Register failed', err);
-        alert('Đăng ký thất bại. Email có thể đã tồn tại.');
+        toast({
+          title: 'Đăng ký thất bại',
+          description: 'Email có thể đã tồn tại hoặc dữ liệu chưa hợp lệ.',
+          variant: 'destructive',
+        });
       }
     });
   };

@@ -39,6 +39,13 @@ export class UsersService {
     private avatarUpdatesQueue: Queue,
   ) {}
 
+  private sanitizeUser<T extends Partial<User>>(user: T) {
+    if (!user) return user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...safeUser } = user;
+    return safeUser;
+  }
+
   async getAccount(user: IUser) {
     const userDb = await this.findUserById(user.id);
     return {
@@ -73,7 +80,19 @@ export class UsersService {
   }
 
   async findAll() {
-    return await this.usersRepository.find();
+    const users = await this.usersRepository.find({
+      select: [
+        'id',
+        'username',
+        'full_name',
+        'avatar',
+        'cover_photo',
+        'privacy',
+        'role',
+        'created_at',
+      ],
+    });
+    return users.map((user) => this.sanitizeUser(user));
   }
 
   /**
@@ -211,9 +230,9 @@ export class UsersService {
         throw new NotFoundException(`User with ID ${id} not found`);
       }
 
-      await this.redisService.hMSet(cacheKey, user);
+      await this.redisService.hMSet(cacheKey, this.sanitizeUser(user));
 
-      return user;
+      return this.sanitizeUser(user) as User;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

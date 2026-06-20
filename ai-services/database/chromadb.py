@@ -10,14 +10,30 @@ from schemas.embedding_search_query import EmbeddingSearchQuery
 
 
 # Connect to ChromaDB
+COLLECTION_NAME = "posts"
 chroma_client = chromadb.HttpClient(host=settings.CHROMA_DB_HOST, port=settings.CHROMA_DB_PORT)
-collection = chroma_client.get_or_create_collection(name="posts")
+
+
+def _get_posts_collection():
+    return chroma_client.get_or_create_collection(name=COLLECTION_NAME)
+
+
+collection = _get_posts_collection()
 
 
 class ChromaDb:
     def __init__(self):
         self.collection = collection
         self.embeddings = Embeddings()
+
+    def reset_collection(self):
+        global collection
+        try:
+            chroma_client.delete_collection(name=COLLECTION_NAME)
+        except Exception:
+            pass
+        collection = _get_posts_collection()
+        self.collection = collection
 
     @staticmethod
     def _normalize_type(value) -> Optional[str]:
@@ -39,69 +55,74 @@ class ChromaDb:
     # Add data with text
     async def create_with_text(self, metadata: dict):
         try:
+            item_id = str(metadata['id'])
             embedding = self.embeddings.get_embedding_text(metadata['text'])
             metadata_type = self._normalize_type(metadata.get('type')) or "post"
             self.collection.upsert(
-                ids=[metadata['id']],
+                ids=[item_id],
                 embeddings=[embedding],
                 metadatas=[self._build_metadata(metadata_type, metadata.get('extra'))],
                 documents=[metadata['text']],
             )
-            return {"message": f"Created embedding {metadata['id']} successfully"}
+            return {"message": f"Created embedding {item_id} successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error create embedding: {str(e)}")
     
     # Add data with embedding
     async def create_with_embedding(self, data: dict):
         try:
+            item_id = str(data['id'])
             metadata_type = data['type'].value if data.get('type') else None
             self.collection.add(
-                ids=[data['id']],
+                ids=[item_id],
                 embeddings=[data['embedding']],
                 metadatas=[{"type": metadata_type} if metadata_type else {}],
                 documents=None 
             )
-            return {"message": f"Created embedding with ID {data['id']} successfully"}
+            return {"message": f"Created embedding with ID {item_id} successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error creating embedding: {str(e)}")
 
     # Delete data by id
     async def delete_by_id(self, id: str):
         try:
-            self.collection.delete(ids=[id])
-            return {"message": f"Delete embedding has id {id} successfully"}
+            item_id = str(id)
+            self.collection.delete(ids=[item_id])
+            return {"message": f"Delete embedding has id {item_id} successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error deleting: {str(e)}")
 
     # Update with text
     async def update_with_text(self, metadata: dict):
         try:
+            item_id = str(metadata['id'])
             embedding = self.embeddings.get_embedding_text(metadata['text'])
             self.collection.update(
-                ids=[metadata['id']],
+                ids=[item_id],
                 embeddings=[embedding],
                 metadatas=[{"type": metadata['type']} if metadata.get('type') else {}],
                 documents=None  
             )
-            return {"message": f"Updated embedding {metadata['id']} successfully"}
+            return {"message": f"Updated embedding {item_id} successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error updating: {str(e)}")
     
     # Update with embedding 
     async def update_with_embedding(self, data: dict):
         try:
+            item_id = str(data['id'])
             self.collection.update(
-                ids=[data['id']],
+                ids=[item_id],
                 embeddings=[data['embedding']],
                 metadatas=[{"type": data['type']} if data.get('type') else {}],
                 documents=None 
             )
-            return {"message": f"Updated embedding {data['id']} successfully using provided embedding"}
+            return {"message": f"Updated embedding {item_id} successfully using provided embedding"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error updating with embedding: {str(e)}")
 
     # Suggest 
-    async def suggest_posts(self, query: PaginatedQuery, max_distance: float = 1.5) -> dict:
+    async def suggest_posts(self, query: PaginatedQuery, max_distance: Optional[float] = None) -> dict:
         try:
             query_embedding = self.embeddings.get_embedding_text(query.query)
 
@@ -111,6 +132,20 @@ class ChromaDb:
 
             # Lấy vừa đủ cho tới trang hiện tại (tránh fetch quá nhiều)
             fetch_limit = max(query.page_size * query.page, query.page_size)
+            collection_count = self.collection.count()
+            if collection_count == 0:
+                return {
+                    "ids": [],
+                    "metadatas": [],
+                    "distances": [],
+                    "pagination": {
+                        "current_page": query.page,
+                        "page_size": query.page_size,
+                        "total_results": 0,
+                        "total_pages": 0,
+                    },
+                }
+            fetch_limit = min(fetch_limit, collection_count)
 
             results = self.collection.query(
                 query_embeddings=[query_embedding],
@@ -127,7 +162,7 @@ class ChromaDb:
             filtered = [
                 (i, m, d)
                 for i, m, d in zip(ids, metadatas, distances)
-                if d is None or d <= max_distance
+                if max_distance is None or d is None or d <= max_distance
             ]
 
             total_results = len(filtered)
@@ -160,6 +195,10 @@ class ChromaDb:
             exclude_ids = exclude_ids or []
             # Lấy dư để bù số bài bị loại (đã xem / của chính user)
             fetch_limit = limit + len(exclude_ids) + 10
+            collection_count = self.collection.count()
+            if collection_count == 0:
+                return {"ids": [], "distances": []}
+            fetch_limit = min(fetch_limit, collection_count)
 
             results = self.collection.query(
                 query_embeddings=[embedding],
@@ -188,8 +227,16 @@ class ChromaDb:
         if not ids:
             return []
         try:
-            results = self.collection.get(ids=ids, include=["embeddings"])
-            return results.get("embeddings", []) or []
+            results = self.collection.get(
+                ids=[str(item_id) for item_id in ids],
+                include=["embeddings"],
+            )
+            embeddings = results.get("embeddings")
+            if embeddings is None:
+                return []
+            if hasattr(embeddings, "tolist"):
+                embeddings = embeddings.tolist()
+            return embeddings
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error getting embeddings: {str(e)}")
 

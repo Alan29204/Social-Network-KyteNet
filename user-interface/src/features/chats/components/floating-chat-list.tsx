@@ -1,11 +1,35 @@
 import { useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
-import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Maximize2, X } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
+
+type FloatingChatMember = {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar?: string;
+  profile_picture_url?: string;
+};
+
+type FloatingChatRoomSummary = {
+  id: string;
+  name?: string;
+  type?: string;
+  avatar?: string;
+  members?: FloatingChatMember[];
+  unread_count?: number;
+  last_message?: {
+    message?: string;
+    content?: string;
+    type?: string;
+    medias?: string[];
+    created_by?: string;
+    created_at?: string;
+  };
+};
 
 export function FloatingChatList() {
   const { user } = useAuthStore();
@@ -17,7 +41,10 @@ export function FloatingChatList() {
     limit: 20,
   });
 
-  const rooms = roomsRes?.data?.data || [];
+  const roomsPayload = roomsRes as unknown as {
+    data?: { data?: FloatingChatRoomSummary[] };
+  };
+  const rooms = roomsPayload?.data?.data || [];
 
   const handleExpand = () => {
     closeChat();
@@ -59,9 +86,9 @@ export function FloatingChatList() {
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            {rooms.map((room: any) => {
+            {rooms.map((room) => {
               const isGroup = room.type === 'group';
-              const otherUser = room.members?.find((m: any) => m.id !== user?.id);
+              const otherUser = room.members?.find((m) => m.id !== user?.id);
 
               const roomName = isGroup 
                 ? (room.name || 'Group Chat')
@@ -72,7 +99,13 @@ export function FloatingChatList() {
                 : (otherUser?.profile_picture_url || otherUser?.avatar || '/default-avatar.png');
 
               const lastMessage = room.last_message;
-              const isUnread = room.unread_count > 0;
+              const isUnread = (room.unread_count || 0) > 0;
+              const lastMessageText =
+                lastMessage?.message ||
+                lastMessage?.content ||
+                (lastMessage?.medias?.length
+                  ? 'Đã gửi một tệp'
+                  : 'Đã gửi một tin nhắn');
 
               return (
                 <button
@@ -101,15 +134,11 @@ export function FloatingChatList() {
                         }`}
                       >
                         {lastMessage.created_by === user?.id && 'Bạn: '}
-                        {lastMessage.type === 'text'
-                          ? lastMessage.content
-                          : lastMessage.type === 'image'
-                          ? 'Đã gửi một hình ảnh'
-                          : lastMessage.type === 'video'
-                          ? 'Đã gửi một video'
-                          : 'Đã gửi một tệp'}
+                        {lastMessageText}
                         <span className="mx-1">·</span>
-                        {formatTimeAgo(lastMessage.created_at)}
+                        {lastMessage.created_at
+                          ? formatTimeAgo(lastMessage.created_at)
+                          : ''}
                       </span>
                     )}
                   </div>

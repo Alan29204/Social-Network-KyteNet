@@ -14,6 +14,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useLogin } from '@/features/auth/apis/auth-api';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { toast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -49,7 +50,11 @@ export default function LoginPage() {
       },
       onError: (err) => {
         console.error('Login failed', err);
-        alert('Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+        toast({
+          title: 'Đăng nhập thất bại',
+          description: 'Vui lòng kiểm tra lại email và mật khẩu.',
+          variant: 'destructive',
+        });
       },
     });
   };
@@ -82,12 +87,9 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Mật khẩu</Label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
+                <span className="text-xs font-semibold text-muted-foreground">
                   Quên mật khẩu?
-                </Link>
+                </span>
               </div>
               <Input
                 id="password"

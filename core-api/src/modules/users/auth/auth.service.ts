@@ -29,7 +29,7 @@ export class AuthService {
       // Get secret key from device session
       const secret = await this.deviceSessionsService.getSecret(
         decoded.id,
-        decoded.deviceSecssionid,
+        decoded.deviceSecssionId,
       );
 
       // Return payload if valid token

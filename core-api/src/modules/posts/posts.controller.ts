@@ -61,9 +61,12 @@ export class PostsController {
     @Query('media_type') media_type?: 'image' | 'video',
     @User() user?: IUser,
   ) {
+    const normalizedPage = Math.max(1, Math.floor(Number(page) || 1));
+    const normalizedLimit = Math.max(1, Math.floor(Number(limit) || 10));
+
     return this.postsService.findAll(
-      page,
-      limit,
+      normalizedPage,
+      normalizedLimit,
       user_id,
       is_repost === 'true' ? true : is_repost === 'false' ? false : undefined,
       media_type,

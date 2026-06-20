@@ -25,6 +25,17 @@ function extractArray(res: any): any[] {
   return [];
 }
 
+function extractSource(res: any): string | undefined {
+  return (
+    res?.source ||
+    res?.meta?.source ||
+    res?.data?.source ||
+    res?.data?.meta?.source ||
+    res?.data?.data?.source ||
+    res?.data?.data?.meta?.source
+  );
+}
+
 /** Map raw post từ API sang props của PostCard. */
 function mapPost(post: any) {
   return {
@@ -43,6 +54,9 @@ function mapPost(post: any) {
     isLiked: post.isLiked || post.interactions?.is_liked || false,
     isSaved: post.isSaved || false,
     isReposted: post.interactions?.is_reposted || false,
+    privacy: post.privacy,
+    tagged_users: post.tagged_users || [],
+    hashtags: post.hashtags || [],
   };
 }
 
@@ -133,6 +147,10 @@ export default function SearchPage() {
   );
   const semanticPosts = useMemo(
     () => extractArray(semanticQuery.data),
+    [semanticQuery.data],
+  );
+  const semanticSource = useMemo(
+    () => extractSource(semanticQuery.data),
     [semanticQuery.data],
   );
 
@@ -281,7 +299,9 @@ export default function SearchPage() {
             <TabsContent value="semantic" className="mt-4">
               <div className="flex items-center gap-2 px-3 mb-3 text-xs text-muted-foreground">
                 <Sparkles className="w-4 h-4 text-primary" />
-                Tìm kiếm theo ngữ nghĩa bằng AI
+                {semanticSource === 'keyword_fallback'
+                  ? 'Đang dùng tìm kiếm từ khóa dự phòng'
+                  : 'Tìm kiếm theo ngữ nghĩa bằng AI'}
               </div>
               {semanticQuery.isLoading
                 ? renderLoader()

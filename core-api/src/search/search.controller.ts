@@ -31,8 +31,8 @@ export class SearchController {
   ) {
     return this.searchService.searchUsers(
       query,
-      page || 1,
-      limit || 10,
+      Number(page) || 1,
+      Number(limit) || 10,
       user.id,
     );
   }
@@ -52,8 +52,8 @@ export class SearchController {
     return this.searchService.searchPosts(
       query,
       user.id,
-      page || 1,
-      limit || 10,
+      Number(page) || 1,
+      Number(limit) || 10,
     );
   }
 
@@ -65,10 +65,16 @@ export class SearchController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   searchByHashtag(
     @Query('tag') hashtag: string,
+    @User() user: IUser,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.searchService.searchByHashtag(hashtag, page || 1, limit || 10);
+    return this.searchService.searchByHashtag(
+      hashtag,
+      user.id,
+      Number(page) || 1,
+      Number(limit) || 10,
+    );
   }
 
   @Get('semantic')
@@ -89,8 +95,8 @@ export class SearchController {
     return this.searchService.semanticSearchPosts(
       query,
       user.id,
-      page || 1,
-      limit || 10,
+      Number(page) || 1,
+      Number(limit) || 10,
     );
   }
 }

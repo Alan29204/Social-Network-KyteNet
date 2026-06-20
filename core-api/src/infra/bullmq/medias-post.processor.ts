@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PostsService } from 'src/modules/posts/posts.service';
 import { NotificationService } from 'src/modules/notifications/notifications.service';
 import axios from 'axios';
+import { buildPostSearchableText } from 'src/common/utils/searchableText';
 
 /**
  * Processes post creation jobs:
@@ -29,6 +30,12 @@ export class MediasPostsProcessor extends WorkerHost {
       const authorId: string = job.data['author_id'];
       const createdAt: Date = new Date(job.data['created_at']);
       const content: string = job.data['content'] || '';
+      const hashtags: string[] = Array.isArray(job.data['hashtags'])
+        ? job.data['hashtags']
+        : [];
+      const searchableText: string =
+        job.data['searchable_text'] ||
+        buildPostSearchableText(content, hashtags);
 
       console.log(`[Queue] Processing post ${postId} by ${authorId}`);
 
@@ -83,12 +90,12 @@ export class MediasPostsProcessor extends WorkerHost {
       await this.feedService.fanoutPost(postId, authorId, createdAt);
       console.log(`[FeedFanout] Completed fanout for post ${postId}`);
 
-      // 3. Send to AI service for embedding (only if content exists)
-      if (content.trim()) {
+      // 3. Send to AI service for embedding when content or hashtags exist
+      if (searchableText.trim()) {
         try {
           await axios.post(
             `${aiBaseUrl}/posts/embed`,
-            { post_id: postId, content: content },
+            { post_id: postId, content: searchableText, hashtags },
             { headers: aiHeaders },
           );
           console.log(`[Embedding] Post ${postId} embedded successfully`);

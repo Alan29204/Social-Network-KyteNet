@@ -380,11 +380,17 @@ export function SidebarLeft() {
               sideOffset={8}
               className="w-64 rounded-xl p-2 shadow-lg"
             >
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+              <DropdownMenuItem
+                disabled
+                className="p-3 rounded-lg text-[15px]"
+              >
                 <Settings className="mr-3 h-5 w-5" />
                 <span>Cài đặt</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+              <DropdownMenuItem
+                disabled
+                className="p-3 rounded-lg text-[15px]"
+              >
                 <Activity className="mr-3 h-5 w-5" />
                 <span>Hoạt động của bạn</span>
               </DropdownMenuItem>
@@ -422,14 +428,20 @@ export function SidebarLeft() {
                 )}
                 <span>Chuyển chế độ</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+              <DropdownMenuItem
+                disabled
+                className="p-3 rounded-lg text-[15px]"
+              >
                 <MessageSquareWarning className="mr-3 h-5 w-5" />
                 <span>Báo cáo sự cố</span>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1" />
 
-              <DropdownMenuItem className="p-3 cursor-pointer rounded-lg text-[15px]">
+              <DropdownMenuItem
+                disabled
+                className="p-3 rounded-lg text-[15px]"
+              >
                 <RefreshCw className="mr-3 h-5 w-5" />
                 <span>Chuyển tài khoản</span>
               </DropdownMenuItem>

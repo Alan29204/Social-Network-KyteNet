@@ -6,7 +6,6 @@ import {
   getChatMessagesControllerGetMessageHistoryQueryKey,
 } from '@/services/apis/gen/queries';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
-import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Loader2,
@@ -21,7 +20,31 @@ import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { socketService } from '@/services/socket.service';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatTimeAgo } from '@/utils/date-formatter';
+
+type FloatingRoomMember = {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar?: string;
+  profile_picture_url?: string;
+};
+
+type FloatingRoom = {
+  id: string;
+  name?: string;
+  type?: string;
+  avatar?: string;
+  members?: FloatingRoomMember[];
+};
+
+type FloatingMessage = {
+  id: string;
+  chat_room_id: string;
+  created_by: string;
+  message?: string;
+  content?: string;
+  created_at?: string;
+};
 
 export function FloatingChatRoom({ roomId }: { roomId: string }) {
   const { user } = useAuthStore();
@@ -39,14 +62,18 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
 
   const { data: roomData, isLoading: isLoadingRoom } =
     useChatRoomsControllerFindChatRoomById(roomId);
-  const room = roomData?.data;
+  const roomPayload = roomData as unknown as { data?: FloatingRoom };
+  const room = roomPayload?.data;
 
   const { data: messagesData, isLoading: isLoadingMessages } =
     useChatMessagesControllerGetMessageHistory(roomId, {
       limit: 50,
     });
 
-  const messages = messagesData?.data?.data || [];
+  const messagesPayload = messagesData as unknown as {
+    data?: { data?: FloatingMessage[] };
+  };
+  const messages = messagesPayload?.data?.data || [];
 
   // Scroll to bottom on load or new message
   useEffect(() => {
@@ -65,23 +92,23 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
     const socket = socketService.getSocket();
     if (!socket) return;
 
-    const handleNewMessage = (newMsg: any) => {
+    const appendMessageToCache = (newMsg: FloatingMessage) => {
       if (newMsg.chat_room_id === roomId) {
-        // Append to cache
         queryClient.setQueryData(
           getChatMessagesControllerGetMessageHistoryQueryKey(roomId, {
             limit: 50,
           }),
-          (old: any) => {
-            if (!old?.data?.data) return old;
+          (old: unknown) => {
+            const cached = old as { data?: { data?: FloatingMessage[] } };
+            if (!cached.data?.data) return old;
             // Prevent duplicates
-            if (old.data.data.some((m: any) => m.id === newMsg.id)) return old;
+            if (cached.data?.data?.some((m) => m.id === newMsg.id)) return old;
 
             return {
-              ...old,
+              ...cached,
               data: {
-                ...old.data,
-                data: [newMsg, ...old.data.data], // Prepend because API returns desc, but actually we need to check how UI renders.
+                ...cached.data,
+                data: [...(cached.data?.data || []), newMsg],
               },
             };
           },
@@ -96,9 +123,19 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
       }
     };
 
+    const handleNewMessage = (newMsg: FloatingMessage) => {
+      appendMessageToCache(newMsg);
+    };
+
+    const handleMessageSaved = (payload: { message?: FloatingMessage }) => {
+      if (payload.message) appendMessageToCache(payload.message);
+    };
+
     socket.on('newMessage', handleNewMessage);
+    socket.on('messageSaved', handleMessageSaved);
     return () => {
       socket.off('newMessage', handleNewMessage);
+      socket.off('messageSaved', handleMessageSaved);
     };
   }, [roomId, queryClient, user?.id, setHasUnreadInOtherRoom]);
 
@@ -115,8 +152,8 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
     if (socket?.connected) {
       socket.emit('sendMessage', {
         chat_room_id: roomId,
-        type: 'text',
-        content: messageText.trim(),
+        message: messageText.trim(),
+        tempId: `floating-${Date.now()}`,
       });
       setMessageText('');
     }
@@ -133,7 +170,7 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
   }
 
   const isGroup = room?.type === 'group';
-  const otherUser = room?.members?.find((m: any) => m.id !== user?.id);
+  const otherUser = room?.members?.find((m) => m.id !== user?.id);
 
   const roomName = isGroup
     ? room?.name || 'Group Chat'
@@ -145,8 +182,7 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
       otherUser?.avatar ||
       '/default-avatar.png';
 
-  // The API returns messages in descending order (latest first). We need to reverse them for UI display.
-  const displayMessages = [...messages].reverse();
+  const displayMessages = messages;
 
   return (
     <div className="flex flex-col h-[500px] w-[340px] bg-card border border-border shadow-2xl rounded-t-xl overflow-hidden pointer-events-auto z-50">
@@ -203,7 +239,7 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          displayMessages.map((msg: any) => {
+          displayMessages.map((msg) => {
             const isMe = msg.created_by === user?.id;
             return (
               <div
@@ -219,7 +255,7 @@ export function FloatingChatRoom({ roomId }: { roomId: string }) {
                   style={{ wordBreak: 'break-word' }}
                 >
                   <span className="text-[14px] leading-relaxed">
-                    {msg.content}
+                    {msg.message || msg.content}
                   </span>
                 </div>
                 {/* <span className="text-[10px] text-muted-foreground mt-1 mx-1">{formatTimeAgo(msg.created_at)}</span> */}

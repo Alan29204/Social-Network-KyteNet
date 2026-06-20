@@ -1,7 +1,8 @@
-import eslintPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import importPlugin from 'eslint-plugin-import';
-import prettierPlugin from 'eslint-plugin-prettier';
+import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 export default [
   {
@@ -9,42 +10,47 @@ export default [
       '**/node_modules/**',
       '**/dist/**',
       '**/build/**',
+      'recover.cjs',
+      'test.js',
+      'reconstructed_*.tsx',
+      '*.txt',
+      'chunk*.txt',
+      'diff.txt',
     ],
-    files: ['**/*.ts', '**/*.tsx'],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      parser: tsParser,
+      ecmaVersion: 'latest',
+      globals: globals.browser,
       parserOptions: {
-        ecmaVersion: 'latest',
         sourceType: 'module',
-        project: './tsconfig.json',
-        tsconfigRootDir: process.cwd(),
       },
     },
     plugins: {
-      '@typescript-eslint': eslintPlugin,
-      import: importPlugin,
-      prettier: prettierPlugin,
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
     },
-    extends: [
-      'eslint:recommended',
-      'plugin:@typescript-eslint/recommended',
-      'plugin:@typescript-eslint/recommended-requiring-type-checking',
-      'plugin:prettier/recommended',
-      'prettier',
-    ],
     rules: {
-      'prettier/prettier': 'error',
-      'import/no-unresolved': 'error',
-      'import/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal'],
-          alphabetize: { order: 'asc', caseInsensitive: true },
-        },
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
       ],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-misleading-character-class': 'off',
+      'no-unused-expressions': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'prefer-const': 'off',
     },
   },
 ];

@@ -1,12 +1,14 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, IsNull } from 'typeorm';
+import { Brackets, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { User } from 'src/modules/users/entities/user.entity';
 import { Relation } from 'src/modules/users/relations/entities/relation.entity';
 import { RelationType } from 'src/common/enums/relation.enum';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { buildHashtagSearchTerms } from 'src/common/utils/searchableText';
+import { PrivacyType } from 'src/common/enums/privacy.enum';
 
 @Injectable()
 export class SearchService {
@@ -47,8 +49,97 @@ export class SearchService {
       ],
       select: ['request_side_id', 'accept_side_id'],
     });
-    return blocks.map((b) =>
-      b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
+    return [
+      ...new Set(
+        blocks.map((b) =>
+          b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
+        ),
+      ),
+    ];
+  }
+
+  private async getFollowingIds(userId?: string): Promise<string[]> {
+    if (!userId) return [];
+    const followingRelations = await this.relationRepository.find({
+      where: {
+        request_side_id: userId,
+        relation_type: RelationType.FOLLOWING,
+        is_restricted: false,
+      },
+      select: ['accept_side_id'],
+    });
+
+    return [...new Set(followingRelations.map((r) => r.accept_side_id))];
+  }
+
+  private getHashtagMatchSql(alias: string = 'post'): string {
+    return `
+      EXISTS (
+        SELECT 1
+        FROM unnest(${alias}.hashtags) AS tag(value)
+        WHERE LOWER(tag.value) IN (:...hashtagTerms)
+          OR LOWER(regexp_replace(tag.value, '[^[:alnum:]]', '', 'g')) IN (:...hashtagTerms)
+      )
+    `;
+  }
+
+  private applyPostSearchVisibility(
+    qb: SelectQueryBuilder<Post>,
+    userId: string,
+    blockedIds: string[],
+    followingIds: string[],
+  ) {
+    if (blockedIds.length > 0) {
+      qb.andWhere('post.user_id NOT IN (:...blockedIds)', { blockedIds });
+    }
+
+    if (followingIds.length > 0) {
+      qb.andWhere(
+        '(user.privacy = :pub OR post.user_id = :currentUserId OR post.user_id IN (:...followingIds))',
+        {
+          pub: PrivacyType.PUBLIC,
+          currentUserId: userId,
+          followingIds,
+        },
+      );
+    } else {
+      qb.andWhere('(user.privacy = :pub OR post.user_id = :currentUserId)', {
+        pub: PrivacyType.PUBLIC,
+        currentUserId: userId,
+      });
+    }
+  }
+
+  private filterVisibleHydratedPosts(
+    posts: Post[],
+    userId: string,
+    blockedIds: string[],
+    followingIds: string[],
+  ): Post[] {
+    return posts.filter((post) => {
+      if (blockedIds.includes(post.user_id)) return false;
+      if (post.shared_post_id || post.shared_post) return false;
+      if (post.privacy !== PrivacyType.PUBLIC) return false;
+
+      const isAccountPrivate = post.user?.privacy === PrivacyType.PRIVATE;
+      if (
+        isAccountPrivate &&
+        post.user_id !== userId &&
+        !followingIds.includes(post.user_id)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  private sortByPostIds(posts: Post[], postIds: string[]): Post[] {
+    const orderMap = new Map(postIds.map((id, idx) => [id, idx]));
+    return posts.sort(
+      (a, b) =>
+        (orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER),
     );
   }
 
@@ -66,20 +157,9 @@ export class SearchService {
       // Absolute Override: loại trừ user bị chặn khỏi kết quả tìm kiếm
       const blockedIds = await this.getBlockedUserIds(userId);
 
-      const followingRelations = await this.relationRepository.find({
-        where: {
-          request_side_id: userId,
-          relation_type: RelationType.FOLLOWING,
-          is_restricted: false,
-        },
-        select: ['accept_side_id'],
-      });
-
-      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
-
       const qb = this.userRepository
         .createQueryBuilder('user')
-        .where('(user.username ILIKE :q OR user.email ILIKE :q OR user.full_name ILIKE :q)', {
+        .where('(user.username ILIKE :q OR user.full_name ILIKE :q)', {
           q: searchTerm,
         });
 
@@ -94,7 +174,6 @@ export class SearchService {
           'user.id',
           'user.username',
           'user.full_name',
-          'user.email',
           'user.avatar',
           'user.privacy',
         ])
@@ -111,7 +190,7 @@ export class SearchService {
     }
   }
 
-  /** Search posts by content using PostgreSQL ILIKE. Only returns PUBLIC posts. */
+  /** Search posts by content or hashtag. Only returns visible public posts. */
   async searchPosts(
     query: string,
     userId: string,
@@ -120,49 +199,31 @@ export class SearchService {
   ) {
     try {
       const skip = (page - 1) * limit;
-      const searchTerm = `%${query}%`;
-
-      const blocks = await this.relationRepository.find({
-        where: [
-          { request_side_id: userId, relation_type: RelationType.BLOCK },
-          { accept_side_id: userId, relation_type: RelationType.BLOCK },
-        ],
-        select: ['request_side_id', 'accept_side_id'],
-      });
-
-      const blockedIds = blocks.map((b) =>
-        b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
-      );
-
-      const followingRelations = await this.relationRepository.find({
-        where: {
-          request_side_id: userId,
-          relation_type: RelationType.FOLLOWING,
-          is_restricted: false,
-        },
-        select: ['accept_side_id'],
-      });
-
-      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+      const cleanQuery = query?.trim() || '';
+      const searchTerm = `%${cleanQuery}%`;
+      const hashtagTerms = buildHashtagSearchTerms(cleanQuery);
+      const blockedIds = await this.getBlockedUserIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
 
       const qb = this.postRepository
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
-        .where('post.content ILIKE :q', { q: searchTerm })
-        .andWhere('post.privacy = :privacy', { privacy: 'public' })
+        .where(
+          new Brackets((whereQb) => {
+            whereQb.where('post.content ILIKE :q', { q: searchTerm });
+            if (hashtagTerms.length > 0) {
+              whereQb.orWhere(this.getHashtagMatchSql('post'), {
+                hashtagTerms,
+              });
+            }
+          }),
+        )
+        .andWhere('post.privacy = :privacy', {
+          privacy: PrivacyType.PUBLIC,
+        })
         .andWhere('post.shared_post_id IS NULL');
 
-      if (blockedIds.length > 0) {
-        qb.andWhere('post.user_id NOT IN (:...blocked)', {
-          blocked: blockedIds,
-        });
-      }
-
-      if (followingIds.length > 0) {
-        qb.andWhere('(user.privacy = :pub OR post.user_id = :cid OR post.user_id IN (:...followingIds))', { pub: 'public', cid: userId, followingIds });
-      } else {
-        qb.andWhere('(user.privacy = :pub OR post.user_id = :cid)', { pub: 'public', cid: userId });
-      }
+      this.applyPostSearchVisibility(qb, userId, blockedIds, followingIds);
 
       const [posts, total] = await qb
         .orderBy('post.created_at', 'DESC')
@@ -174,24 +235,42 @@ export class SearchService {
         data: posts,
         meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
       };
-    } catch {
+    } catch (error) {
+      console.warn('[Search] Error searching posts:', (error as Error)?.message);
       throw new InternalServerErrorException('Error searching posts');
     }
   }
 
   /** Search posts by hashtag. */
-  async searchByHashtag(hashtag: string, page: number = 1, limit: number = 10) {
+  async searchByHashtag(
+    hashtag: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
     try {
       const skip = (page - 1) * limit;
-      const tag = hashtag.startsWith('#') ? hashtag : `#${hashtag}`;
+      const hashtagTerms = buildHashtagSearchTerms(hashtag);
+      if (hashtagTerms.length === 0) {
+        return {
+          data: [],
+          meta: { page, limit, total: 0, total_pages: 0 },
+        };
+      }
 
-      const [posts, total] = await this.postRepository
+      const blockedIds = await this.getBlockedUserIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
+
+      const qb = this.postRepository
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.user', 'user')
-        .where('post.privacy = :privacy', { privacy: 'public' })
-        .andWhere('user.privacy = :userPrivacy', { userPrivacy: 'public' })
-        .andWhere(':tag = ANY(post.hashtags)', { tag })
-        .andWhere('post.shared_post_id IS NULL')
+        .where('post.privacy = :privacy', { privacy: PrivacyType.PUBLIC })
+        .andWhere(this.getHashtagMatchSql('post'), { hashtagTerms })
+        .andWhere('post.shared_post_id IS NULL');
+
+      this.applyPostSearchVisibility(qb, userId, blockedIds, followingIds);
+
+      const [posts, total] = await qb
         .orderBy('post.created_at', 'DESC')
         .skip(skip)
         .take(limit)
@@ -201,7 +280,11 @@ export class SearchService {
         data: posts,
         meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
       };
-    } catch {
+    } catch (error) {
+      console.warn(
+        '[Search] Error searching by hashtag:',
+        (error as Error)?.message,
+      );
       throw new InternalServerErrorException('Error searching by hashtag');
     }
   }
@@ -231,49 +314,39 @@ export class SearchService {
       if (postIds.length === 0) {
         return {
           data: [],
-          meta: { page, limit, total: 0, total_pages: 0 },
+          meta: { page, limit, total: 0, total_pages: 0, source: 'semantic' },
           source: 'semantic',
         };
       }
 
-      const followingRelations = await this.relationRepository.find({
-        where: {
-          request_side_id: userId,
-          relation_type: RelationType.FOLLOWING,
-          is_restricted: false,
-        },
-        select: ['accept_side_id'],
-      });
-
-      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
+      const blockedIds = await this.getBlockedUserIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
 
       let posts = await this.postRepository.find({
-        where: { id: In(postIds), privacy: 'public' as any, shared_post_id: IsNull() },
+        where: {
+          id: In(postIds),
+          privacy: PrivacyType.PUBLIC,
+          shared_post_id: IsNull(),
+        },
         relations: ['user'],
-        order: { created_at: 'DESC' },
       });
 
-      // Lọc các bài đăng từ tài khoản Private nếu user không phải người đăng và không theo dõi
-      posts = posts.filter(post => {
-        // Không cho phép bài đăng lại (repost) xuất hiện ở đây
-        if (post.shared_post) {
-           return false;
-        }
-
-        const isAccountPrivate = post.user?.privacy === 'private';
-        if (isAccountPrivate && post.user_id !== userId && !followingIds.includes(post.user_id)) {
-          return false;
-        }
-        return true;
-      });
+      posts = this.filterVisibleHydratedPosts(
+        posts,
+        userId,
+        blockedIds,
+        followingIds,
+      );
+      posts = this.sortByPostIds(posts, postIds);
 
       return {
         data: posts,
         meta: {
           page,
           limit,
-          total: response.data?.pagination?.total_results || posts.length,
-          total_pages: response.data?.pagination?.total_pages || 1,
+          total: posts.length,
+          total_pages: Math.ceil(posts.length / limit),
+          source: 'semantic',
         },
         source: 'semantic',
       };
@@ -283,7 +356,11 @@ export class SearchService {
         (error as Error)?.message,
       );
       const fallback = await this.searchPosts(query, userId, page, limit);
-      return { ...fallback, source: 'keyword_fallback' };
+      return {
+        ...fallback,
+        meta: { ...fallback.meta, source: 'keyword_fallback' },
+        source: 'keyword_fallback',
+      };
     }
   }
 
@@ -294,80 +371,6 @@ export class SearchService {
       this.searchPosts(query, userId, 1, 5),
     ]);
     return { users: users.data, posts: posts.data };
-  }
-
-  /**
-   * Gợi ý bài viết cá nhân hóa qua AI service (ChromaDB).
-   * Trả về danh sách bài đã hydrate từ Postgres, giữ đúng thứ tự xếp hạng của AI.
-   * Trả về data rỗng khi AI không có gợi ý (caller sẽ fallback feed mặc định).
-   */
-  async getRecommendedPosts(userId: string, limit: number = 20) {
-    try {
-      const response = await axios.post(
-        `${this.aiServiceUrl}/posts/recommend`,
-        { user_id: userId, limit },
-        { headers: this.aiHeaders, timeout: 8000 },
-      );
-
-      const postIds: string[] = response.data?.post_ids || [];
-      const source: string = response.data?.source || 'personalized';
-
-      if (postIds.length === 0) {
-        return { data: [], source };
-      }
-
-      const followingRelations = await this.relationRepository.find({
-        where: {
-          request_side_id: userId,
-          relation_type: RelationType.FOLLOWING,
-          is_restricted: false,
-        },
-        select: ['accept_side_id'],
-      });
-
-      const followingIds = [...new Set(followingRelations.map((r) => r.accept_side_id))];
-
-      let posts = await this.postRepository.find({
-        where: { id: In(postIds), privacy: 'public' as any, shared_post_id: IsNull() },
-        relations: ['user', 'shared_post', 'shared_post.user'],
-      });
-
-      // Lọc các bài đăng từ tài khoản Private nếu user không phải người đăng và không theo dõi
-      // Đồng thời lọc các bài repost từ tài khoản private
-      posts = posts.filter((post) => {
-        // Không cho phép bài đăng lại (repost) xuất hiện ở đây
-        if (post.shared_post) {
-           return false;
-        }
-
-        const isAccountPrivate = post.user?.privacy === 'private';
-        if (isAccountPrivate && post.user_id !== userId && !followingIds.includes(post.user_id)) {
-          return false;
-        }
-
-        if (post.shared_post && post.shared_post.user?.privacy === 'private') {
-           if (post.shared_post.user.id !== userId && !followingIds.includes(post.shared_post.user.id)) {
-              return false;
-           }
-        }
-        
-        return true;
-      });
-
-      // Giữ đúng thứ tự xếp hạng do AI trả về
-      const orderMap = new Map(postIds.map((id, idx) => [id, idx]));
-      posts.sort(
-        (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
-      );
-
-      return { data: posts, source };
-    } catch (error) {
-      console.warn(
-        '[Recommend] AI service unavailable:',
-        (error as Error)?.message,
-      );
-      return { data: [], source: 'unavailable' };
-    }
   }
 
   /** Xóa embedding của bài viết khỏi ChromaDB (gọi khi xóa bài). */

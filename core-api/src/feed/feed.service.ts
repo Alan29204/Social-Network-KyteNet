@@ -274,6 +274,7 @@ export class FeedService {
     try {
       let postIds: string[] = [];
       let source = 'personalized';
+      let aiUnavailable = false;
 
       try {
         const response = await axios.post(
@@ -284,6 +285,7 @@ export class FeedService {
         postIds = response.data?.post_ids || [];
         source = response.data?.source || 'personalized';
       } catch (err) {
+        aiUnavailable = true;
         console.warn(
           '[Recommend] AI service unavailable, fallback to ForYou:',
           (err as Error)?.message,
@@ -295,19 +297,25 @@ export class FeedService {
         const fallback = await this.getForYouFeed(userId, undefined, limit);
         return {
           ...fallback,
-          meta: { ...fallback.meta, source: 'foryou_fallback' },
+          meta: {
+            ...fallback.meta,
+            source: aiUnavailable ? 'ai_unavailable' : 'foryou_fallback',
+          },
         };
       }
 
-      // Loại bài của người bị chặn
       const blockedUserIds = await this.getBlockedUserIds(userId);
+      const followingIds = await this.getFollowingIds(userId);
 
       const posts = await this.getPostsByIds(postIds);
-      const visible = posts.filter(
-        (p) =>
-          p.privacy === PrivacyType.PUBLIC &&
-          !blockedUserIds.includes(p.user_id) &&
-          !(p.shared_post && blockedUserIds.includes(p.shared_post.user?.id)),
+      const publicOriginalPosts = posts.filter(
+        (p) => p.privacy === PrivacyType.PUBLIC && !p.shared_post_id,
+      );
+      const visible = this.applyPrivacyFilter(
+        publicOriginalPosts,
+        userId,
+        blockedUserIds,
+        followingIds,
       );
 
       // Giữ đúng thứ tự xếp hạng AI trả về

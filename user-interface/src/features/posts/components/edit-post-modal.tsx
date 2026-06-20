@@ -23,11 +23,24 @@ export function EditPostModal({ post, open, onOpenChange }: EditPostModalProps) 
   const queryClient = useQueryClient();
 
   const updatePostMutation = useMutation({
-    mutationFn: (taggedUserIds: string[]) => orvalClient({
-      url: `/posts`,
-      method: 'PATCH',
-      data: { id: post.id, content, privacy: post.privacy || 'public', tagged_users: taggedUserIds }
-    }),
+    mutationFn: (taggedUserIds: string[]) => {
+      const hashtags =
+        content
+          .match(/#[\p{L}0-9_]+/gu)
+          ?.map((tag: string) => tag.slice(1)) || [];
+
+      return orvalClient({
+        url: `/posts`,
+        method: 'PATCH',
+        data: {
+          id: post.id,
+          content,
+          privacy: post.privacy || 'public',
+          hashtags,
+          tagged_users: taggedUserIds,
+        },
+      });
+    },
     onSuccess: async () => {
       // Đợi tải lại dữ liệu ngầm xong
       await Promise.all([

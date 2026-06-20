@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Public, ResponseMessage, User } from 'src/common/decorators/customize';
@@ -31,6 +32,7 @@ import { LoginDto } from './dto/login.dto';
 import { AfterSignUpDto } from './dto/after-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RoleType } from 'src/common/enums/role.enum';
 
 @ApiTags('Users')
 @Controller('users')
@@ -38,10 +40,12 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Public()
   @ResponseMessage('Fetch all users successfully')
-  @ApiOperation({ summary: 'Get all users' })
-  findAll() {
+  @ApiOperation({ summary: 'Admin: Get all users' })
+  findAll(@User() user: IUser) {
+    if (user?.role !== RoleType.ADMIN) {
+      throw new ForbiddenException('Admin access required');
+    }
     return this.usersService.findAll();
   }
 

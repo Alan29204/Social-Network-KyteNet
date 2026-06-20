@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Query
 from services.post import PostService
 from schemas.id_request import IDRequest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -10,12 +11,17 @@ postService = PostService()
 
 class EmbedPostRequest(BaseModel):
     post_id: str
-    content: str
+    content: Optional[str] = None
+    hashtags: List[str] = Field(default_factory=list)
 
 
 class RecommendRequest(BaseModel):
     user_id: str
     limit: int = 20
+
+
+class ReindexRequest(BaseModel):
+    reset: bool = True
 
 
 @router.post("/check-policy-for-post")
@@ -26,7 +32,7 @@ async def check_policy_for_post(dto: IDRequest):
 @router.post("/embed")
 async def embed_post(dto: EmbedPostRequest):
     """Receive a post_id and content, embed and store in ChromaDB."""
-    return await postService.embed_post(dto.post_id, dto.content)
+    return await postService.embed_post(dto.post_id, dto.content, dto.hashtags)
 
 
 @router.get("/semantic-search")
@@ -52,6 +58,7 @@ async def recommend_posts(dto: RecommendRequest):
 
 
 @router.post("/reindex")
-async def reindex_posts():
+async def reindex_posts(dto: Optional[ReindexRequest] = None):
     """Embed lại toàn bộ bài viết cũ vào ChromaDB (chạy 1 lần để backfill)."""
-    return await postService.reindex_all()
+    dto = dto or ReindexRequest()
+    return await postService.reindex_all(reset=dto.reset)
