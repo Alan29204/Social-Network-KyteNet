@@ -332,6 +332,19 @@ export type DeleteNotificationUserDto = {
   noti_user_id: string;
 };
 
+/**
+ * Viewer relation status to this user in feed/post responses
+ */
+export type UserRelationStatus = typeof UserRelationStatus[keyof typeof UserRelationStatus];
+
+
+export const UserRelationStatus = {
+  following: 'following',
+  block: 'block',
+  none: 'none',
+  pending: 'pending',
+} as const;
+
 export type UserGender = typeof UserGender[keyof typeof UserGender];
 
 
@@ -696,6 +709,10 @@ export type ChatRoom = {
 };
 
 export type User = {
+  /** Viewer relation status to this user in feed/post responses */
+  relationStatus?: UserRelationStatus;
+  /** Whether the current viewer follows this user */
+  isFollowing?: boolean;
   id: string;
   email: string;
   /**

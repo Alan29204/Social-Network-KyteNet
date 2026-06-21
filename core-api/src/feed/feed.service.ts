@@ -628,11 +628,73 @@ export class FeedService {
     });
   }
 
+  private async getViewerRelationStatusMap(
+    userId: string,
+    authorIds: string[],
+  ): Promise<Record<string, RelationType>> {
+    const uniqueAuthorIds = [
+      ...new Set(authorIds.filter((id): id is string => !!id && id !== userId)),
+    ];
+
+    const statuses = uniqueAuthorIds.reduce<Record<string, RelationType>>(
+      (acc, id) => {
+        acc[id] = RelationType.NONE;
+        return acc;
+      },
+      {},
+    );
+
+    if (uniqueAuthorIds.length === 0) return statuses;
+
+    const relations = await this.relationRepository.find({
+      where: {
+        request_side_id: userId,
+        accept_side_id: In(uniqueAuthorIds),
+      },
+      select: ['accept_side_id', 'relation_type'],
+    });
+
+    relations.forEach((relation) => {
+      statuses[relation.accept_side_id] =
+        relation.relation_type || RelationType.NONE;
+    });
+
+    return statuses;
+  }
+
+  private withViewerRelation(
+    user: any,
+    relationStatusMap: Record<string, RelationType>,
+    viewerId: string,
+  ) {
+    if (!user?.id) return user;
+
+    const relationStatus =
+      user.id === viewerId
+        ? RelationType.NONE
+        : relationStatusMap[user.id] || RelationType.NONE;
+
+    return {
+      ...user,
+      relationStatus,
+      isFollowing: relationStatus === RelationType.FOLLOWING,
+    };
+  }
+
   /** Enrich posts with interaction counts*/
   private async enrichInteractions(
     posts: Post[],
     userId: string,
   ): Promise<any[]> {
+    const authorIds = posts.flatMap((post) => [
+      post.user?.id || post.user_id,
+      post.shared_post?.user?.id || post.shared_post?.user_id,
+    ]);
+    const relationStatusMap = await this.getViewerRelationStatusMap(
+      userId,
+      authorIds,
+    );
+
     return Promise.all(
       posts.map(async (post) => {
         const actualPostId = post.shared_post ? post.shared_post.id : post.id;
@@ -645,6 +707,21 @@ export class FeedService {
 
         return {
           ...post,
+          user: this.withViewerRelation(
+            post.user,
+            relationStatusMap,
+            userId,
+          ),
+          shared_post: post.shared_post
+            ? {
+                ...post.shared_post,
+                user: this.withViewerRelation(
+                  post.shared_post.user,
+                  relationStatusMap,
+                  userId,
+                ),
+              }
+            : post.shared_post,
           reposted_by: (post as any).reposted_by,
           interactions: {
             likes:

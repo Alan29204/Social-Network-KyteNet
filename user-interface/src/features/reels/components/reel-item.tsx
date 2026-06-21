@@ -5,7 +5,7 @@ import {
   MessageCircle,
   Share2,
   Bookmark,
-  Repeat,
+  Send,
   Volume2,
   VolumeX,
   Play,
@@ -291,7 +291,7 @@ export function ReelItem({
           className="flex flex-col items-center gap-1"
         >
           <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-            <Repeat className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`} />
+            <Share2 className={`w-6 h-6 ${reposted ? 'text-green-400' : ''}`} />
           </div>
         </button>
       )}
@@ -301,7 +301,7 @@ export function ReelItem({
         className="flex flex-col items-center gap-1"
       >
         <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-          <Share2 className="w-6 h-6" />
+          <Send className="w-6 h-6" />
         </div>
       </button>
 

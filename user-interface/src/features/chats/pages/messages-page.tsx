@@ -103,7 +103,9 @@ export default function MessagesPage() {
   const [forwardTargets, setForwardTargets] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
   const [showInfo, setShowInfo] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'primary' | 'requests'>('primary');
+  const [selectedTab, setSelectedTab] = useState<'primary' | 'requests'>(
+    'primary',
+  );
 
   // Focus input when replying
   useEffect(() => {
@@ -121,7 +123,11 @@ export default function MessagesPage() {
 
   // 1. Fetch Chat Rooms
   const { data: chatRoomsResponse, isLoading: isLoadingRooms } =
-    useChatRoomsControllerGetListChatRoom({ page: 1, limit: 50, type: selectedTab });
+    useChatRoomsControllerGetListChatRoom({
+      page: 1,
+      limit: 50,
+      type: selectedTab,
+    });
   const chatRooms: any[] = (chatRoomsResponse as any)?.data?.data || [];
 
   // 2. Fetch Message History (Query Cache as Source of Truth)
@@ -541,31 +547,29 @@ export default function MessagesPage() {
       chat_room_id: string;
       read_by_user_id: string;
     }) => {
-      queryClient.setQueriesData(
-        { queryKey: ['/chat-rooms'] },
-        (old: any) => {
-          if (!old || !old.data) return old;
-          const list = old.data?.data || old.data;
-          if (!Array.isArray(list)) return old;
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              data: list.map((room: any) => {
-                if (room.id !== data.chat_room_id) return room;
-                return {
-                  ...room,
-                  members: (room.members || room.chat_members || []).map((m: any) =>
+      queryClient.setQueriesData({ queryKey: ['/chat-rooms'] }, (old: any) => {
+        if (!old || !old.data) return old;
+        const list = old.data?.data || old.data;
+        if (!Array.isArray(list)) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: list.map((room: any) => {
+              if (room.id !== data.chat_room_id) return room;
+              return {
+                ...room,
+                members: (room.members || room.chat_members || []).map(
+                  (m: any) =>
                     (m.id || m.user_id) === data.read_by_user_id
                       ? { ...m, unread_count: 0 }
-                      : m
-                  ),
-                };
-              }),
-            },
-          };
-        },
-      );
+                      : m,
+                ),
+              };
+            }),
+          },
+        };
+      });
     };
 
     // Register all listeners
@@ -662,36 +666,33 @@ export default function MessagesPage() {
    */
   const updateSidebarWithMessage = useCallback(
     (roomId: string, msg: any) => {
-      queryClient.setQueriesData(
-        { queryKey: ['/chat-rooms'] },
-        (old: any) => {
-          if (!old?.data?.data) return old;
-          const rooms = [...old.data.data];
-          const idx = rooms.findIndex((r: any) => r.id === roomId);
-          if (idx === -1) {
-            // Room not in list — fallback to refetch
-            queryClient.invalidateQueries({
-              queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
-            });
-            return old;
-          }
-          // Update last_message and move to top
-          const updatedRoom = {
-            ...rooms[idx],
-            last_message: msg,
-            last_message_at: msg.created_at,
-          };
-          // If the message is for the currently selected room, mark as read immediately in UI
-          if (roomId === selectedRoomId) {
-            updatedRoom.unread_count = 0;
-          } else if (msg.created_by !== user?.id) {
-            updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1;
-          }
-          rooms.splice(idx, 1);
-          rooms.unshift(updatedRoom);
-          return { ...old, data: { ...old.data, data: rooms } };
-        },
-      );
+      queryClient.setQueriesData({ queryKey: ['/chat-rooms'] }, (old: any) => {
+        if (!old?.data?.data) return old;
+        const rooms = [...old.data.data];
+        const idx = rooms.findIndex((r: any) => r.id === roomId);
+        if (idx === -1) {
+          // Room not in list — fallback to refetch
+          queryClient.invalidateQueries({
+            queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+          });
+          return old;
+        }
+        // Update last_message and move to top
+        const updatedRoom = {
+          ...rooms[idx],
+          last_message: msg,
+          last_message_at: msg.created_at,
+        };
+        // If the message is for the currently selected room, mark as read immediately in UI
+        if (roomId === selectedRoomId) {
+          updatedRoom.unread_count = 0;
+        } else if (msg.created_by !== user?.id) {
+          updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1;
+        }
+        rooms.splice(idx, 1);
+        rooms.unshift(updatedRoom);
+        return { ...old, data: { ...old.data, data: rooms } };
+      });
     },
     [queryClient],
   );
@@ -1192,10 +1193,16 @@ export default function MessagesPage() {
   // Group chat block warning states
   const [showGroupBlockWarning, setShowGroupBlockWarning] = useState(false);
   const [groupBlockedUser, setGroupBlockedUser] = useState<any>(null);
-  const [dismissedGroupWarnings, setDismissedGroupWarnings] = useState<Set<string>>(new Set());
+  const [dismissedGroupWarnings, setDismissedGroupWarnings] = useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
-    if (activeRoom && activeRoom.type === 'group' && !dismissedGroupWarnings.has(activeRoom.id)) {
+    if (
+      activeRoom &&
+      activeRoom.type === 'group' &&
+      !dismissedGroupWarnings.has(activeRoom.id)
+    ) {
       const blockedMember = activeRoom.members?.find((m: any) => m.is_blocked);
       if (blockedMember) {
         setGroupBlockedUser(blockedMember);
@@ -1265,7 +1272,7 @@ export default function MessagesPage() {
             <div className="flex items-center gap-2 font-bold text-xl cursor-pointer">
               {user?.username} <span className="text-sm">⌄</span>
             </div>
-            <button 
+            <button
               onClick={() => setShowCreateChatModal(true)}
               className="p-2 hover:bg-muted/50 rounded-full transition-colors"
             >
@@ -1321,8 +1328,12 @@ export default function MessagesPage() {
                   );
                   const isGroup = room.type === 'group';
                   const isActive = room.id === selectedRoomId;
-                  const displayMembers = room.members.filter((m: any) => m.id !== user?.id);
-                  const chatName = isGroup ? room.name : targetUser?.username || 'Người dùng';
+                  const displayMembers = room.members.filter(
+                    (m: any) => m.id !== user?.id,
+                  );
+                  const chatName = isGroup
+                    ? room.name
+                    : targetUser?.username || 'Người dùng';
 
                   return (
                     <div
@@ -1331,16 +1342,33 @@ export default function MessagesPage() {
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? 'bg-muted/80' : 'hover:bg-muted/50'}`}
                     >
                       <div className="relative shrink-0">
-                        {isGroup && (!room.avatar || room.avatar === 'chat-room.png') ? (
+                        {isGroup &&
+                        (!room.avatar || room.avatar === 'chat-room.png') ? (
                           <div className="relative w-14 h-14">
                             <Avatar className="w-10 h-10 absolute top-0 left-0 border-2 border-background">
-                              <AvatarImage src={displayMembers[0]?.profile_picture_url || displayMembers[0]?.avatar || '/default-avatar.png'} />
-                              <AvatarFallback>{displayMembers[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                              <AvatarImage
+                                src={
+                                  displayMembers[0]?.profile_picture_url ||
+                                  displayMembers[0]?.avatar ||
+                                  '/default-avatar.png'
+                                }
+                              />
+                              <AvatarFallback>
+                                {displayMembers[0]?.username?.[0]?.toUpperCase()}
+                              </AvatarFallback>
                             </Avatar>
                             {displayMembers.length > 1 && (
                               <Avatar className="w-10 h-10 absolute bottom-0 right-0 border-2 border-background">
-                                <AvatarImage src={displayMembers[1]?.profile_picture_url || displayMembers[1]?.avatar || '/default-avatar.png'} />
-                                <AvatarFallback>{displayMembers[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                <AvatarImage
+                                  src={
+                                    displayMembers[1]?.profile_picture_url ||
+                                    displayMembers[1]?.avatar ||
+                                    '/default-avatar.png'
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {displayMembers[1]?.username?.[0]?.toUpperCase()}
+                                </AvatarFallback>
                               </Avatar>
                             )}
                           </div>
@@ -1360,9 +1388,11 @@ export default function MessagesPage() {
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        {!isGroup && targetUser?.is_online && !room.is_blocked && (
-                          <span className="absolute bottom-0.5 right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
-                        )}
+                        {!isGroup &&
+                          targetUser?.is_online &&
+                          !room.is_blocked && (
+                            <span className="absolute bottom-0.5 right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
+                          )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[15px] truncate">
@@ -1456,19 +1486,40 @@ export default function MessagesPage() {
                     }}
                   >
                     <div className="relative">
-                      {activeRoom?.type === 'group' && (!activeRoom.avatar || activeRoom.avatar === 'chat-room.png') ? (
+                      {activeRoom?.type === 'group' &&
+                      (!activeRoom.avatar ||
+                        activeRoom.avatar === 'chat-room.png') ? (
                         (() => {
-                          const displayMembers = activeRoom.members?.filter((m: any) => m.id !== user?.id) || [];
+                          const displayMembers =
+                            activeRoom.members?.filter(
+                              (m: any) => m.id !== user?.id,
+                            ) || [];
                           return (
                             <div className="relative w-11 h-11">
                               <Avatar className="w-8 h-8 absolute top-0 left-0 border-2 border-background">
-                                <AvatarImage src={displayMembers[0]?.profile_picture_url || displayMembers[0]?.avatar || '/default-avatar.png'} />
-                                <AvatarFallback>{displayMembers[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                <AvatarImage
+                                  src={
+                                    displayMembers[0]?.profile_picture_url ||
+                                    displayMembers[0]?.avatar ||
+                                    '/default-avatar.png'
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {displayMembers[0]?.username?.[0]?.toUpperCase()}
+                                </AvatarFallback>
                               </Avatar>
                               {displayMembers.length > 1 && (
                                 <Avatar className="w-8 h-8 absolute bottom-0 right-0 border-2 border-background">
-                                  <AvatarImage src={displayMembers[1]?.profile_picture_url || displayMembers[1]?.avatar || '/default-avatar.png'} />
-                                  <AvatarFallback>{displayMembers[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                  <AvatarImage
+                                    src={
+                                      displayMembers[1]?.profile_picture_url ||
+                                      displayMembers[1]?.avatar ||
+                                      '/default-avatar.png'
+                                    }
+                                  />
+                                  <AvatarFallback>
+                                    {displayMembers[1]?.username?.[0]?.toUpperCase()}
+                                  </AvatarFallback>
                                 </Avatar>
                               )}
                             </div>
@@ -1486,13 +1537,17 @@ export default function MessagesPage() {
                             }
                           />
                           <AvatarFallback>
-                            {(activeRoom?.type === 'group' ? activeRoom.name : otherUser?.username)?.[0]?.toUpperCase()}
+                            {(activeRoom?.type === 'group'
+                              ? activeRoom.name
+                              : otherUser?.username)?.[0]?.toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       )}
-                      {activeRoom?.type !== 'group' && otherUser?.is_online && !activeRoom?.is_blocked && (
-                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
-                      )}
+                      {activeRoom?.type !== 'group' &&
+                        otherUser?.is_online &&
+                        !activeRoom?.is_blocked && (
+                          <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                        )}
                     </div>
                     <div>
                       <p className="font-bold text-base">
@@ -1655,115 +1710,178 @@ export default function MessagesPage() {
 
                   {/* Messages Mapping — Instagram/Messenger-style connected bubbles */}
                   {(() => {
-                    const targetUser = activeRoom?.members?.find((m: any) => m.id !== user?.id);
+                    const targetUser = activeRoom?.members?.find(
+                      (m: any) => m.id !== user?.id,
+                    );
                     const lastReadIdxByOther = targetUser?.unread_count || 0;
 
                     return reversedMessages.map((msg: any, idx: number) => {
                       const isMine = msg.created_by === user?.id;
-                      const sender = msg.user || activeRoom?.members?.find((m: any) => m.id === msg.created_by) || otherUser;
-                    // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
-                    // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
-                    const prevMsg =
-                      idx < reversedMessages.length - 1
-                        ? reversedMessages[idx + 1]
-                        : null;
-                    const nextMsg = idx > 0 ? reversedMessages[idx - 1] : null;
-                    const isSameSenderAsPrev =
-                      prevMsg && prevMsg.created_by === msg.created_by;
-                    const isSameSenderAsNext =
-                      nextMsg && nextMsg.created_by === msg.created_by;
-                    const showAvatar = !isMine && !isSameSenderAsNext;
+                      const sender =
+                        msg.user ||
+                        activeRoom?.members?.find(
+                          (m: any) => m.id === msg.created_by,
+                        ) ||
+                        otherUser;
+                      // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
+                      // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
+                      const prevMsg =
+                        idx < reversedMessages.length - 1
+                          ? reversedMessages[idx + 1]
+                          : null;
+                      const nextMsg =
+                        idx > 0 ? reversedMessages[idx - 1] : null;
+                      const isSameSenderAsPrev =
+                        prevMsg && prevMsg.created_by === msg.created_by;
+                      const isSameSenderAsNext =
+                        nextMsg && nextMsg.created_by === msg.created_by;
+                      const showAvatar = !isMine && !isSameSenderAsNext;
 
-                    // Time separator: show if >5 min gap from previous message
-                    const showTimeSeparator = (() => {
-                      if (!prevMsg) return false;
-                      const prev = new Date(prevMsg.created_at).getTime();
-                      const curr = new Date(msg.created_at).getTime();
-                      return curr - prev > 5 * 60 * 1000; // 5 minutes
-                    })();
+                      // Time separator: show if >5 min gap from previous message
+                      const showTimeSeparator = (() => {
+                        if (!prevMsg) return false;
+                        const prev = new Date(prevMsg.created_at).getTime();
+                        const curr = new Date(msg.created_at).getTime();
+                        return curr - prev > 5 * 60 * 1000; // 5 minutes
+                      })();
 
-                    // Emoji-only detection: message with only emoji/whitespace, no media
-                    const isEmojiOnly = (() => {
-                      if (!msg.message || (msg.medias && msg.medias.length > 0))
-                        return false;
-                      const emojiRegex =
-                        /^[\s\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\uFE0F]+$/u;
-                      return (
-                        emojiRegex.test(msg.message) &&
-                        msg.message.trim().length <= 8
-                      );
-                    })();
+                      // Emoji-only detection: message with only emoji/whitespace, no media
+                      const isEmojiOnly = (() => {
+                        if (
+                          !msg.message ||
+                          (msg.medias && msg.medias.length > 0)
+                        )
+                          return false;
+                        const emojiRegex =
+                          /^[\s\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\uFE0F]+$/u;
+                        return (
+                          emojiRegex.test(msg.message) &&
+                          msg.message.trim().length <= 8
+                        );
+                      })();
 
-                    // ─── Connected Bubble Border-Radius (Messenger-style) ───
-                    // 18px = fully rounded, 4px = "connected" edge
-                    const R = '18px';
-                    const r = '4px';
-                    let bubbleRadius: string;
+                      // ─── Connected Bubble Border-Radius (Messenger-style) ───
+                      // 18px = fully rounded, 4px = "connected" edge
+                      const R = '18px';
+                      const r = '4px';
+                      let bubbleRadius: string;
 
-                    if (isMine) {
-                      // Right-aligned: "connected" edge is on the RIGHT side
-                      if (isSameSenderAsPrev && isSameSenderAsNext) {
-                        // Middle of group
-                        bubbleRadius = `${R} ${r} ${r} ${R}`;
-                      } else if (isSameSenderAsPrev && !isSameSenderAsNext) {
-                        // Last in group (bottom)
-                        bubbleRadius = `${R} ${r} ${R} ${R}`;
-                      } else if (!isSameSenderAsPrev && isSameSenderAsNext) {
-                        // First in group (top)
-                        bubbleRadius = `${R} ${R} ${r} ${R}`;
+                      if (isMine) {
+                        // Right-aligned: "connected" edge is on the RIGHT side
+                        if (isSameSenderAsPrev && isSameSenderAsNext) {
+                          // Middle of group
+                          bubbleRadius = `${R} ${r} ${r} ${R}`;
+                        } else if (isSameSenderAsPrev && !isSameSenderAsNext) {
+                          // Last in group (bottom)
+                          bubbleRadius = `${R} ${r} ${R} ${R}`;
+                        } else if (!isSameSenderAsPrev && isSameSenderAsNext) {
+                          // First in group (top)
+                          bubbleRadius = `${R} ${R} ${r} ${R}`;
+                        } else {
+                          // Solo message
+                          bubbleRadius = `${R} ${R} ${R} ${R}`;
+                        }
                       } else {
-                        // Solo message
-                        bubbleRadius = `${R} ${R} ${R} ${R}`;
+                        // Left-aligned: "connected" edge is on the LEFT side
+                        if (isSameSenderAsPrev && isSameSenderAsNext) {
+                          bubbleRadius = `${r} ${R} ${R} ${r}`;
+                        } else if (isSameSenderAsPrev && !isSameSenderAsNext) {
+                          bubbleRadius = `${r} ${R} ${R} ${R}`;
+                        } else if (!isSameSenderAsPrev && isSameSenderAsNext) {
+                          bubbleRadius = `${R} ${R} ${R} ${r}`;
+                        } else {
+                          bubbleRadius = `${R} ${R} ${R} ${R}`;
+                        }
                       }
-                    } else {
-                      // Left-aligned: "connected" edge is on the LEFT side
-                      if (isSameSenderAsPrev && isSameSenderAsNext) {
-                        bubbleRadius = `${r} ${R} ${R} ${r}`;
-                      } else if (isSameSenderAsPrev && !isSameSenderAsNext) {
-                        bubbleRadius = `${r} ${R} ${R} ${R}`;
-                      } else if (!isSameSenderAsPrev && isSameSenderAsNext) {
-                        bubbleRadius = `${R} ${R} ${R} ${r}`;
-                      } else {
-                        bubbleRadius = `${R} ${R} ${R} ${R}`;
+                      // Reset radius grouping if time separator is shown
+                      if (showTimeSeparator) {
+                        if (isSameSenderAsNext) {
+                          bubbleRadius = isMine
+                            ? `${R} ${R} ${r} ${R}`
+                            : `${R} ${R} ${R} ${r}`;
+                        } else {
+                          bubbleRadius = `${R} ${R} ${R} ${R}`;
+                        }
                       }
-                    }
-                    // Reset radius grouping if time separator is shown
-                    if (showTimeSeparator) {
-                      if (isSameSenderAsNext) {
-                        bubbleRadius = isMine
-                          ? `${R} ${R} ${r} ${R}`
-                          : `${R} ${R} ${R} ${r}`;
-                      } else {
-                        bubbleRadius = `${R} ${R} ${R} ${R}`;
-                      }
-                    }
 
-                    if (
-                      msg.message_status === 'system' ||
-                      msg.message_status === 'SYSTEM'
-                    ) {
-                      return (
-                        <div key={msg.id} id={`msg-${msg.id}`}>
-                          {showTimeSeparator && (
-                            <div className="flex justify-center py-4">
-                              <span className="text-[11px] text-muted-foreground font-medium px-3 py-0.5 rounded-full bg-muted/60">
-                                {format(new Date(msg.created_at), 'HH:mm')}
+                      if (
+                        msg.message_status === 'system' ||
+                        msg.message_status === 'SYSTEM'
+                      ) {
+                        return (
+                          <div key={msg.id} id={`msg-${msg.id}`}>
+                            {showTimeSeparator && (
+                              <div className="flex justify-center py-4">
+                                <span className="text-[11px] text-muted-foreground font-medium px-3 py-0.5 rounded-full bg-muted/60">
+                                  {format(new Date(msg.created_at), 'HH:mm')}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-center py-2">
+                              <span className="text-[12px] text-muted-foreground font-medium px-4 py-1 rounded-full bg-muted/40 text-center">
+                                {msg.message}
                               </span>
                             </div>
-                          )}
-                          <div className="flex justify-center py-2">
-                            <span className="text-[12px] text-muted-foreground font-medium px-4 py-1 rounded-full bg-muted/40 text-center">
-                              {msg.message}
-                            </span>
                           </div>
-                        </div>
-                      );
-                    }
+                        );
+                      }
 
-                    if (
-                      msg.message_status === 'deleted' ||
-                      msg.message_status === 'DELETED'
-                    ) {
+                      if (
+                        msg.message_status === 'deleted' ||
+                        msg.message_status === 'DELETED'
+                      ) {
+                        return (
+                          <div
+                            key={msg.id}
+                            id={`msg-${msg.id}`}
+                            className="transition-colors duration-500 rounded-xl px-1 -mx-1"
+                          >
+                            {/* Time separator */}
+                            {showTimeSeparator && (
+                              <div className="flex justify-center py-4">
+                                <span className="text-[11px] text-muted-foreground font-medium px-3 py-0.5 rounded-full bg-muted/60">
+                                  {format(new Date(msg.created_at), 'HH:mm')}
+                                </span>
+                              </div>
+                            )}
+                            <div
+                              className={`flex items-end gap-2 group ${isMine ? 'justify-end' : ''}`}
+                              style={{
+                                marginTop: showTimeSeparator
+                                  ? '4px'
+                                  : isSameSenderAsPrev
+                                    ? '2px'
+                                    : '12px',
+                              }}
+                            >
+                              {!isMine &&
+                                (showAvatar ? (
+                                  <Avatar className="w-7 h-7 shrink-0 opacity-50">
+                                    <AvatarImage
+                                      src={
+                                        sender?.profile_picture_url ||
+                                        sender?.avatar ||
+                                        '/default-avatar.png'
+                                      }
+                                    />
+                                    <AvatarFallback>
+                                      {sender?.username?.[0]?.toUpperCase() ||
+                                        'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : (
+                                  <div className="w-7 shrink-0" />
+                                ))}
+                              <div className="px-3 py-1.5 text-[14px] italic border border-border/80 text-muted-foreground rounded-2xl bg-transparent select-none">
+                                {isMine
+                                  ? 'Bạn đã thu hồi một tin nhắn'
+                                  : `${sender?.username || 'Người dùng'} đã thu hồi một tin nhắn`}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div
                           key={msg.id}
@@ -1778,6 +1896,7 @@ export default function MessagesPage() {
                               </span>
                             </div>
                           )}
+
                           <div
                             className={`flex items-end gap-2 group ${isMine ? 'justify-end' : ''}`}
                             style={{
@@ -1786,11 +1905,16 @@ export default function MessagesPage() {
                                 : isSameSenderAsPrev
                                   ? '2px'
                                   : '12px',
+                              marginBottom:
+                                msg.reactions && msg.reactions.length > 0
+                                  ? '10px'
+                                  : '0px',
                             }}
                           >
+                            {/* Avatar: show on last message of group, spacer otherwise */}
                             {!isMine &&
                               (showAvatar ? (
-                                <Avatar className="w-7 h-7 shrink-0 opacity-50">
+                                <Avatar className="w-7 h-7 shrink-0">
                                   <AvatarImage
                                     src={
                                       sender?.profile_picture_url ||
@@ -1799,202 +1923,151 @@ export default function MessagesPage() {
                                     }
                                   />
                                   <AvatarFallback>
-                                    {sender?.username?.[0]?.toUpperCase() || 'U'}
+                                    {sender?.username?.[0]?.toUpperCase() ||
+                                      'U'}
                                   </AvatarFallback>
                                 </Avatar>
                               ) : (
                                 <div className="w-7 shrink-0" />
                               ))}
-                            <div className="px-3 py-1.5 text-[14px] italic border border-border/80 text-muted-foreground rounded-2xl bg-transparent select-none">
-                              {isMine
-                                ? 'Bạn đã thu hồi một tin nhắn'
-                                : `${sender?.username || 'Người dùng'} đã thu hồi một tin nhắn`}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
 
-                    return (
-                      <div
-                        key={msg.id}
-                        id={`msg-${msg.id}`}
-                        className="transition-colors duration-500 rounded-xl px-1 -mx-1"
-                      >
-                        {/* Time separator */}
-                        {showTimeSeparator && (
-                          <div className="flex justify-center py-4">
-                            <span className="text-[11px] text-muted-foreground font-medium px-3 py-0.5 rounded-full bg-muted/60">
-                              {format(new Date(msg.created_at), 'HH:mm')}
-                            </span>
-                          </div>
-                        )}
-
-                        <div
-                          className={`flex items-end gap-2 group ${isMine ? 'justify-end' : ''}`}
-                          style={{
-                            marginTop: showTimeSeparator
-                              ? '4px'
-                              : isSameSenderAsPrev
-                                ? '2px'
-                                : '12px',
-                            marginBottom:
-                              msg.reactions && msg.reactions.length > 0
-                                ? '10px'
-                                : '0px',
-                          }}
-                        >
-                          {/* Avatar: show on last message of group, spacer otherwise */}
-                          {!isMine &&
-                            (showAvatar ? (
-                              <Avatar className="w-7 h-7 shrink-0">
-                                <AvatarImage
-                                  src={
-                                    sender?.profile_picture_url ||
-                                    sender?.avatar ||
-                                    '/default-avatar.png'
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {sender?.username?.[0]?.toUpperCase() || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                            ) : (
-                              <div className="w-7 shrink-0" />
-                            ))}
-
-                          {/* Context menu + quick actions for own messages */}
-                          {isMine && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
-                              {/* Quick reaction picker */}
-                              <div className="flex items-center bg-background border border-border/50 rounded-full px-1 py-0.5 shadow-sm mr-0.5">
-                                {Object.entries(REACTION_EMOJIS).map(
-                                  ([type, emoji]) => (
-                                    <button
-                                      key={type}
-                                      className="text-xs hover:scale-125 transition-transform p-0.5"
-                                      title={type}
+                            {/* Context menu + quick actions for own messages */}
+                            {isMine && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                                {/* Quick reaction picker */}
+                                <div className="flex items-center bg-background border border-border/50 rounded-full px-1 py-0.5 shadow-sm mr-0.5">
+                                  {Object.entries(REACTION_EMOJIS).map(
+                                    ([type, emoji]) => (
+                                      <button
+                                        key={type}
+                                        className="text-xs hover:scale-125 transition-transform p-0.5"
+                                        title={type}
+                                        onClick={() =>
+                                          handleToggleReaction(msg.id, type)
+                                        }
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ),
+                                  )}
+                                </div>
+                                <button
+                                  className="p-1.5 hover:bg-muted rounded-full transition-colors"
+                                  title="Trả lời"
+                                  onClick={() => setReplyingTo(msg)}
+                                >
+                                  <CornerUpLeft className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <div className="cursor-pointer p-1">
+                                      <MoreVertical className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                    </div>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="w-48 rounded-xl"
+                                  >
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground text-center border-b mb-1">
+                                      {format(
+                                        new Date(msg.created_at),
+                                        'HH:mm',
+                                      )}
+                                    </div>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer flex justify-between py-2 rounded-lg"
+                                      onClick={() => setForwardingMsg(msg)}
+                                    >
+                                      Chuyển tiếp{' '}
+                                      <Forward className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer flex justify-between py-2 rounded-lg">
+                                      Sao chép <Copy className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer flex justify-between py-2 rounded-lg"
                                       onClick={() =>
-                                        handleToggleReaction(msg.id, type)
+                                        togglePinMutation.mutate(
+                                          { messageId: msg.id },
+                                          {
+                                            onSuccess: (res: any) => {
+                                              const action =
+                                                res?.data?.action ||
+                                                res?.action;
+                                              const pinMessage =
+                                                res?.data?.pinMessage ||
+                                                res?.pinMessage;
+                                              queryClient.setQueryData(
+                                                getChatMessagesControllerGetMessageHistoryQueryKey(
+                                                  selectedRoomId!,
+                                                ),
+                                                (old: any) => {
+                                                  if (!old) return old;
+                                                  return {
+                                                    ...old,
+                                                    data: {
+                                                      ...old.data,
+                                                      data: (
+                                                        old.data?.data || []
+                                                      ).map((m: any) =>
+                                                        m.id === msg.id
+                                                          ? {
+                                                              ...m,
+                                                              pin_messages:
+                                                                action ===
+                                                                'pinned'
+                                                                  ? pinMessage
+                                                                  : null,
+                                                            }
+                                                          : m,
+                                                      ),
+                                                    },
+                                                  };
+                                                },
+                                              );
+                                            },
+                                            onError: (error: any) => {
+                                              if (
+                                                error?.response?.status === 400
+                                              ) {
+                                                toast({
+                                                  title: 'Không thể ghim',
+                                                  description:
+                                                    error.response?.data
+                                                      ?.message ||
+                                                    'Bạn chỉ có thể ghim tối đa 3 tin nhắn',
+                                                  variant: 'destructive',
+                                                });
+                                              }
+                                            },
+                                          },
+                                        )
                                       }
                                     >
-                                      {emoji}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                              <button
-                                className="p-1.5 hover:bg-muted rounded-full transition-colors"
-                                title="Trả lời"
-                                onClick={() => setReplyingTo(msg)}
-                              >
-                                <CornerUpLeft className="w-3.5 h-3.5 text-muted-foreground" />
-                              </button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <div className="cursor-pointer p-1">
-                                    <MoreVertical className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                                  </div>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="w-48 rounded-xl"
-                                >
-                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground text-center border-b mb-1">
-                                    {format(new Date(msg.created_at), 'HH:mm')}
-                                  </div>
-                                  <DropdownMenuItem
-                                    className="cursor-pointer flex justify-between py-2 rounded-lg"
-                                    onClick={() => setForwardingMsg(msg)}
-                                  >
-                                    Chuyển tiếp{' '}
-                                    <Forward className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="cursor-pointer flex justify-between py-2 rounded-lg">
-                                    Sao chép <Copy className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="cursor-pointer flex justify-between py-2 rounded-lg"
-                                    onClick={() =>
-                                      togglePinMutation.mutate(
-                                        { messageId: msg.id },
-                                        {
-                                          onSuccess: (res: any) => {
-                                            const action =
-                                              res?.data?.action || res?.action;
-                                            const pinMessage =
-                                              res?.data?.pinMessage ||
-                                              res?.pinMessage;
-                                            queryClient.setQueryData(
-                                              getChatMessagesControllerGetMessageHistoryQueryKey(
-                                                selectedRoomId!,
-                                              ),
-                                              (old: any) => {
-                                                if (!old) return old;
-                                                return {
-                                                  ...old,
-                                                  data: {
-                                                    ...old.data,
-                                                    data: (
-                                                      old.data?.data || []
-                                                    ).map((m: any) =>
-                                                      m.id === msg.id
-                                                        ? {
-                                                            ...m,
-                                                            pin_messages:
-                                                              action ===
-                                                              'pinned'
-                                                                ? pinMessage
-                                                                : null,
-                                                          }
-                                                        : m,
-                                                    ),
-                                                  },
-                                                };
-                                              },
-                                            );
-                                          },
-                                          onError: (error: any) => {
-                                            if (
-                                              error?.response?.status === 400
-                                            ) {
-                                              toast({
-                                                title: 'Không thể ghim',
-                                                description:
-                                                  error.response?.data
-                                                    ?.message ||
-                                                  'Bạn chỉ có thể ghim tối đa 3 tin nhắn',
-                                                variant: 'destructive',
-                                              });
-                                            }
-                                          },
-                                        },
-                                      )
-                                    }
-                                  >
-                                    {msg.pin_messages &&
-                                    (Array.isArray(msg.pin_messages)
-                                      ? msg.pin_messages.length > 0
-                                      : true)
-                                      ? 'Bỏ Ghim'
-                                      : 'Ghim'}{' '}
-                                    <Pin className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="cursor-pointer flex justify-between py-2 text-destructive focus:text-destructive rounded-lg"
-                                    onClick={() => {
-                                      queryClient.setQueryData(
-                                        getChatMessagesControllerGetMessageHistoryQueryKey(
-                                          selectedRoomId!,
-                                        ),
-                                        (old: any) => {
-                                          if (!old) return old;
-                                          return {
-                                            ...old,
-                                            data: {
-                                              ...old.data,
-                                              data: (old.data?.data || []).map(
-                                                (m: any) =>
+                                      {msg.pin_messages &&
+                                      (Array.isArray(msg.pin_messages)
+                                        ? msg.pin_messages.length > 0
+                                        : true)
+                                        ? 'Bỏ Ghim'
+                                        : 'Ghim'}{' '}
+                                      <Pin className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer flex justify-between py-2 text-destructive focus:text-destructive rounded-lg"
+                                      onClick={() => {
+                                        queryClient.setQueryData(
+                                          getChatMessagesControllerGetMessageHistoryQueryKey(
+                                            selectedRoomId!,
+                                          ),
+                                          (old: any) => {
+                                            if (!old) return old;
+                                            return {
+                                              ...old,
+                                              data: {
+                                                ...old.data,
+                                                data: (
+                                                  old.data?.data || []
+                                                ).map((m: any) =>
                                                   m.id === msg.id
                                                     ? {
                                                         ...m,
@@ -2007,426 +2080,483 @@ export default function MessagesPage() {
                                                         pin_messages: [],
                                                       }
                                                     : m,
-                                              ),
-                                            },
-                                          };
-                                        },
-                                      );
-                                      deleteMutation.mutate({ id: msg.id });
-                                    }}
-                                  >
-                                    Thu hồi <Trash2 className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          )}
+                                                ),
+                                              },
+                                            };
+                                          },
+                                        );
+                                        deleteMutation.mutate({ id: msg.id });
+                                      }}
+                                    >
+                                      Thu hồi{' '}
+                                      <Trash2 className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
 
-                          {/* Message content */}
-                          <div
-                            onDoubleClick={handleSendQuickEmoji}
-                            className="relative flex flex-col max-w-[60%] select-none cursor-pointer"
-                          >
-                            {/* Pinned badge */}
-                            {msg.pin_messages &&
-                              (Array.isArray(msg.pin_messages)
-                                ? msg.pin_messages.length > 0
-                                : true) && (
-                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground self-start pl-1 mb-0.5">
-                                  <Pin className="w-3 h-3 rotate-45 text-amber-500 fill-amber-500" />{' '}
-                                  Đã ghim
+                            {/* Message content */}
+                            <div
+                              onDoubleClick={handleSendQuickEmoji}
+                              className="relative flex flex-col max-w-[60%] select-none cursor-pointer"
+                            >
+                              {/* Pinned badge */}
+                              {msg.pin_messages &&
+                                (Array.isArray(msg.pin_messages)
+                                  ? msg.pin_messages.length > 0
+                                  : true) && (
+                                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground self-start pl-1 mb-0.5">
+                                    <Pin className="w-3 h-3 rotate-45 text-amber-500 fill-amber-500" />{' '}
+                                    Đã ghim
+                                  </div>
+                                )}
+
+                              {/* Quoted reply preview */}
+                              {msg.reply_to && (
+                                <>
+                                  {/* Reply Header */}
+                                  <span
+                                    className={`text-[11px] text-muted-foreground/80 mb-0.5 ${isMine ? 'self-end text-right' : 'self-start text-left'}`}
+                                  >
+                                    {isMine
+                                      ? msg.reply_to.created_by === user?.id
+                                        ? 'Bạn đã trả lời chính bạn'
+                                        : `Bạn đã trả lời ${msg.reply_to.user?.username || 'người dùng'}`
+                                      : `${msg.user?.username || 'Người dùng'} đã trả lời ${
+                                          msg.reply_to.created_by === user?.id
+                                            ? 'bạn'
+                                            : msg.reply_to.user?.username ||
+                                              'người dùng'
+                                        }`}
+                                  </span>
+                                  {/* Quoted Bubble */}
+                                  <div
+                                    onClick={() => {
+                                      const el = document.getElementById(
+                                        `msg-${msg.reply_to.id}`,
+                                      );
+                                      if (el) {
+                                        el.scrollIntoView({
+                                          behavior: 'smooth',
+                                          block: 'center',
+                                        });
+                                        el.classList.add(
+                                          'bg-muted/50',
+                                          'transition-colors',
+                                          'duration-500',
+                                        );
+                                        setTimeout(() => {
+                                          el.classList.remove('bg-muted/50');
+                                        }, 2000);
+                                      }
+                                    }}
+                                    className={`px-3 py-1.5 bg-muted/60 dark:bg-muted/40 text-muted-foreground text-xs rounded-xl mb-1 max-w-[85%] cursor-pointer hover:bg-muted/80 transition-colors flex items-center gap-2 ${
+                                      isMine ? 'self-end' : 'self-start'
+                                    }`}
+                                  >
+                                    {msg.reply_to.message_status ===
+                                    'deleted' ? (
+                                      <span className="truncate">
+                                        Tin nhắn đã thu hồi
+                                      </span>
+                                    ) : msg.reply_to.shared_post_id ? (
+                                      <>
+                                        <ImageIcon className="w-3 h-3 shrink-0" />
+                                        <span className="truncate">
+                                          Bài viết của{' '}
+                                          {msg.reply_to.shared_post?.user
+                                            ?.username || 'người dùng'}
+                                        </span>
+                                        {msg.reply_to.shared_post
+                                          ?.medias?.[0] && (
+                                          <img
+                                            src={
+                                              msg.reply_to.shared_post.medias[0].startsWith(
+                                                'http',
+                                              ) ||
+                                              msg.reply_to.shared_post.medias[0].startsWith(
+                                                'blob:',
+                                              )
+                                                ? msg.reply_to.shared_post
+                                                    .medias[0]
+                                                : `${import.meta.env.VITE_MEDIA_URL}/${msg.reply_to.shared_post.medias[0]}`
+                                            }
+                                            alt="thumbnail"
+                                            className="w-6 h-6 object-cover rounded shrink-0"
+                                          />
+                                        )}
+                                      </>
+                                    ) : msg.reply_to.medias &&
+                                      msg.reply_to.medias.length > 0 &&
+                                      !msg.reply_to.message ? (
+                                      (() => {
+                                        const rawUrl = msg.reply_to.medias[0];
+                                        const fullUrl =
+                                          rawUrl.startsWith('http') ||
+                                          rawUrl.startsWith('blob:')
+                                            ? rawUrl
+                                            : `${import.meta.env.VITE_MEDIA_URL}/${rawUrl}`;
+                                        return isVideo(rawUrl) ? (
+                                          <video
+                                            src={fullUrl}
+                                            className="w-10 h-10 object-cover rounded shrink-0"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={fullUrl}
+                                            alt="thumbnail"
+                                            className="w-10 h-10 object-cover rounded shrink-0"
+                                          />
+                                        );
+                                      })()
+                                    ) : (
+                                      <span className="truncate line-clamp-2">
+                                        {msg.reply_to.message}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+
+                              {/* Shared Post Card */}
+                              {msg.shared_post_id && (
+                                <div
+                                  className={`mt-1 mb-1 ${msg.is_sending ? 'opacity-70' : ''}`}
+                                >
+                                  <MessagePostCard post={msg.shared_post} />
                                 </div>
                               )}
 
-                            {/* Quoted reply preview */}
-                            {msg.reply_to && (
-                              <>
-                                {/* Reply Header */}
-                                <span
-                                  className={`text-[11px] text-muted-foreground/80 mb-0.5 ${isMine ? 'self-end text-right' : 'self-start text-left'}`}
-                                >
-                                  {isMine
-                                    ? msg.reply_to.created_by === user?.id
-                                      ? 'Bạn đã trả lời chính bạn'
-                                      : `Bạn đã trả lời ${msg.reply_to.user?.username || 'người dùng'}`
-                                    : `${msg.user?.username || 'Người dùng'} đã trả lời ${
-                                        msg.reply_to.created_by === user?.id
-                                          ? 'bạn'
-                                          : msg.reply_to.user?.username ||
-                                            'người dùng'
-                                      }`}
-                                </span>
-                                {/* Quoted Bubble */}
+                              {/* Media attachments */}
+                              {msg.medias && msg.medias.length > 0 && (
                                 <div
-                                  onClick={() => {
-                                    const el = document.getElementById(
-                                      `msg-${msg.reply_to.id}`,
-                                    );
-                                    if (el) {
-                                      el.scrollIntoView({
-                                        behavior: 'smooth',
-                                        block: 'center',
-                                      });
-                                      el.classList.add(
-                                        'bg-muted/50',
-                                        'transition-colors',
-                                        'duration-500',
-                                      );
-                                      setTimeout(() => {
-                                        el.classList.remove('bg-muted/50');
-                                      }, 2000);
-                                    }
-                                  }}
-                                  className={`px-3 py-1.5 bg-muted/60 dark:bg-muted/40 text-muted-foreground text-xs rounded-xl mb-1 max-w-[85%] cursor-pointer hover:bg-muted/80 transition-colors flex items-center gap-2 ${
-                                    isMine ? 'self-end' : 'self-start'
-                                  }`}
+                                  className={`grid gap-1 overflow-hidden ${
+                                    msg.medias.length > 1
+                                      ? 'grid-cols-2'
+                                      : 'grid-cols-1'
+                                  } ${msg.is_sending ? 'opacity-70' : ''}`}
+                                  style={{ borderRadius: bubbleRadius }}
                                 >
-                                  {msg.reply_to.message_status === 'deleted' ? (
-                                    <span className="truncate">
-                                      Tin nhắn đã thu hồi
-                                    </span>
-                                  ) : msg.reply_to.shared_post_id ? (
-                                    <>
-                                      <ImageIcon className="w-3 h-3 shrink-0" />
-                                      <span className="truncate">
-                                        Bài viết của{' '}
-                                        {msg.reply_to.shared_post?.user
-                                          ?.username || 'người dùng'}
-                                      </span>
-                                      {msg.reply_to.shared_post
-                                        ?.medias?.[0] && (
-                                        <img
-                                          src={
-                                            msg.reply_to.shared_post.medias[0].startsWith(
-                                              'http',
-                                            ) ||
-                                            msg.reply_to.shared_post.medias[0].startsWith(
-                                              'blob:',
-                                            )
-                                              ? msg.reply_to.shared_post
-                                                  .medias[0]
-                                              : `${import.meta.env.VITE_MEDIA_URL}/${msg.reply_to.shared_post.medias[0]}`
-                                          }
-                                          alt="thumbnail"
-                                          className="w-6 h-6 object-cover rounded shrink-0"
-                                        />
-                                      )}
-                                    </>
-                                  ) : msg.reply_to.medias &&
-                                    msg.reply_to.medias.length > 0 &&
-                                    !msg.reply_to.message ? (
-                                    (() => {
-                                      const rawUrl = msg.reply_to.medias[0];
+                                  {msg.medias.map(
+                                    (url: string, mediaIdx: number) => {
                                       const fullUrl =
-                                        rawUrl.startsWith('http') ||
-                                        rawUrl.startsWith('blob:')
-                                          ? rawUrl
-                                          : `${import.meta.env.VITE_MEDIA_URL}/${rawUrl}`;
-                                      return isVideo(rawUrl) ? (
+                                        url.startsWith('http') ||
+                                        url.startsWith('blob:')
+                                          ? url
+                                          : `http://localhost:3000${url}`;
+                                      const isVideoMedia = isVideo(url);
+
+                                      return isVideoMedia ? (
                                         <video
+                                          key={mediaIdx}
                                           src={fullUrl}
-                                          className="w-10 h-10 object-cover rounded shrink-0"
+                                          controls
+                                          className="max-h-60 w-full object-cover"
                                         />
                                       ) : (
                                         <img
+                                          key={mediaIdx}
                                           src={fullUrl}
-                                          alt="thumbnail"
-                                          className="w-10 h-10 object-cover rounded shrink-0"
+                                          alt="attachment"
+                                          loading="lazy"
+                                          className="max-h-60 w-full object-cover hover:opacity-90 transition-opacity"
+                                          onClick={() =>
+                                            setPreviewMedia({
+                                              url: fullUrl,
+                                              type: isVideoMedia
+                                                ? 'video'
+                                                : 'image',
+                                            })
+                                          }
                                         />
                                       );
-                                    })()
-                                  ) : (
-                                    <span className="truncate line-clamp-2">
-                                      {msg.reply_to.message}
-                                    </span>
+                                    },
                                   )}
                                 </div>
-                              </>
-                            )}
+                              )}
 
-                            {/* Shared Post Card */}
-                            {msg.shared_post_id && (
-                              <div
-                                className={`mt-1 mb-1 ${msg.is_sending ? 'opacity-70' : ''}`}
-                              >
-                                <MessagePostCard post={msg.shared_post} />
-                              </div>
-                            )}
+                              {/* Text bubble with connected border-radius */}
+                              {msg.message &&
+                                (isEmojiOnly ? (
+                                  /* Large emoji without bubble */
+                                  <div
+                                    className={`text-4xl py-1 ${msg.is_sending ? 'opacity-70' : ''}`}
+                                  >
+                                    {msg.message}
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={`px-3 py-2 text-[15px] leading-[20px] relative w-fit ${
+                                      isMine
+                                        ? 'bg-[#0084ff] text-white self-end'
+                                        : 'bg-muted text-foreground self-start'
+                                    } ${msg.is_sending ? 'opacity-70' : ''} ${
+                                      msg.is_failed
+                                        ? 'bg-red-500 text-white'
+                                        : ''
+                                    }`}
+                                    style={{ borderRadius: bubbleRadius }}
+                                  >
+                                    {msg.message}
+                                    {msg.is_failed && (
+                                      <span className="absolute bottom-0.5 right-2 text-[8px] text-white font-bold">
+                                        lỗi
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
 
-                            {/* Media attachments */}
-                            {msg.medias && msg.medias.length > 0 && (
-                              <div
-                                className={`grid gap-1 overflow-hidden ${
-                                  msg.medias.length > 1
-                                    ? 'grid-cols-2'
-                                    : 'grid-cols-1'
-                                } ${msg.is_sending ? 'opacity-70' : ''}`}
-                                style={{ borderRadius: bubbleRadius }}
-                              >
-                                {msg.medias.map(
-                                  (url: string, mediaIdx: number) => {
-                                    const fullUrl =
-                                      url.startsWith('http') ||
-                                      url.startsWith('blob:')
-                                        ? url
-                                        : `http://localhost:3000${url}`;
-                                    const isVideoMedia = isVideo(url);
+                              {/* Reaction badges (optimistic overlay) */}
+                              {msg.reactions && msg.reactions.length > 0 && (
+                                <div
+                                  className={`absolute -bottom-2.5 z-10 ${isMine ? 'right-2' : 'left-2'}`}
+                                >
+                                  <div className="inline-flex items-center gap-0.5 bg-background border border-border/50 rounded-full px-1.5 py-0.5 shadow-sm text-xs cursor-pointer hover:scale-110 transition-transform">
+                                    {Object.entries(
+                                      msg.reactions.reduce(
+                                        (
+                                          acc: Record<string, number>,
+                                          r: any,
+                                        ) => {
+                                          acc[r.reaction_type] =
+                                            (acc[r.reaction_type] || 0) + 1;
+                                          return acc;
+                                        },
+                                        {},
+                                      ),
+                                    ).map(([type, count]) => (
+                                      <span key={type} title={type}>
+                                        {REACTION_EMOJIS[type] || type}
+                                        {(count as number) > 1
+                                          ? ` ${count}`
+                                          : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
-                                    return isVideoMedia ? (
-                                      <video
-                                        key={mediaIdx}
-                                        src={fullUrl}
-                                        controls
-                                        className="max-h-60 w-full object-cover"
-                                      />
-                                    ) : (
-                                      <img
-                                        key={mediaIdx}
-                                        src={fullUrl}
-                                        alt="attachment"
-                                        loading="lazy"
-                                        className="max-h-60 w-full object-cover hover:opacity-90 transition-opacity"
-                                        onClick={() =>
-                                          setPreviewMedia({
-                                            url: fullUrl,
-                                            type: isVideoMedia
-                                              ? 'video'
-                                              : 'image',
-                                          })
+                              {/* Message Status Indicators */}
+                              {isMine && (
+                                <div className="mt-0.5 h-3.5 flex items-center justify-end">
+                                  {msg.is_sending && idx === 0 && (
+                                    <Circle className="w-3 h-3 text-muted-foreground" />
+                                  )}
+                                  {!msg.is_sending &&
+                                    idx === 0 &&
+                                    lastReadIdxByOther !== 0 && (
+                                      <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
+                                    )}
+                                  {idx === lastReadIdxByOther && targetUser && (
+                                    <Avatar className="w-3.5 h-3.5">
+                                      <AvatarImage
+                                        src={
+                                          targetUser.avatar ||
+                                          '/default-avatar.png'
                                         }
                                       />
-                                    );
-                                  },
-                                )}
-                              </div>
-                            )}
-
-                            {/* Text bubble with connected border-radius */}
-                            {msg.message &&
-                              (isEmojiOnly ? (
-                                /* Large emoji without bubble */
-                                <div
-                                  className={`text-4xl py-1 ${msg.is_sending ? 'opacity-70' : ''}`}
-                                >
-                                  {msg.message}
-                                </div>
-                              ) : (
-                                <div
-                                  className={`px-3 py-2 text-[15px] leading-[20px] relative w-fit ${
-                                    isMine
-                                      ? 'bg-[#0084ff] text-white self-end'
-                                      : 'bg-muted text-foreground self-start'
-                                  } ${msg.is_sending ? 'opacity-70' : ''} ${
-                                    msg.is_failed ? 'bg-red-500 text-white' : ''
-                                  }`}
-                                  style={{ borderRadius: bubbleRadius }}
-                                >
-                                  {msg.message}
-                                  {msg.is_failed && (
-                                    <span className="absolute bottom-0.5 right-2 text-[8px] text-white font-bold">
-                                      lỗi
-                                    </span>
+                                      <AvatarFallback className="text-[8px]">
+                                        {targetUser.username?.[0]?.toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
                                   )}
                                 </div>
-                              ))}
+                              )}
+                            </div>
 
-                            {/* Reaction badges (optimistic overlay) */}
-                            {msg.reactions && msg.reactions.length > 0 && (
-                              <div
-                                className={`absolute -bottom-2.5 z-10 ${isMine ? 'right-2' : 'left-2'}`}
-                              >
-                                <div className="inline-flex items-center gap-0.5 bg-background border border-border/50 rounded-full px-1.5 py-0.5 shadow-sm text-xs cursor-pointer hover:scale-110 transition-transform">
-                                  {Object.entries(
-                                    msg.reactions.reduce(
-                                      (acc: Record<string, number>, r: any) => {
-                                        acc[r.reaction_type] =
-                                          (acc[r.reaction_type] || 0) + 1;
-                                        return acc;
-                                      },
-                                      {},
+                            {!isMine && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                                {/* Quick reaction picker */}
+                                <div className="flex items-center bg-background border border-border/50 rounded-full px-1 py-0.5 shadow-sm mr-0.5">
+                                  {Object.entries(REACTION_EMOJIS).map(
+                                    ([type, emoji]) => (
+                                      <button
+                                        key={type}
+                                        className="text-xs hover:scale-125 transition-transform p-0.5"
+                                        title={type}
+                                        onClick={() =>
+                                          handleToggleReaction(msg.id, type)
+                                        }
+                                      >
+                                        {emoji}
+                                      </button>
                                     ),
-                                  ).map(([type, count]) => (
-                                    <span key={type} title={type}>
-                                      {REACTION_EMOJIS[type] || type}
-                                      {(count as number) > 1 ? ` ${count}` : ''}
-                                    </span>
-                                  ))}
+                                  )}
                                 </div>
-                              </div>
-                            )}
-
-                            {/* Message Status Indicators */}
-                            {isMine && (
-                              <div className="mt-0.5 h-3.5 flex items-center justify-end">
-                                {msg.is_sending && idx === 0 && (
-                                  <Circle className="w-3 h-3 text-muted-foreground" />
-                                )}
-                                {!msg.is_sending && idx === 0 && lastReadIdxByOther !== 0 && (
-                                  <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
-                                )}
-                                {idx === lastReadIdxByOther && targetUser && (
-                                  <Avatar className="w-3.5 h-3.5">
-                                    <AvatarImage src={targetUser.avatar || '/default-avatar.png'} />
-                                    <AvatarFallback className="text-[8px]">{targetUser.username?.[0]?.toUpperCase()}</AvatarFallback>
-                                  </Avatar>
-                                )}
+                                <button
+                                  className="p-1.5 hover:bg-muted rounded-full transition-colors"
+                                  title="Trả lời"
+                                  onClick={() => setReplyingTo(msg)}
+                                >
+                                  <CornerUpLeft className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 cursor-pointer p-1">
+                                      <MoreVertical className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                    </div>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    align="start"
+                                    className="w-48 rounded-xl"
+                                  >
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground text-center border-b mb-1">
+                                      {format(
+                                        new Date(msg.created_at),
+                                        'HH:mm',
+                                      )}
+                                    </div>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer flex justify-between py-2 rounded-lg"
+                                      onClick={() => setForwardingMsg(msg)}
+                                    >
+                                      Chuyển tiếp{' '}
+                                      <Forward className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer flex justify-between py-2 rounded-lg">
+                                      Sao chép <Copy className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="cursor-pointer flex justify-between py-2 rounded-lg"
+                                      onClick={() =>
+                                        togglePinMutation.mutate(
+                                          { messageId: msg.id },
+                                          {
+                                            onSuccess: (res: any) => {
+                                              const action =
+                                                res?.data?.action ||
+                                                res?.action;
+                                              const pinMessage =
+                                                res?.data?.pinMessage ||
+                                                res?.pinMessage;
+                                              queryClient.setQueryData(
+                                                getChatMessagesControllerGetMessageHistoryQueryKey(
+                                                  selectedRoomId!,
+                                                ),
+                                                (old: any) => {
+                                                  if (!old) return old;
+                                                  return {
+                                                    ...old,
+                                                    data: {
+                                                      ...old.data,
+                                                      data: (
+                                                        old.data?.data || []
+                                                      ).map((m: any) =>
+                                                        m.id === msg.id
+                                                          ? {
+                                                              ...m,
+                                                              pin_messages:
+                                                                action ===
+                                                                'pinned'
+                                                                  ? pinMessage
+                                                                  : null,
+                                                            }
+                                                          : m,
+                                                      ),
+                                                    },
+                                                  };
+                                                },
+                                              );
+                                            },
+                                            onError: (error: any) => {
+                                              if (
+                                                error?.response?.status === 400
+                                              ) {
+                                                toast({
+                                                  title: 'Không thể ghim',
+                                                  description:
+                                                    error.response?.data
+                                                      ?.message ||
+                                                    'Bạn chỉ có thể ghim tối đa 3 tin nhắn',
+                                                  variant: 'destructive',
+                                                });
+                                              }
+                                            },
+                                          },
+                                        )
+                                      }
+                                    >
+                                      {msg.pin_messages &&
+                                      (Array.isArray(msg.pin_messages)
+                                        ? msg.pin_messages.length > 0
+                                        : true)
+                                        ? 'Bỏ Ghim'
+                                        : 'Ghim'}{' '}
+                                      <Pin className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer flex justify-between py-2 text-destructive focus:text-destructive rounded-lg">
+                                      Báo cáo <Flag className="w-4 h-4 ml-2" />
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             )}
                           </div>
-
-                          {!isMine && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
-                              {/* Quick reaction picker */}
-                              <div className="flex items-center bg-background border border-border/50 rounded-full px-1 py-0.5 shadow-sm mr-0.5">
-                                {Object.entries(REACTION_EMOJIS).map(
-                                  ([type, emoji]) => (
-                                    <button
-                                      key={type}
-                                      className="text-xs hover:scale-125 transition-transform p-0.5"
-                                      title={type}
-                                      onClick={() =>
-                                        handleToggleReaction(msg.id, type)
-                                      }
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                              <button
-                                className="p-1.5 hover:bg-muted rounded-full transition-colors"
-                                title="Trả lời"
-                                onClick={() => setReplyingTo(msg)}
-                              >
-                                <CornerUpLeft className="w-3.5 h-3.5 text-muted-foreground" />
-                              </button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 cursor-pointer p-1">
-                                    <MoreVertical className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                                  </div>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="start"
-                                  className="w-48 rounded-xl"
-                                >
-                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground text-center border-b mb-1">
-                                    {format(new Date(msg.created_at), 'HH:mm')}
-                                  </div>
-                                  <DropdownMenuItem
-                                    className="cursor-pointer flex justify-between py-2 rounded-lg"
-                                    onClick={() => setForwardingMsg(msg)}
-                                  >
-                                    Chuyển tiếp{' '}
-                                    <Forward className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="cursor-pointer flex justify-between py-2 rounded-lg">
-                                    Sao chép <Copy className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="cursor-pointer flex justify-between py-2 rounded-lg"
-                                    onClick={() =>
-                                      togglePinMutation.mutate(
-                                        { messageId: msg.id },
-                                        {
-                                          onSuccess: (res: any) => {
-                                            const action =
-                                              res?.data?.action || res?.action;
-                                            const pinMessage =
-                                              res?.data?.pinMessage ||
-                                              res?.pinMessage;
-                                            queryClient.setQueryData(
-                                              getChatMessagesControllerGetMessageHistoryQueryKey(
-                                                selectedRoomId!,
-                                              ),
-                                              (old: any) => {
-                                                if (!old) return old;
-                                                return {
-                                                  ...old,
-                                                  data: {
-                                                    ...old.data,
-                                                    data: (
-                                                      old.data?.data || []
-                                                    ).map((m: any) =>
-                                                      m.id === msg.id
-                                                        ? {
-                                                            ...m,
-                                                            pin_messages:
-                                                              action ===
-                                                              'pinned'
-                                                                ? pinMessage
-                                                                : null,
-                                                          }
-                                                        : m,
-                                                    ),
-                                                  },
-                                                };
-                                              },
-                                            );
-                                          },
-                                          onError: (error: any) => {
-                                            if (
-                                              error?.response?.status === 400
-                                            ) {
-                                              toast({
-                                                title: 'Không thể ghim',
-                                                description:
-                                                  error.response?.data
-                                                    ?.message ||
-                                                  'Bạn chỉ có thể ghim tối đa 3 tin nhắn',
-                                                variant: 'destructive',
-                                              });
-                                            }
-                                          },
-                                        },
-                                      )
-                                    }
-                                  >
-                                    {msg.pin_messages &&
-                                    (Array.isArray(msg.pin_messages)
-                                      ? msg.pin_messages.length > 0
-                                      : true)
-                                      ? 'Bỏ Ghim'
-                                      : 'Ghim'}{' '}
-                                    <Pin className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="cursor-pointer flex justify-between py-2 text-destructive focus:text-destructive rounded-lg">
-                                    Báo cáo <Flag className="w-4 h-4 ml-2" />
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    );
-                  });
-                })()}
+                      );
+                    });
+                  })()}
                   {/* Avatar introduction — shown at the visual TOP (end of list) */}
                   {!hasMore && (
                     <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3 mt-auto">
                       {activeRoom?.type === 'group' ? (
                         <>
-                          {(!activeRoom.avatar || activeRoom.avatar === 'chat-room.png') ? (
+                          {!activeRoom.avatar ||
+                          activeRoom.avatar === 'chat-room.png' ? (
                             <div className="relative w-24 h-24">
                               <Avatar className="w-16 h-16 absolute top-0 left-0 border-4 border-background">
-                                <AvatarImage src={activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.profile_picture_url || activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.avatar || '/default-avatar.png'} />
-                                <AvatarFallback>{activeRoom.members?.filter((m: any) => m.id !== user?.id)[0]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                <AvatarImage
+                                  src={
+                                    activeRoom.members?.filter(
+                                      (m: any) => m.id !== user?.id,
+                                    )[0]?.profile_picture_url ||
+                                    activeRoom.members?.filter(
+                                      (m: any) => m.id !== user?.id,
+                                    )[0]?.avatar ||
+                                    '/default-avatar.png'
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {activeRoom.members
+                                    ?.filter((m: any) => m.id !== user?.id)[0]
+                                    ?.username?.[0]?.toUpperCase()}
+                                </AvatarFallback>
                               </Avatar>
-                              {activeRoom.members?.filter((m: any) => m.id !== user?.id).length > 1 && (
+                              {activeRoom.members?.filter(
+                                (m: any) => m.id !== user?.id,
+                              ).length > 1 && (
                                 <Avatar className="w-16 h-16 absolute bottom-0 right-0 border-4 border-background">
-                                  <AvatarImage src={activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.profile_picture_url || activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.avatar || '/default-avatar.png'} />
-                                  <AvatarFallback>{activeRoom.members?.filter((m: any) => m.id !== user?.id)[1]?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                                  <AvatarImage
+                                    src={
+                                      activeRoom.members?.filter(
+                                        (m: any) => m.id !== user?.id,
+                                      )[1]?.profile_picture_url ||
+                                      activeRoom.members?.filter(
+                                        (m: any) => m.id !== user?.id,
+                                      )[1]?.avatar ||
+                                      '/default-avatar.png'
+                                    }
+                                  />
+                                  <AvatarFallback>
+                                    {activeRoom.members
+                                      ?.filter((m: any) => m.id !== user?.id)[1]
+                                      ?.username?.[0]?.toUpperCase()}
+                                  </AvatarFallback>
                                 </Avatar>
                               )}
                             </div>
                           ) : (
                             <Avatar className="w-24 h-24">
                               <AvatarImage src={activeRoom.avatar} />
-                              <AvatarFallback>{activeRoom.name?.[0]?.toUpperCase()}</AvatarFallback>
+                              <AvatarFallback>
+                                {activeRoom.name?.[0]?.toUpperCase()}
+                              </AvatarFallback>
                             </Avatar>
                           )}
-                          <h2 className="text-xl font-bold">{activeRoom.name}</h2>
+                          <h2 className="text-xl font-bold">
+                            {activeRoom.name}
+                          </h2>
                           <p className="text-muted-foreground text-sm">
                             {activeRoom.members?.length} thành viên
                           </p>
@@ -2445,14 +2575,14 @@ export default function MessagesPage() {
                               {otherUser.username?.[0]?.toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <h2 className="text-xl font-bold">{otherUser.username}</h2>
-                          <p className="text-muted-foreground text-sm">
-                            Instagram
-                          </p>
+                          <h2 className="text-xl font-bold">
+                            {otherUser.username}
+                          </h2>
                           <button
                             className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors mt-2"
                             onClick={() =>
-                              otherUser?.id && navigate(`/profile/${otherUser.id}`)
+                              otherUser?.id &&
+                              navigate(`/profile/${otherUser.id}`)
                             }
                           >
                             Xem trang cá nhân
@@ -2599,27 +2729,48 @@ export default function MessagesPage() {
 
                 {/* Chat Input */}
                 {(() => {
-                  const myMember = activeRoom?.members?.find((m: any) => m.id === user?.id);
-                  const isAccepted = myMember?.status === 'ACCEPTED' || myMember?.status === 'accepted' || myMember?.is_accepted === true || (myMember?.status === undefined && myMember?.is_accepted === undefined);
+                  const myMember = activeRoom?.members?.find(
+                    (m: any) => m.id === user?.id,
+                  );
+                  const isAccepted =
+                    myMember?.status === 'ACCEPTED' ||
+                    myMember?.status === 'accepted' ||
+                    myMember?.is_accepted === true ||
+                    (myMember?.status === undefined &&
+                      myMember?.is_accepted === undefined);
 
                   if (!isAccepted) {
-                    const targetUser = activeRoom?.members?.find((m: any) => m.id !== user?.id);
+                    const targetUser = activeRoom?.members?.find(
+                      (m: any) => m.id !== user?.id,
+                    );
                     return (
                       <div className="p-4 shrink-0 bg-background border-t border-border/10">
                         <div className="flex flex-col gap-4 text-center pb-4">
                           <p className="text-[15px] text-muted-foreground font-semibold px-4">
-                            {targetUser?.username} muốn gửi tin nhắn cho bạn. Họ sẽ không biết bạn đã xem cho đến khi bạn chấp nhận.
+                            {targetUser?.username} muốn gửi tin nhắn cho bạn. Họ
+                            sẽ không biết bạn đã xem cho đến khi bạn chấp nhận.
                           </p>
                           <div className="flex justify-center gap-3">
                             <button
                               className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold transition-colors"
                               onClick={() => {
-                                orvalClient({ url: `/chat-rooms/${activeRoom.id}/accept-request`, method: 'POST' })
+                                orvalClient({
+                                  url: `/chat-rooms/${activeRoom.id}/accept-request`,
+                                  method: 'POST',
+                                })
                                   .then(() => {
-                                    queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                    queryClient.invalidateQueries({
+                                      queryKey:
+                                        getChatRoomsControllerGetListChatRoomQueryKey(),
+                                    });
                                     toast({ title: 'Đã chấp nhận tin nhắn' });
                                   })
-                                  .catch(() => toast({ title: 'Lỗi khi chấp nhận', variant: 'destructive' }));
+                                  .catch(() =>
+                                    toast({
+                                      title: 'Lỗi khi chấp nhận',
+                                      variant: 'destructive',
+                                    }),
+                                  );
                               }}
                             >
                               Chấp nhận
@@ -2627,13 +2778,24 @@ export default function MessagesPage() {
                             <button
                               className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-bold transition-colors"
                               onClick={() => {
-                                orvalClient({ url: `/chat-rooms/${activeRoom.id}/decline-request`, method: 'POST' })
+                                orvalClient({
+                                  url: `/chat-rooms/${activeRoom.id}/decline-request`,
+                                  method: 'POST',
+                                })
                                   .then(() => {
-                                    queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
+                                    queryClient.invalidateQueries({
+                                      queryKey:
+                                        getChatRoomsControllerGetListChatRoomQueryKey(),
+                                    });
                                     navigate('/messages');
                                     toast({ title: 'Đã từ chối tin nhắn' });
                                   })
-                                  .catch(() => toast({ title: 'Lỗi khi từ chối', variant: 'destructive' }));
+                                  .catch(() =>
+                                    toast({
+                                      title: 'Lỗi khi từ chối',
+                                      variant: 'destructive',
+                                    }),
+                                  );
                               }}
                             >
                               Từ chối
@@ -2642,12 +2804,21 @@ export default function MessagesPage() {
                               className="px-6 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-xl font-bold transition-colors"
                               onClick={() => {
                                 if (targetUser) {
-                                  orvalClient({ url: '/relations/update', method: 'POST', data: { user_id: targetUser.id, relation: 'block' } })
-                                    .then(() => {
-                                      queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
-                                      navigate('/messages');
-                                      toast({ title: 'Đã chặn người dùng' });
+                                  orvalClient({
+                                    url: '/relations/update',
+                                    method: 'POST',
+                                    data: {
+                                      user_id: targetUser.id,
+                                      relation: 'block',
+                                    },
+                                  }).then(() => {
+                                    queryClient.invalidateQueries({
+                                      queryKey:
+                                        getChatRoomsControllerGetListChatRoomQueryKey(),
                                     });
+                                    navigate('/messages');
+                                    toast({ title: 'Đã chặn người dùng' });
+                                  });
                                 }
                               }}
                             >
@@ -2673,19 +2844,27 @@ export default function MessagesPage() {
 
                   return (
                     <div className="p-4 shrink-0 bg-background border-t border-border/10">
-                    <div className="flex items-center gap-2 border border-border/50 bg-background rounded-full px-2 py-1 relative">
-                      {/* Emoji Trigger */}
-                      <div className="relative">
-                        <button
-                          className={`p-2 hover:opacity-70 transition-colors ${showEmojiPicker ? 'text-[#0084ff]' : 'text-foreground'}`}
-                          onClick={() => setShowEmojiPicker((prev) => !prev)}
-                        >
-                          <Smile className="w-6 h-6" />
-                        </button>
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-14 left-0 bg-background border border-border shadow-lg rounded-2xl p-2 flex gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                            {['❤️', '😂', '👍', '🔥', '😍', '😢', '🙌', '👏'].map(
-                              (emoji) => (
+                      <div className="flex items-center gap-2 border border-border/50 bg-background rounded-full px-2 py-1 relative">
+                        {/* Emoji Trigger */}
+                        <div className="relative">
+                          <button
+                            className={`p-2 hover:opacity-70 transition-colors ${showEmojiPicker ? 'text-[#0084ff]' : 'text-foreground'}`}
+                            onClick={() => setShowEmojiPicker((prev) => !prev)}
+                          >
+                            <Smile className="w-6 h-6" />
+                          </button>
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-14 left-0 bg-background border border-border shadow-lg rounded-2xl p-2 flex gap-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                              {[
+                                '❤️',
+                                '😂',
+                                '👍',
+                                '🔥',
+                                '😍',
+                                '😢',
+                                '🙌',
+                                '👏',
+                              ].map((emoji) => (
                                 <button
                                   key={emoji}
                                   onClick={() => {
@@ -2696,67 +2875,66 @@ export default function MessagesPage() {
                                 >
                                   {emoji}
                                 </button>
-                              ),
-                            )}
-                          </div>
-                        )}
-                      </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
-                      <input
-                        type="text"
-                        placeholder="Nhắn tin..."
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === 'Enter' && handleSendMessage()
-                        }
-                        ref={chatInputRef}
-                        className="flex-1 bg-transparent outline-none text-[15px]"
-                      />
+                        <input
+                          type="text"
+                          placeholder="Nhắn tin..."
+                          value={messageInput}
+                          onChange={(e) => setMessageInput(e.target.value)}
+                          onKeyDown={(e) =>
+                            e.key === 'Enter' && handleSendMessage()
+                          }
+                          ref={chatInputRef}
+                          className="flex-1 bg-transparent outline-none text-[15px]"
+                        />
 
-                      {/* Hidden File Input */}
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*,video/*"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
+                        {/* Hidden File Input */}
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/*"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
 
-                      <div className="flex items-center text-foreground">
-                        {messageInput.trim() || selectedFiles.length > 0 ? (
-                          /* Show Send button when there is text or files */
-                          <button
-                            className="p-2 text-[#0084ff] hover:text-[#0084ff]/80 transition-colors"
-                            onClick={handleSendMessage}
-                          >
-                            <Send className="w-6 h-6" />
-                          </button>
-                        ) : (
-                          /* Show Image + Heart when input is empty */
-                          <>
+                        <div className="flex items-center text-foreground">
+                          {messageInput.trim() || selectedFiles.length > 0 ? (
+                            /* Show Send button when there is text or files */
                             <button
-                              className="p-2 hover:opacity-70"
-                              onClick={() => fileInputRef.current?.click()}
+                              className="p-2 text-[#0084ff] hover:text-[#0084ff]/80 transition-colors"
+                              onClick={handleSendMessage}
                             >
-                              <ImageIcon className="w-6 h-6" />
+                              <Send className="w-6 h-6" />
                             </button>
-                            <button
-                              className="p-2 hover:opacity-70 text-red-500 hover:text-red-600 transition-colors"
-                              onClick={handleSendQuickEmoji}
-                            >
-                              <span className="text-2xl leading-none">
-                                {activeRoom?.quick_emoji || '👍'}
-                              </span>
-                            </button>
-                          </>
-                        )}
+                          ) : (
+                            /* Show Image + Heart when input is empty */
+                            <>
+                              <button
+                                className="p-2 hover:opacity-70"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <ImageIcon className="w-6 h-6" />
+                              </button>
+                              <button
+                                className="p-2 hover:opacity-70 text-red-500 hover:text-red-600 transition-colors"
+                                onClick={handleSendQuickEmoji}
+                              >
+                                <span className="text-2xl leading-none">
+                                  {activeRoom?.quick_emoji || '👍'}
+                                </span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
               </>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -3029,7 +3207,10 @@ export default function MessagesPage() {
 
       {/* Group Chat Block Warning Dialog */}
       <Dialog open={showGroupBlockWarning} onOpenChange={() => {}}>
-        <DialogContent className="max-w-sm rounded-2xl bg-card border-none" hideCloseButton>
+        <DialogContent
+          className="max-w-sm rounded-2xl bg-card border-none"
+          hideCloseButton
+        >
           <div className="flex flex-col items-center text-center px-4 py-2">
             <div className="w-16 h-16 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-4">
               <span className="text-3xl">⚠️</span>
@@ -3038,7 +3219,9 @@ export default function MessagesPage() {
               Cảnh báo
             </DialogTitle>
             <DialogDescription className="text-muted-foreground mb-6">
-              Nhóm này có <strong>{groupBlockedUser?.username || 'một người dùng'}</strong> là người bạn đã chặn.
+              Nhóm này có{' '}
+              <strong>{groupBlockedUser?.username || 'một người dùng'}</strong>{' '}
+              là người bạn đã chặn.
             </DialogDescription>
             <div className="flex flex-col w-full gap-2">
               <button
@@ -3083,10 +3266,10 @@ export default function MessagesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      <CreateChatModal 
-        open={showCreateChatModal} 
-        onOpenChange={setShowCreateChatModal} 
+
+      <CreateChatModal
+        open={showCreateChatModal}
+        onOpenChange={setShowCreateChatModal}
       />
     </>
   );

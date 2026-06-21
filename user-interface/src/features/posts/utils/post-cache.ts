@@ -272,6 +272,71 @@ export const removePostFromLists = (
   );
 };
 
+type RelationStatus = 'none' | 'following' | 'pending' | 'block';
+
+const isUserLike = (value: unknown, userId: string) =>
+  isObject(value) &&
+  value.id === userId &&
+  ['username', 'full_name', 'avatar', 'avatarUrl', 'profilePicture'].some(
+    (key) => key in value,
+  );
+
+const updateAuthorRelationValue = (
+  value: unknown,
+  userId: string,
+  relationStatus: RelationStatus,
+): unknown => {
+  if (!userId) return value;
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const updated = updateAuthorRelationValue(item, userId, relationStatus);
+      if (updated !== item) changed = true;
+      return updated;
+    });
+    return changed ? next : value;
+  }
+
+  if (!isObject(value)) return value;
+
+  const base = isUserLike(value, userId)
+    ? {
+        ...value,
+        relationStatus,
+        isFollowing: relationStatus === 'following',
+      }
+    : value;
+
+  let changed = base !== value;
+  const next: Record<string, any> = changed ? { ...base } : { ...value };
+
+  Object.entries(base).forEach(([key, nested]) => {
+    const updated = updateAuthorRelationValue(
+      nested,
+      userId,
+      relationStatus,
+    );
+    if (updated !== nested) {
+      next[key] = updated;
+      changed = true;
+    }
+  });
+
+  return changed ? next : value;
+};
+
+export const updateAuthorRelationInPostSurfaces = (
+  queryClient: QueryClient,
+  userId: string,
+  relationStatus: RelationStatus,
+) => {
+  queryClient.setQueriesData(
+    { predicate: (query) => isPostSurfaceKey(query.queryKey) },
+    (old: unknown) => updateAuthorRelationValue(old, userId, relationStatus),
+  );
+};
+
 export const snapshotPostSurfaces = (queryClient: QueryClient): QuerySnapshot =>
   queryClient.getQueriesData({
     predicate: (query) => isPostSurfaceKey(query.queryKey),

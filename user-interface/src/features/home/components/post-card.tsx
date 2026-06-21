@@ -12,7 +12,7 @@ import {
   MessageCircle,
   Bookmark,
   MoreHorizontal,
-  Repeat,
+  Send,
   Check,
   Share2,
 } from 'lucide-react';
@@ -27,10 +27,17 @@ import { SaveToListModal } from '@/features/saved/components/save-to-list-modal'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
-import { useFollowStore } from '@/features/profile/stores/follow-store';
+import {
+  FollowRelationStatus,
+  useFollowStore,
+} from '@/features/profile/stores/follow-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
+import {
+  invalidatePostSurfaces,
+  updateAuthorRelationInPostSurfaces,
+} from '@/features/posts/utils/post-cache';
 
 interface PostCardProps {
   post: {
@@ -43,6 +50,10 @@ interface PostCardProps {
       avatar?: string;
       profilePicture?: string;
       privacy?: string;
+      isFollowing?: boolean;
+      is_following?: boolean;
+      relationStatus?: FollowRelationStatus;
+      relation_status?: FollowRelationStatus;
     };
     createdAt: string;
     images: string[];
@@ -108,7 +119,9 @@ function FeedVideo({
 export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const { user: currentUser } = useAuthStore();
   const navigate = useNavigate();
-  const isMyPost = currentUser?.id === post.user.id;
+  const displayPost = post.shared_post || post;
+  const isRepost = !!post.shared_post;
+  const isMyPost = currentUser?.id === displayPost.user.id;
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
@@ -200,9 +213,6 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
     }, 500);
   };
 
-  const displayPost = post.shared_post || post;
-  const isRepost = !!post.shared_post;
-
   const unsaveMutation = useMutation({
     mutationFn: () =>
       orvalClient({
@@ -230,7 +240,16 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   };
 
   const { optimisticFollows, setOptimisticFollow } = useFollowStore();
-  const isFollowing = optimisticFollows[displayPost.user.id] ?? false;
+  const initialRelationStatus: FollowRelationStatus =
+    displayPost.user.relationStatus ||
+    displayPost.user.relation_status ||
+    (displayPost.user.isFollowing || displayPost.user.is_following
+      ? 'following'
+      : 'none');
+  const relationStatus =
+    optimisticFollows[displayPost.user.id] || initialRelationStatus;
+  const isFollowing = relationStatus === 'following';
+  const isPendingFollow = relationStatus === 'pending';
 
   const toggleFollowMutation = useMutation({
     mutationFn: (action: 'following' | 'none') =>
@@ -239,11 +258,26 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
         method: 'POST',
         data: { user_id: displayPost.user.id, relation: action },
       }),
-    onSuccess: () => {
+    onSuccess: (response: any, action) => {
+      const confirmedStatus =
+        response?.data?.relationStatus ||
+        response?.relationStatus ||
+        (action === 'following'
+          ? displayPost.user.privacy === 'private'
+            ? 'pending'
+            : 'following'
+          : 'none');
+      setOptimisticFollow(displayPost.user.id, confirmedStatus);
+      updateAuthorRelationInPostSurfaces(
+        queryClient,
+        displayPost.user.id,
+        confirmedStatus,
+      );
       queryClient.invalidateQueries({
         queryKey: ['profile', displayPost.user.id],
       });
       queryClient.invalidateQueries({ queryKey: ['following'] });
+      invalidatePostSurfaces(queryClient);
     },
   });
 
@@ -251,12 +285,24 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
     e.stopPropagation();
     e.preventDefault();
 
-    const newStatus = !isFollowing;
-    setOptimisticFollow(displayPost.user.id, newStatus);
+    const action = relationStatus === 'none' ? 'following' : 'none';
+    const nextStatus: FollowRelationStatus =
+      action === 'following'
+        ? displayPost.user.privacy === 'private'
+          ? 'pending'
+          : 'following'
+        : 'none';
+
+    setOptimisticFollow(displayPost.user.id, nextStatus);
+    updateAuthorRelationInPostSurfaces(
+      queryClient,
+      displayPost.user.id,
+      nextStatus,
+    );
 
     if (followTimerRef.current) clearTimeout(followTimerRef.current);
     followTimerRef.current = setTimeout(() => {
-      toggleFollowMutation.mutate(newStatus ? 'following' : 'none');
+      toggleFollowMutation.mutate(action);
     }, 500);
   };
 
@@ -275,7 +321,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
       {isRepost && (
         <div className="px-4 pb-2 flex items-center gap-2 text-muted-foreground">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
-            <Repeat className="w-3.5 h-3.5 text-snet-purple" />
+            <Share2 className="w-3.5 h-3.5 text-snet-purple" />
           </div>
           <span className="text-xs font-medium">
             <span className="font-semibold">{renderRepostedBy()}</span> đã đăng
@@ -321,12 +367,16 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                   <button
                     onClick={handleFollow}
                     className={`text-xs font-semibold transition-all px-2 py-0.5 rounded-full ${
-                      isFollowing
+                      isFollowing || isPendingFollow
                         ? 'text-muted-foreground bg-secondary hover:bg-secondary/80'
                         : 'text-white bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90'
                     }`}
                   >
-                    {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                    {isPendingFollow
+                      ? 'Đã gửi yêu cầu'
+                      : isFollowing
+                        ? 'Đang theo dõi'
+                        : 'Theo dõi'}
                   </button>
                 )}
               </div>
@@ -478,7 +528,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                 disabled={repostMutation.isPending || isMyPost}
               >
                 <div className="relative inline-flex items-center justify-center">
-                  <Repeat
+                  <Share2
                     className={`w-5 h-5 transition-colors ${
                       localReposted
                         ? 'text-green-500'
@@ -506,7 +556,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
               className="group transition-all"
               onClick={() => setShareOpen(true)}
             >
-              <Share2 className="w-5 h-5 text-foreground/70 group-hover:text-snet-blue transition-colors" />
+              <Send className="w-5 h-5 text-foreground/70 group-hover:text-snet-blue transition-colors" />
             </button>
           </div>
           <button

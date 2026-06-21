@@ -1,7 +1,7 @@
 import { SidebarRight } from '@/layouts/components/sidebar-right';
 
 import { useFeedControllerGetForYouFeedInfinite } from '@/services/apis/gen/queries';
-import { PostCard } from '@/features/home/components/post-card';
+import { FeedPostItem } from '@/features/home/components/feed-post-item';
 import { useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2 } from 'lucide-react';
@@ -61,80 +61,7 @@ export default function ExplorePage() {
                 return (
                   <div key={i} className="flex flex-col">
                     {posts.map((post: any) => (
-                      <PostCard
-                        key={post.id}
-                        showFollowButton={true}
-                        post={{
-                          id: post.id,
-                          user: {
-                            id: post.user?.id || '',
-                            username: post.user?.username || 'User',
-                            full_name: post.user?.full_name,
-                            avatarUrl:
-                              post.user?.avatar ||
-                              post.user?.profilePicture ||
-                              '',
-                          },
-                          createdAt:
-                            post.created_at ||
-                            post.createdAt ||
-                            new Date().toISOString(),
-                          images: post.medias || post.mediaUrls || [],
-                          caption: post.content || '',
-                          tagged_users: post.tagged_users || [],
-                          hashtags: post.hashtags || [],
-                          likesCount:
-                            post.likesCount || post.interactions?.likes || 0,
-                          commentsCount:
-                            post.commentsCount ||
-                            post.interactions?.comments ||
-                            0,
-                          repostsCount: post.interactions?.reposts || 0,
-                          isLiked:
-                            post.isLiked ||
-                            post.interactions?.is_liked ||
-                            false,
-                          isSaved: post.isSaved || false,
-                          isReposted: post.interactions?.is_reposted || false,
-                          repostedBy:
-                            post.reposted_by ||
-                            (post.shared_post
-                              ? [
-                                  {
-                                    id: post.user?.id,
-                                    username: post.user?.username,
-                                  },
-                                ]
-                              : undefined),
-                          shared_post: post.shared_post
-                            ? {
-                                id: post.shared_post.id,
-                                user: {
-                                  id: post.shared_post.user?.id || '',
-                                  username:
-                                    post.shared_post.user?.username || 'User',
-                                  full_name: post.shared_post.user?.full_name,
-                                  avatarUrl:
-                                    post.shared_post.user?.avatar ||
-                                    post.shared_post.user?.profilePicture ||
-                                    '',
-                                },
-                                createdAt:
-                                  post.shared_post.created_at ||
-                                  post.shared_post.createdAt ||
-                                  new Date().toISOString(),
-                                images:
-                                  post.shared_post.medias ||
-                                  post.shared_post.mediaUrls ||
-                                  [],
-                                caption: post.shared_post.content || '',
-                                tagged_users:
-                                  post.shared_post.tagged_users || [],
-                                hashtags: post.shared_post.hashtags || [],
-                              }
-                            : undefined,
-                        }}
-                      />
+                      <FeedPostItem key={post.id} post={post} />
                     ))}
                   </div>
                 );

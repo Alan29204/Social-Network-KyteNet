@@ -1,4 +1,5 @@
 import { MaxLength, MinLength } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ChatMember } from 'src/modules/chats/entities/chat-member.entity';
 import { WaitingMembers } from 'src/modules/chats/entities/waiting-members.entity';
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
@@ -16,6 +17,7 @@ import { PinChat } from 'src/modules/chats/pin-chats/entities/pin-chat.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { Relation } from 'src/modules/users/relations/entities/relation.entity';
 import { SaveList } from 'src/modules/posts/bookmarks/save-lists/entities/save-list.entity';
+import { RelationType } from 'src/common/enums/relation.enum';
 
 import {
   Column,
@@ -143,4 +145,16 @@ export class User {
 
   @OneToMany(() => WaitingMembers, (waitingMembers) => waitingMembers.user)
   waiting_members: WaitingMembers[];
+
+  @ApiPropertyOptional({
+    description: 'Viewer relation status to this user in feed/post responses',
+    enum: RelationType,
+  })
+  relationStatus?: RelationType;
+
+  @ApiPropertyOptional({
+    description: 'Whether the current viewer follows this user',
+    type: Boolean,
+  })
+  isFollowing?: boolean;
 }

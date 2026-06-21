@@ -16,7 +16,7 @@ import {
   MoreHorizontal,
   Smile,
   X,
-  Repeat,
+  Share2,
   FileX2,
   Loader2,
 } from 'lucide-react';
@@ -503,7 +503,7 @@ export function PostDetailModal({
         {/* Header (Cố định ở trên) */}
         {isRepost && (
           <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
-            <Repeat className="w-4 h-4" />
+            <Share2 className="w-4 h-4" />
             <span className="text-xs font-semibold">
               {getDisplayName(post.user || initialPost.user)} đã đăng lại
             </span>
@@ -675,7 +675,7 @@ export function PostDetailModal({
                     onClick={handleRepost}
                   >
                     <div className="relative inline-flex items-center justify-center">
-                      <Repeat
+                      <Share2
                         className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
                       />
                     </div>

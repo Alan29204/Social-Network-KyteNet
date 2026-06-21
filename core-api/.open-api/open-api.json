@@ -4851,6 +4851,20 @@
       "User": {
         "type": "object",
         "properties": {
+          "relationStatus": {
+            "enum": [
+              "following",
+              "block",
+              "none",
+              "pending"
+            ],
+            "type": "string",
+            "description": "Viewer relation status to this user in feed/post responses"
+          },
+          "isFollowing": {
+            "type": "boolean",
+            "description": "Whether the current viewer follows this user"
+          },
           "id": {
             "type": "string"
           },

@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Menu, Image as ImageIcon, PlaySquare, Bookmark, Repeat } from 'lucide-react';
+import { Menu, Image as ImageIcon, PlaySquare, Bookmark, Share2 } from 'lucide-react';
 import { AllPostsList } from './post-lists/all-posts-list';
 import { MediaPostsGrid } from './post-lists/media-posts-grid';
 import { VideoPostsGrid } from './post-lists/video-posts-grid';
@@ -29,9 +29,9 @@ export function ProfileTabs({ userId }: ProfileTabsProps) {
 
   if (isMe) {
     tabs.push({ value: 'saved', icon: <Bookmark className="w-5 h-5" />, label: 'ĐÃ LƯU', content: <SavedCollections userId={userId} /> });
-    tabs.push({ value: 'reposts', icon: <Repeat className="w-5 h-5" />, label: 'ĐĂNG LẠI', content: <RepostedPostsGrid userId={userId} /> });
+    tabs.push({ value: 'reposts', icon: <Share2 className="w-5 h-5" />, label: 'ĐĂNG LẠI', content: <RepostedPostsGrid userId={userId} /> });
   } else {
-    tabs.push({ value: 'reposts', icon: <Repeat className="w-5 h-5" />, label: 'ĐĂNG LẠI', content: <RepostedPostsGrid userId={userId} /> });
+    tabs.push({ value: 'reposts', icon: <Share2 className="w-5 h-5" />, label: 'ĐĂNG LẠI', content: <RepostedPostsGrid userId={userId} /> });
   }
 
   return (
