@@ -172,7 +172,6 @@ export class ChatMembersService {
     }
 
     const membersToSave = [];
-    const acceptedUserIds = [];
 
     for (const userId of user_ids) {
       const existing = await this.findMemberInChatRoom(chat_room_id, userId);
@@ -193,9 +192,6 @@ export class ChatMembersService {
           });
         }
         
-        if (status === ChatMemberStatus.ACCEPTED) {
-           acceptedUserIds.push(userId);
-        }
       }
     }
 
@@ -212,12 +208,7 @@ export class ChatMembersService {
       await this.redisService.del(`chat-members:${chat_room_id}`);
       await this.redisService.del(`chat-room:${chat_room_id}`);
       
-      if (acceptedUserIds.length > 0) {
-         const fullRoom = await this.chatRoomService.findChatRoomByID(chat_room_id);
-         if (fullRoom) {
-            this.gatewayGateway.server.to(acceptedUserIds).emit('new_group_chat', fullRoom);
-         }
-      }
+      await this.chatRoomService.emitRoomUpdatedToVisibleMembers(chat_room_id);
     }
     return { message: 'Members added successfully' };
   }
@@ -263,6 +254,10 @@ export class ChatMembersService {
 
     await this.redisService.del(`chat-members:${chat_room_id}`);
     await this.redisService.del(`chat-room:${chat_room_id}`);
+    this.gatewayGateway.server.to(target_user_id).emit('roomRemoved', {
+      room_id: chat_room_id,
+    });
+    await this.chatRoomService.emitRoomUpdatedToVisibleMembers(chat_room_id);
 
     return { message: 'Member removed successfully' };
   }
@@ -317,11 +312,7 @@ export class ChatMembersService {
     await this.redisService.del(`chat-members:${chat_room_id}`);
     await this.redisService.del(`chat-room:${chat_room_id}`);
 
-    const fullRoom = await this.chatRoomService.findChatRoomByID(chat_room_id);
-    if (fullRoom) {
-      // Emit event to update room info on client
-      this.gatewayGateway.server.to(chat_room_id).emit('roomUpdated', fullRoom);
-    }
+    await this.chatRoomService.emitRoomUpdatedToVisibleMembers(chat_room_id);
 
     return { message: 'Member promoted to admin successfully' };
   }
@@ -373,7 +364,11 @@ export class ChatMembersService {
 
     await this.redisService.del(`chat-members:${chat_room_id}`);
     await this.redisService.del(`chat-room:${chat_room_id}`);
+    this.gatewayGateway.server.to(user.id).emit('roomRemoved', {
+      room_id: chat_room_id,
+    });
+    await this.chatRoomService.emitRoomUpdatedToVisibleMembers(chat_room_id);
 
-    return { message: 'Left chat room successfully' };
+    return { message: 'Left chat room successfully', room_id: chat_room_id };
   }
 }

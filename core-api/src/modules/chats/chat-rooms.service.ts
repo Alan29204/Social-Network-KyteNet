@@ -32,6 +32,16 @@ import { User } from 'src/modules/users/entities/user.entity';
 
 @Injectable()
 export class ChatRoomsService {
+  private readonly roomVisibleStatuses = [
+    ChatMemberStatus.ACCEPTED,
+    ChatMemberStatus.PENDING,
+  ];
+  private readonly directRoomMemberVisibleStatuses = [
+    ChatMemberStatus.ACCEPTED,
+    ChatMemberStatus.PENDING,
+    ChatMemberStatus.DECLINED,
+  ];
+
   constructor(
     @InjectRepository(ChatRoom)
     private chatRoomsRepository: Repository<ChatRoom>,
@@ -48,6 +58,219 @@ export class ChatRoomsService {
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
   ) {}
+
+  private async areMutualFollowers(userId: string, targetUserId: string) {
+    const [userFollowsTarget, targetFollowsUser] = await Promise.all([
+      this.relationsService.getRelation(userId, targetUserId),
+      this.relationsService.getRelation(targetUserId, userId),
+    ]);
+
+    return userFollowsTarget === 'following' && targetFollowsUser === 'following';
+  }
+
+  private async buildRoomListItems(chatRooms: ChatRoom[], user: Pick<IUser, 'id'>) {
+    if (chatRooms.length === 0) return [];
+
+    const otherUserMap = new Map<string, string>();
+    const allOtherUserIds = new Set<string>();
+    const allMemberUserIds = new Set<string>();
+
+    for (const room of chatRooms) {
+      const visibleMembers = (room.chat_members || []).filter(
+        (m) =>
+          room.type === 'direct'
+            ? this.directRoomMemberVisibleStatuses.includes(m.status)
+            : m.status === ChatMemberStatus.ACCEPTED || m.user_id === user.id,
+      );
+
+      for (const m of visibleMembers) {
+        allMemberUserIds.add(m.user_id);
+        if (m.user_id !== user.id) {
+          otherUserMap.set(room.id, m.user_id);
+          allOtherUserIds.add(m.user_id);
+        }
+      }
+    }
+
+    const blockMap = new Map<string, boolean>();
+    if (allOtherUserIds.size > 0) {
+      const otherIds = Array.from(allOtherUserIds);
+      const blockResults = await this.chatRoomsRepository.manager.query(
+        `SELECT request_side_id, accept_side_id FROM relation
+         WHERE relation_type = 'block'
+           AND (
+             (request_side_id = $1 AND accept_side_id = ANY($2))
+             OR
+             (accept_side_id = $1 AND request_side_id = ANY($2))
+           )`,
+        [user.id, otherIds],
+      );
+      for (const row of blockResults) {
+        const otherId =
+          row.request_side_id === user.id
+            ? row.accept_side_id
+            : row.request_side_id;
+        blockMap.set(otherId, true);
+      }
+    }
+
+    const memberIdList = Array.from(allMemberUserIds);
+    const onlineMap = new Map<string, boolean>();
+    if (memberIdList.length > 0) {
+      const redisClient = this.redisService.getClient();
+      const pipeline = redisClient.pipeline();
+      for (const uid of memberIdList) {
+        pipeline.get(`connection_number:${uid}`);
+      }
+      const redisResults = await pipeline.exec();
+      memberIdList.forEach((uid, idx) => {
+        const val = redisResults?.[idx]?.[1] as string | null;
+        onlineMap.set(uid, !!val && parseInt(val) > 0);
+      });
+    }
+
+    const redisClient = this.redisService.getClient();
+    const lastMsgPipeline = redisClient.pipeline();
+    for (const room of chatRooms) {
+      lastMsgPipeline.get(`chat_room:last_msg:${room.id}`);
+    }
+    const lastMsgResults = await lastMsgPipeline.exec();
+
+    return chatRooms.map((room, roomIdx) => {
+      const visibleMembers = (room.chat_members || []).filter(
+        (m) =>
+          room.type === 'direct'
+            ? this.directRoomMemberVisibleStatuses.includes(m.status)
+            : m.status === ChatMemberStatus.ACCEPTED || m.user_id === user.id,
+      );
+      const myMember = visibleMembers.find((m) => m.user_id === user.id);
+      const otherMember = visibleMembers.find((m) => m.user_id !== user.id);
+
+      let displayName = room.name;
+      if (room.type === 'direct' && otherMember?.user) {
+        displayName = otherMember.user.username;
+      }
+
+      const rawLastMsg = lastMsgResults?.[roomIdx]?.[1] as string | null;
+      let lastMessage = null;
+      if (rawLastMsg) {
+        try {
+          lastMessage = JSON.parse(rawLastMsg);
+        } catch {
+          lastMessage = null;
+        }
+      }
+
+      const membersWithStatus = visibleMembers.map((m) => ({
+        id: m.user_id,
+        username: m.user?.username,
+        full_name: m.user?.full_name,
+        avatar: m.user?.avatar,
+        profile_picture_url: m.user?.avatar,
+        member_type: m.member_type,
+        is_online: onlineMap.get(m.user_id) || false,
+        is_blocked: blockMap.get(m.user_id) || false,
+        last_active: m.user?.last_active || null,
+        status: m.status,
+        unread_count: m.unread_count || 0,
+      }));
+
+      const otherUserId = otherUserMap.get(room.id);
+      const isBlocked = otherUserId ? !!blockMap.get(otherUserId) : false;
+
+      return {
+        id: room.id,
+        name: displayName,
+        type: room.type,
+        avatar: room.avatar,
+        created_by: room.created_by,
+        created_at: room.created_at,
+        unread_count: myMember?.unread_count || 0,
+        is_muted: myMember?.is_muted || false,
+        quick_emoji: room.quick_emoji || '👍',
+        members: membersWithStatus,
+        is_blocked: isBlocked,
+        is_request: myMember?.status === ChatMemberStatus.PENDING,
+        last_message: lastMessage,
+        last_message_at: room.last_message_at || room.created_at,
+      };
+    });
+  }
+
+  async getRoomViewForUser(roomId: string, userId: string) {
+    const room = await this.chatRoomsRepository
+      .createQueryBuilder('room')
+      .innerJoin(
+        'room.chat_members',
+        'my_member',
+        'my_member.user_id = :userId',
+        { userId },
+      )
+      .andWhere('room.id = :roomId', { roomId })
+      .andWhere('my_member.status IN (:...memberStatuses)', {
+        memberStatuses: this.roomVisibleStatuses,
+      })
+      .leftJoinAndSelect(
+        'room.chat_members',
+        'members',
+        `(
+          (room.type = 'direct' AND members.status IN (:...directVisibleStatuses))
+          OR members.status = :acceptedStatus
+          OR members.user_id = :userId
+        )`,
+        {
+          acceptedStatus: ChatMemberStatus.ACCEPTED,
+          directVisibleStatuses: this.directRoomMemberVisibleStatuses,
+          userId,
+        },
+      )
+      .leftJoinAndSelect('members.user', 'memberUser')
+      .getOne();
+
+    if (!room) return null;
+    if (room.type === 'direct') {
+      const otherMember = (room.chat_members || []).find(
+        (member) => member.user_id !== userId,
+      );
+      if (
+        otherMember &&
+        (await this.relationsService.areBlocked(userId, otherMember.user_id))
+      ) {
+        return null;
+      }
+    }
+
+    const [roomView] = await this.buildRoomListItems([room], { id: userId });
+    return roomView || null;
+  }
+
+  async emitRoomUpdatedToUsers(roomId: string, userIds: string[]) {
+    const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+    await Promise.all(
+      uniqueUserIds.map(async (userId) => {
+        const room = await this.getRoomViewForUser(roomId, userId);
+        if (room) {
+          this.gatewayGateway.server.to(userId).emit('roomUpdated', room);
+        } else {
+          this.gatewayGateway.server.to(userId).emit('roomRemoved', {
+            room_id: roomId,
+          });
+        }
+      }),
+    );
+  }
+
+  async emitRoomUpdatedToVisibleMembers(roomId: string, extraUserIds: string[] = []) {
+    const members = await this.chatMembersRepository.find({
+      where: { chat_room_id: roomId },
+      select: ['user_id', 'status'],
+    });
+    const visibleUserIds = members
+      .filter((m) => this.roomVisibleStatuses.includes(m.status))
+      .map((m) => m.user_id);
+
+    await this.emitRoomUpdatedToUsers(roomId, [...visibleUserIds, ...extraUserIds]);
+  }
 
   // Find chat room by id
   async findChatRoomByID(id: string): Promise<ChatRoom | null> {
@@ -157,16 +380,7 @@ export class ChatRoomsService {
         }),
       );
 
-      const acceptedMembers = membersToSave
-        .filter((m) => m.status === ChatMemberStatus.ACCEPTED)
-        .map((m) => m.user_id);
-
-      const fullRoom = await this.findChatRoomByID(room.id);
-      if (fullRoom) {
-        this.gatewayGateway.server
-          .to(acceptedMembers)
-          .emit('new_group_chat', fullRoom);
-      }
+      await this.emitRoomUpdatedToVisibleMembers(room.id);
 
       return { message: 'Chat room created', room_id: room.id };
     } catch (e) {
@@ -185,6 +399,17 @@ export class ChatRoomsService {
     }
 
     try {
+      const isMutual = await this.areMutualFollowers(userId, targetUserId);
+      const isBlocked = await this.relationsService.areBlocked(
+        userId,
+        targetUserId,
+      );
+      if (isBlocked) {
+        throw new BadRequestException(
+          'Bạn không thể gửi tin nhắn cho người dùng này',
+        );
+      }
+
       // Check if a direct chat already exists between these users
       const existingRoom = await this.chatRoomsRepository
         .createQueryBuilder('room')
@@ -198,7 +423,47 @@ export class ChatRoomsService {
         .getOne();
 
       if (existingRoom) {
-        return { room_id: existingRoom.id, is_new: false };
+        const members = await this.chatMembersRepository.find({
+          where: { chat_room_id: existingRoom.id },
+        });
+        const currentMember = members.find((m) => m.user_id === userId);
+        const targetMember = members.find((m) => m.user_id === targetUserId);
+        const updates: Promise<unknown>[] = [];
+
+        if (currentMember?.status !== ChatMemberStatus.ACCEPTED) {
+          updates.push(
+            this.chatMembersRepository.update(
+              { chat_room_id: existingRoom.id, user_id: userId },
+              { status: ChatMemberStatus.ACCEPTED, deleted_at: null },
+            ),
+          );
+        }
+
+        if (
+          targetMember &&
+          targetMember.status !== ChatMemberStatus.ACCEPTED
+        ) {
+          updates.push(
+            this.chatMembersRepository.update(
+              { chat_room_id: existingRoom.id, user_id: targetUserId },
+              {
+                status: isMutual
+                  ? ChatMemberStatus.ACCEPTED
+                  : ChatMemberStatus.PENDING,
+                deleted_at: null,
+              },
+            ),
+          );
+        }
+
+        if (updates.length > 0) {
+          await Promise.all(updates);
+          await this.redisService.del(`chat-room:${existingRoom.id}`);
+          await this.redisService.del(`chat-members:${existingRoom.id}`);
+        }
+
+        const room = await this.getRoomViewForUser(existingRoom.id, userId);
+        return { room_id: existingRoom.id, is_new: false, room };
       }
 
       // Create new direct chat room
@@ -214,15 +479,20 @@ export class ChatRoomsService {
           chat_room_id: room.id,
           user_id: userId,
           member_type: MemberType.ADMIN,
+          status: ChatMemberStatus.ACCEPTED,
         },
         {
           chat_room_id: room.id,
           user_id: targetUserId,
           member_type: MemberType.ADMIN,
+          status: isMutual
+            ? ChatMemberStatus.ACCEPTED
+            : ChatMemberStatus.PENDING,
         },
       ]);
 
-      return { room_id: room.id, is_new: true };
+      const roomView = await this.getRoomViewForUser(room.id, userId);
+      return { room_id: room.id, is_new: true, room: roomView };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException('Error creating direct chat');
@@ -246,14 +516,21 @@ export class ChatRoomsService {
       throw new NotFoundException(
         'Not found chat room or you do not in this chat',
       );
+    if (member.status !== ChatMemberStatus.ACCEPTED) {
+      throw new BadRequestException('You must accept this chat before updating it');
+    }
 
     try {
-      if (!file) {
-        await this.chatRoomsRepository.update(
-          { id: dto.id },
-          { name: dto.name },
-        );
-      } else {
+      if (!dto.name && !file) {
+        throw new BadRequestException('Name or avatar is required');
+      }
+
+      const updatePayload: Partial<ChatRoom> = {};
+      if (dto.name) {
+        updatePayload.name = dto.name;
+      }
+
+      if (file) {
         // Upload new avatar to SeaweedFS
         const [avatarUrl] = await this.mediaService.uploadFiles(
           [file],
@@ -265,17 +542,18 @@ export class ChatRoomsService {
           await this.mediaService.deleteFile(room.avatar);
         }
 
-        await this.chatRoomsRepository.update(
-          { id: dto.id },
-          {
-            name: dto.name,
-            avatar: avatarUrl,
-          },
-        );
+        updatePayload.avatar = avatarUrl;
       }
+
+      await this.chatRoomsRepository.update({ id: dto.id }, updatePayload);
       await this.redisService.del(`chat-room:${room.id}`);
-      return { message: 'Chat room updated successfully' };
-    } catch {
+      await this.redisService.del(`chat-members:${room.id}`);
+      await this.emitRoomUpdatedToVisibleMembers(room.id);
+      const roomView = await this.getRoomViewForUser(room.id, user.id);
+
+      return { message: 'Chat room updated successfully', room: roomView };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       throw new BadRequestException('Update chat room failed');
     }
   }
@@ -360,7 +638,6 @@ export class ChatRoomsService {
         : ChatMemberStatus.ACCEPTED;
 
     try {
-      // Step 1: Fetch chat rooms with members (single query with JOINs)
       const chatRooms = await this.chatRoomsRepository
         .createQueryBuilder('room')
         .innerJoin(
@@ -373,7 +650,20 @@ export class ChatRoomsService {
         .andWhere(
           '(my_member.deleted_at IS NULL OR room.last_message_at > my_member.deleted_at)',
         )
-        .leftJoinAndSelect('room.chat_members', 'members')
+        .leftJoinAndSelect(
+          'room.chat_members',
+          'members',
+          `(
+            (room.type = 'direct' AND members.status IN (:...directVisibleStatuses))
+            OR members.status = :acceptedStatus
+            OR members.user_id = :userId
+          )`,
+          {
+            acceptedStatus: ChatMemberStatus.ACCEPTED,
+            directVisibleStatuses: this.directRoomMemberVisibleStatuses,
+            userId: user.id,
+          },
+        )
         .leftJoinAndSelect('members.user', 'memberUser')
         .orderBy('room.last_message_at', 'DESC', 'NULLS LAST')
         .addOrderBy('room.created_at', 'DESC')
@@ -381,7 +671,6 @@ export class ChatRoomsService {
         .take(limit)
         .getMany();
 
-      // Step 2: Get total count (single query)
       const total = await this.chatRoomsRepository
         .createQueryBuilder('room')
         .innerJoin(
@@ -400,170 +689,7 @@ export class ChatRoomsService {
         return { data: [], meta: { page, limit, total, total_pages: 0 } };
       }
 
-      // Step 3: Collect all unique other-user IDs for direct chats (batch preparation)
-      const directRooms = chatRooms.filter((r) => r.type === 'direct');
-      const otherUserMap = new Map<string, string>(); // roomId -> otherUserId
-      const allOtherUserIds = new Set<string>();
-      const allMemberUserIds = new Set<string>();
-
-      for (const room of chatRooms) {
-        for (const m of room.chat_members || []) {
-          allMemberUserIds.add(m.user_id);
-          if (m.user_id !== user.id) {
-            otherUserMap.set(room.id, m.user_id);
-            allOtherUserIds.add(m.user_id);
-          }
-        }
-      }
-
-      // Step 4: Batch block check — single query for ALL direct rooms
-      const blockMap = new Map<string, boolean>(); // otherUserId -> isBlocked
-      if (allOtherUserIds.size > 0) {
-        const otherIds = Array.from(allOtherUserIds);
-        const blockResults = await this.chatRoomsRepository.manager.query(
-          `SELECT request_side_id, accept_side_id FROM relation
-           WHERE relation_type = 'block'
-             AND (
-               (request_side_id = $1 AND accept_side_id = ANY($2))
-               OR
-               (accept_side_id = $1 AND request_side_id = ANY($2))
-             )`,
-          [user.id, otherIds],
-        );
-        for (const row of blockResults) {
-          const otherId =
-            row.request_side_id === user.id
-              ? row.accept_side_id
-              : row.request_side_id;
-          blockMap.set(otherId, true);
-        }
-      }
-
-      // Step 5: Batch follow check — single query for rooms where user is not creator
-      const nonCreatorRooms = directRooms.filter(
-        (r) => r.created_by !== user.id,
-      );
-      const creatorIds = [...new Set(nonCreatorRooms.map((r) => r.created_by))];
-      const followSet = new Set<string>(); // creatorIds the user follows
-      if (creatorIds.length > 0) {
-        const followResults = await this.chatRoomsRepository.manager.query(
-          `SELECT accept_side_id FROM relation
-           WHERE request_side_id = $1
-             AND accept_side_id = ANY($2)
-             AND relation_type = 'following'`,
-          [user.id, creatorIds],
-        );
-        for (const row of followResults) {
-          followSet.add(row.accept_side_id);
-        }
-      }
-
-      // Step 6: Batch message count — single query for user's messages in non-creator rooms
-      const nonCreatorRoomIds = nonCreatorRooms.map((r) => r.id);
-      const msgCountMap = new Map<string, number>(); // roomId -> count
-      if (nonCreatorRoomIds.length > 0) {
-        const msgCountResults = await this.chatRoomsRepository.manager.query(
-          `SELECT chat_room_id, COUNT(id)::int as count
-           FROM chat_message
-           WHERE chat_room_id = ANY($1) AND created_by = $2
-           GROUP BY chat_room_id`,
-          [nonCreatorRoomIds, user.id],
-        );
-        for (const row of msgCountResults) {
-          msgCountMap.set(row.chat_room_id, row.count);
-        }
-      }
-
-      // Step 7: Batch Redis — get all online statuses via pipeline
-      const memberIdList = Array.from(allMemberUserIds);
-      const redisClient = this.redisService.getClient();
-      const pipeline = redisClient.pipeline();
-      for (const uid of memberIdList) {
-        pipeline.get(`connection_number:${uid}`);
-      }
-      const redisResults = await pipeline.exec();
-      const onlineMap = new Map<string, boolean>();
-      memberIdList.forEach((uid, idx) => {
-        const val = redisResults?.[idx]?.[1] as string | null;
-        onlineMap.set(uid, !!val && parseInt(val) > 0);
-      });
-
-      // Step 8: Batch Redis — get all last_messages via pipeline
-      const lastMsgPipeline = redisClient.pipeline();
-      for (const room of chatRooms) {
-        lastMsgPipeline.get(`chat_room:last_msg:${room.id}`);
-      }
-      const lastMsgResults = await lastMsgPipeline.exec();
-
-      // Step 9: Map everything together (pure in-memory, no more queries)
-      const roomsWithLastMessage = chatRooms.map((room, roomIdx) => {
-        // Display name
-        let displayName = room.name;
-        const otherMember = room.chat_members?.find(
-          (m) => m.user_id !== user.id,
-        );
-        if (room.type === 'direct' && otherMember?.user) {
-          displayName = otherMember.user.username;
-        }
-
-        // Block check (from batch result)
-        const otherUserId = otherUserMap.get(room.id);
-        const isBlocked = otherUserId ? !!blockMap.get(otherUserId) : false;
-
-        // Request check (from batch results)
-        let isRequest = false;
-        if (room.type === 'direct' && room.created_by !== user.id) {
-          const isFollowing = followSet.has(room.created_by);
-          const messageCount = msgCountMap.get(room.id) || 0;
-          if (!isFollowing && messageCount === 0) {
-            isRequest = true;
-          }
-        }
-
-        // Members with online status (from batch Redis)
-        const membersWithStatus = (room.chat_members || []).map((m) => ({
-          id: m.user_id,
-          username: m.user?.username,
-          full_name: m.user?.full_name,
-          avatar: m.user?.avatar,
-          member_type: m.member_type,
-          is_online: onlineMap.get(m.user_id) || false,
-          is_blocked: blockMap.get(m.user_id) || false,
-          last_active: m.user?.last_active || null,
-          status: m.status,
-          unread_count: m.unread_count || 0,
-        }));
-
-        // Last message (from batch Redis)
-        const rawLastMsg = lastMsgResults?.[roomIdx]?.[1] as string | null;
-        let lastMessage = null;
-        if (rawLastMsg) {
-          try {
-            lastMessage = JSON.parse(rawLastMsg);
-          } catch {
-            lastMessage = null;
-          }
-        }
-
-        // Unread count
-        const myMember = room.chat_members?.find((m) => m.user_id === user.id);
-        const unreadCount = myMember?.unread_count || 0;
-
-        return {
-          id: room.id,
-          name: displayName,
-          type: room.type,
-          avatar: room.avatar,
-          unread_count: unreadCount,
-          is_muted: myMember?.is_muted || false,
-          quick_emoji: room.quick_emoji || '👍',
-          members: membersWithStatus,
-          is_blocked: isBlocked,
-          is_request: isRequest,
-          last_message: lastMessage,
-          last_message_at: room.last_message_at || room.created_at,
-        };
-      });
+      const roomsWithLastMessage = await this.buildRoomListItems(chatRooms, user);
 
       return {
         data: roomsWithLastMessage,
@@ -633,10 +759,12 @@ export class ChatRoomsService {
       } else {
         await this.redisService.del(muteKey);
       }
+      const room = await this.getRoomViewForUser(roomId, userId);
 
       return {
         message: 'Chat room settings updated successfully',
         is_muted: dto.is_muted,
+        room,
       };
     } catch (error) {
       console.error('Error updating chat room settings:', error);
@@ -677,10 +805,12 @@ export class ChatRoomsService {
         quick_emoji: dto.emoji,
         updated_by: userId,
       });
+      await this.emitRoomUpdatedToVisibleMembers(roomId);
 
       return {
         message: 'Chat room emoji updated successfully',
         emoji: dto.emoji,
+        room: await this.getRoomViewForUser(roomId, userId),
       };
     } catch (error) {
       console.error('Error updating chat room emoji:', error);
@@ -733,28 +863,34 @@ export class ChatRoomsService {
         where: { id: roomId },
       });
       if (room && room.type === 'group') {
+        const joinedAt = new Date();
         await this.chatMessagesRepository.save({
           chat_room_id: roomId,
           created_by: user.id,
           message: `đã tham gia nhóm`,
           message_status: MessageStatusType.SYSTEM,
+          created_at: joinedAt,
         });
-
-        const fullRoom = await this.findChatRoomByID(roomId);
-        if (fullRoom) {
-          const acceptedMembers = await this.chatMembersRepository.find({
-            where: { chat_room_id: roomId, status: ChatMemberStatus.ACCEPTED },
-          });
-          const acceptedMemberIds = acceptedMembers.map((m) => m.user_id);
-          this.gatewayGateway.server
-            .to(acceptedMemberIds)
-            .emit('new_group_chat', fullRoom);
-        }
+        await this.chatRoomsRepository.update(roomId, {
+          last_message_at: joinedAt,
+        });
+        await this.redisService.set(
+          `chat_room:last_msg:${roomId}`,
+          JSON.stringify({
+            message: 'đã tham gia nhóm',
+            message_type: 'system',
+            created_by: user.id,
+            created_at: joinedAt,
+          }),
+        );
       }
 
       await this.redisService.del(`chat-room:${roomId}`);
+      await this.redisService.del(`chat-members:${roomId}`);
+      await this.emitRoomUpdatedToVisibleMembers(roomId, [user.id]);
+      const roomView = await this.getRoomViewForUser(roomId, user.id);
 
-      return { message: 'Message request accepted successfully' };
+      return { message: 'Message request accepted successfully', room: roomView };
     } catch (error) {
       console.error('Error accepting message request:', error);
       throw new BadRequestException('Accept message request failed');
@@ -778,8 +914,12 @@ export class ChatRoomsService {
       );
 
       await this.redisService.del(`chat-room:${roomId}`);
+      await this.redisService.del(`chat-members:${roomId}`);
+      this.gatewayGateway.server.to(user.id).emit('roomRemoved', {
+        room_id: roomId,
+      });
 
-      return { message: 'Message request declined successfully' };
+      return { message: 'Message request declined successfully', room_id: roomId };
     } catch (error) {
       console.error('Error declining message request:', error);
       throw new BadRequestException('Decline message request failed');

@@ -38,6 +38,7 @@ import {
   invalidatePostSurfaces,
   updateAuthorRelationInPostSurfaces,
 } from '@/features/posts/utils/post-cache';
+import { getChatRoomsControllerGetListChatRoomQueryKey } from '@/services/apis/gen/queries';
 
 interface PostCardProps {
   post: {
@@ -275,6 +276,9 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
       );
       queryClient.invalidateQueries({
         queryKey: ['profile', displayPost.user.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
       });
       queryClient.invalidateQueries({ queryKey: ['following'] });
       invalidatePostSurfaces(queryClient);

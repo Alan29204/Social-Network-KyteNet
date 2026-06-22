@@ -34,6 +34,38 @@ export class RelationsService {
     private readonly blockSweepQueue: Queue,
   ) {}
 
+  private async acceptMutualDirectMessageRequests(userAId: string, userBId: string) {
+    const rows = await this.relationRepository.manager.query(
+      `
+      WITH direct_rooms AS (
+        SELECT room.id
+        FROM chat_room room
+        JOIN chat_member cm_a ON cm_a.chat_room_id = room.id AND cm_a.user_id = $1
+        JOIN chat_member cm_b ON cm_b.chat_room_id = room.id AND cm_b.user_id = $2
+        WHERE room.type = 'direct'
+      )
+      UPDATE chat_member cm
+      SET status = 'accepted', deleted_at = NULL
+      FROM direct_rooms dr
+      WHERE cm.chat_room_id = dr.id
+        AND cm.user_id IN ($1, $2)
+        AND cm.status = 'pending'
+      RETURNING cm.chat_room_id
+      `,
+      [userAId, userBId],
+    );
+
+    const roomIds = Array.from(
+      new Set(rows.map((row: { chat_room_id: string }) => row.chat_room_id)),
+    );
+    await Promise.all(
+      roomIds.flatMap((roomId) => [
+        this.redisService.del(`chat-room:${roomId}`),
+        this.redisService.del(`chat-members:${roomId}`),
+      ]),
+    );
+  }
+
   /**
    * Kiểm tra có tồn tại quan hệ chặn giữa 2 user (theo 1 trong 2 chiều) hay không.
    * Dùng làm "khóa ghi đè tuyệt đối" cho các module khác (profile, search, chat...).
@@ -320,6 +352,7 @@ export class RelationsService {
         relationRequestAccept,
         relationAcceptRequest,
       ]);
+      await this.acceptMutualDirectMessageRequests(user.id, requestUserId);
     } else {
       await this.relationRepository.save(relationRequestAccept);
     }
@@ -569,6 +602,7 @@ export class RelationsService {
             relationRequestAccept,
             relationAcceptRequest,
           ]);
+          await this.acceptMutualDirectMessageRequests(user.id, dto.user_id);
         } else {
           await this.relationRepository.save(relationRequestAccept);
         }

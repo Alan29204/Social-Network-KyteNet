@@ -332,6 +332,72 @@ export type DeleteNotificationUserDto = {
   noti_user_id: string;
 };
 
+export type CreateChatRoomDto = {
+  /**
+     * @minLength 3
+     * @maxLength 30
+     */
+  name?: string;
+  /** List of member IDs to add initially */
+  members?: string[];
+};
+
+export type UpdateChatRoomDto = {
+  /**
+     * @minLength 3
+     * @maxLength 30
+     */
+  name?: string;
+  /** File ảnh đại diện phòng chat */
+  'avatar-chat-room'?: Blob;
+  id: string;
+};
+
+export type UpdatePermissionAddMemberDtoNewPermissionAddMember = typeof UpdatePermissionAddMemberDtoNewPermissionAddMember[keyof typeof UpdatePermissionAddMemberDtoNewPermissionAddMember];
+
+
+export const UpdatePermissionAddMemberDtoNewPermissionAddMember = {
+  admin: 'admin',
+  member: 'member',
+} as const;
+
+export type UpdatePermissionAddMemberDto = {
+  new_permission_add_member: UpdatePermissionAddMemberDtoNewPermissionAddMember;
+  id: string;
+};
+
+export type IdDto = {
+  id: string;
+};
+
+export type UpdateChatRoomSettingsDto = {
+  /** Trạng thái tắt thông báo */
+  is_muted: boolean;
+};
+
+export type UpdateChatRoomEmojiDto = {
+  /** Biểu tượng cảm xúc nhanh của phòng chat */
+  emoji: string;
+};
+
+export type RequestJoinChatRoomDto = {
+  chat_room_id: string;
+};
+
+export type AddMembersDto = {
+  /** ID phòng chat */
+  chat_room_id: string;
+  /** Danh sách các ID người dùng muốn thêm */
+  user_ids: string[];
+};
+
+export type RemoveMemberDto = {
+  /** ID phòng chat */
+  chat_room_id: string;
+  /** ID thành viên muốn xóa */
+  target_user_id: string;
+};
+
 /**
  * Viewer relation status to this user in feed/post responses
  */
@@ -766,72 +832,6 @@ export type DeviceSession = {
   user: User;
 };
 
-export type CreateChatRoomDto = {
-  /**
-     * @minLength 3
-     * @maxLength 30
-     */
-  name?: string;
-  /** List of member IDs to add initially */
-  members?: string[];
-};
-
-export type UpdateChatRoomDto = {
-  /**
-     * @minLength 3
-     * @maxLength 30
-     */
-  name: string;
-  /** File ảnh đại diện phòng chat */
-  'avatar-chat-room'?: Blob;
-  id: string;
-};
-
-export type UpdatePermissionAddMemberDtoNewPermissionAddMember = typeof UpdatePermissionAddMemberDtoNewPermissionAddMember[keyof typeof UpdatePermissionAddMemberDtoNewPermissionAddMember];
-
-
-export const UpdatePermissionAddMemberDtoNewPermissionAddMember = {
-  admin: 'admin',
-  member: 'member',
-} as const;
-
-export type UpdatePermissionAddMemberDto = {
-  new_permission_add_member: UpdatePermissionAddMemberDtoNewPermissionAddMember;
-  id: string;
-};
-
-export type IdDto = {
-  id: string;
-};
-
-export type UpdateChatRoomSettingsDto = {
-  /** Trạng thái tắt thông báo */
-  is_muted: boolean;
-};
-
-export type UpdateChatRoomEmojiDto = {
-  /** Biểu tượng cảm xúc nhanh của phòng chat */
-  emoji: string;
-};
-
-export type RequestJoinChatRoomDto = {
-  chat_room_id: string;
-};
-
-export type AddMembersDto = {
-  /** ID phòng chat */
-  chat_room_id: string;
-  /** Danh sách các ID người dùng muốn thêm */
-  user_ids: string[];
-};
-
-export type RemoveMemberDto = {
-  /** ID phòng chat */
-  chat_room_id: string;
-  /** ID thành viên muốn xóa */
-  target_user_id: string;
-};
-
 /**
  * Dữ liệu phản hồi
  */
@@ -1159,6 +1159,52 @@ export const ChatRoomsControllerGetListChatRoomType = {
   primary: 'primary',
   requests: 'requests',
 } as const;
+
+/**
+ * @nullable
+ */
+export type ChatRoomsControllerUpdateNameOrAvatar200Room = { [key: string]: unknown } | null;
+
+export type ChatRoomsControllerUpdateNameOrAvatar200 = {
+  message?: string;
+  /** @nullable */
+  room?: ChatRoomsControllerUpdateNameOrAvatar200Room;
+};
+
+export type ChatRoomsControllerFindChatRoomById200 = { [key: string]: unknown };
+
+/**
+ * @nullable
+ */
+export type ChatRoomsControllerGetOrCreateDirectChat201Room = { [key: string]: unknown } | null;
+
+export type ChatRoomsControllerGetOrCreateDirectChat201 = {
+  room_id?: string;
+  is_new?: boolean;
+  /** @nullable */
+  room?: ChatRoomsControllerGetOrCreateDirectChat201Room;
+};
+
+/**
+ * @nullable
+ */
+export type ChatRoomsControllerAcceptMessageRequest201Room = { [key: string]: unknown } | null;
+
+export type ChatRoomsControllerAcceptMessageRequest201 = {
+  message?: string;
+  /** @nullable */
+  room?: ChatRoomsControllerAcceptMessageRequest201Room;
+};
+
+export type ChatRoomsControllerDeclineMessageRequest201 = {
+  message?: string;
+  room_id?: string;
+};
+
+export type ChatMembersControllerLeaveRoom200 = {
+  message?: string;
+  room_id?: string;
+};
 
 export type ChatMessagesControllerCreateMessageBody = {
   chat_room_id?: string;
@@ -5822,7 +5868,7 @@ export const useChatRoomsControllerCreateChatRoom = <TError = unknown,
     }
 
 export type chatRoomsControllerUpdateNameOrAvatarResponse200 = {
-  data: void
+  data: ChatRoomsControllerUpdateNameOrAvatar200
   status: 200
 }
 
@@ -5846,7 +5892,9 @@ export const getChatRoomsControllerUpdateNameOrAvatarUrl = () => {
  */
 export const chatRoomsControllerUpdateNameOrAvatar = async (updateChatRoomDto: UpdateChatRoomDto, options?: RequestInit): Promise<chatRoomsControllerUpdateNameOrAvatarResponse> => {
     const formData = new FormData();
-formData.append(`name`, updateChatRoomDto.name);
+if(updateChatRoomDto.name !== undefined) {
+ formData.append(`name`, updateChatRoomDto.name);
+ }
 if(updateChatRoomDto['avatar-chat-room'] !== undefined) {
  formData.append(`avatar-chat-room`, updateChatRoomDto['avatar-chat-room']);
  }
@@ -5992,7 +6040,7 @@ export const useChatRoomsControllerDeleteChatRoom = <TError = unknown,
     }
 
 export type chatRoomsControllerFindChatRoomByIdResponse200 = {
-  data: ChatRoom
+  data: ChatRoomsControllerFindChatRoomById200
   status: 200
 }
 
@@ -6105,7 +6153,7 @@ export function useChatRoomsControllerFindChatRoomById<TData = Awaited<ReturnTyp
 
 
 export type chatRoomsControllerGetOrCreateDirectChatResponse201 = {
-  data: void
+  data: ChatRoomsControllerGetOrCreateDirectChat201
   status: 201
 }
 
@@ -6599,7 +6647,7 @@ export const useChatRoomsControllerSoftDeleteHistory = <TError = unknown,
     }
 
 export type chatRoomsControllerAcceptMessageRequestResponse201 = {
-  data: void
+  data: ChatRoomsControllerAcceptMessageRequest201
   status: 201
 }
 
@@ -6681,7 +6729,7 @@ export const useChatRoomsControllerAcceptMessageRequest = <TError = unknown,
     }
 
 export type chatRoomsControllerDeclineMessageRequestResponse201 = {
-  data: void
+  data: ChatRoomsControllerDeclineMessageRequest201
   status: 201
 }
 
@@ -7091,7 +7139,7 @@ export const useChatMembersControllerPromoteAdmin = <TError = unknown,
     }
 
 export type chatMembersControllerLeaveRoomResponse200 = {
-  data: void
+  data: ChatMembersControllerLeaveRoom200
   status: 200
 }
 

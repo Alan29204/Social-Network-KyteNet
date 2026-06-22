@@ -13,17 +13,20 @@ import {
   useChatRoomsControllerGetOrCreateDirectChat,
   getChatRoomsControllerGetListChatRoomQueryKey,
 } from '@/services/apis/gen/queries';
-import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface CreateChatModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStartDirectChat?: (targetUser: any) => void;
 }
 
-export function CreateChatModal({ open, onOpenChange }: CreateChatModalProps) {
-  const { user } = useAuthStore();
+export function CreateChatModal({
+  open,
+  onOpenChange,
+  onStartDirectChat,
+}: CreateChatModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,17 +72,25 @@ export function CreateChatModal({ open, onOpenChange }: CreateChatModalProps) {
       let newRoomId: string | undefined;
 
       if (selectedUsers.length === 1) {
+        if (onStartDirectChat) {
+          onStartDirectChat(selectedUsers[0]);
+          onOpenChange(false);
+          setSelectedUsers([]);
+          setSearchTerm('');
+          return;
+        }
+
         // Direct chat
         const res = await getOrCreateDirect({
           targetUserId: selectedUsers[0].id,
         }) as any;
         // Response: { statusCode, message, data: { id, ... } }
-        newRoomId = res?.data?.id || res?.id;
+        newRoomId = res?.data?.room_id || res?.room_id || res?.data?.id || res?.id;
       } else {
         // Group chat
         const res = await createGroup({
           data: {
-            members: [user!.id, ...selectedUsers.map((u) => u.id)],
+            members: selectedUsers.map((u) => u.id),
           },
         }) as any;
         // Response: { statusCode, message, data: { message, room_id } }

@@ -1090,7 +1090,24 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "room": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1141,7 +1158,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatRoom"
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -1168,7 +1186,28 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "room_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "is_new": {
+                      "type": "boolean"
+                    },
+                    "room": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1333,7 +1372,24 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "room": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1357,7 +1413,23 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "room_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -1481,7 +1553,23 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "room_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3943,6 +4031,155 @@
           "noti_user_id"
         ]
       },
+      "CreateChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "example": "Group Chat"
+          },
+          "members": {
+            "example": [
+              "uuid-1",
+              "uuid-2"
+            ],
+            "description": "List of member IDs to add initially",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "example": "Group Chat"
+          },
+          "avatar-chat-room": {
+            "type": "string",
+            "format": "binary",
+            "description": "File ảnh đại diện phòng chat"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdatePermissionAddMemberDto": {
+        "type": "object",
+        "properties": {
+          "new_permission_add_member": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "type": "string",
+            "example": "member"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_permission_add_member",
+          "id"
+        ]
+      },
+      "IdDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdateChatRoomSettingsDto": {
+        "type": "object",
+        "properties": {
+          "is_muted": {
+            "type": "boolean",
+            "example": true,
+            "description": "Trạng thái tắt thông báo"
+          }
+        },
+        "required": [
+          "is_muted"
+        ]
+      },
+      "UpdateChatRoomEmojiDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "example": "👍",
+            "description": "Biểu tượng cảm xúc nhanh của phòng chat"
+          }
+        },
+        "required": [
+          "emoji"
+        ]
+      },
+      "RequestJoinChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chat_room_id"
+        ]
+      },
+      "AddMembersDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string",
+            "description": "ID phòng chat"
+          },
+          "user_ids": {
+            "description": "Danh sách các ID người dùng muốn thêm",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "chat_room_id",
+          "user_ids"
+        ]
+      },
+      "RemoveMemberDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string",
+            "description": "ID phòng chat"
+          },
+          "target_user_id": {
+            "type": "string",
+            "description": "ID thành viên muốn xóa"
+          }
+        },
+        "required": [
+          "chat_room_id",
+          "target_user_id"
+        ]
+      },
       "DeviceSession": {
         "type": "object",
         "properties": {
@@ -4632,13 +4869,13 @@
             }
           },
           "message_status": {
+            "type": "string",
             "enum": [
               "normal",
               "edited",
               "deleted",
               "system"
-            ],
-            "type": "string"
+            ]
           },
           "chat_room": {
             "$ref": "#/components/schemas/ChatRoom"
@@ -4742,110 +4979,6 @@
           "user_id",
           "chat_room",
           "user"
-        ]
-      },
-      "ChatRoom": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "type": {
-            "type": "object"
-          },
-          "avatar": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string"
-          },
-          "permission_add_member": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "member"
-            ]
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "last_message_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "reaction_default": {
-            "type": "string",
-            "enum": [
-              "like",
-              "love",
-              "haha",
-              "wow",
-              "sad",
-              "angry"
-            ]
-          },
-          "quick_emoji": {
-            "type": "string"
-          },
-          "end_to_end_encryption": {
-            "type": "boolean"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "chat_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMember"
-            }
-          },
-          "chat_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
-            }
-          },
-          "pin_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinMessage"
-            }
-          },
-          "pin_chats": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinChat"
-            }
-          },
-          "waiting_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WaitingMembers"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "type",
-          "avatar",
-          "created_by",
-          "permission_add_member",
-          "created_at",
-          "last_message_at",
-          "reaction_default",
-          "quick_emoji",
-          "end_to_end_encryption",
-          "user",
-          "chat_members",
-          "chat_messages",
-          "pin_messages",
-          "pin_chats",
-          "waiting_members"
         ]
       },
       "User": {
@@ -5082,154 +5215,108 @@
           "waiting_members"
         ]
       },
-      "CreateChatRoomDto": {
+      "ChatRoom": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "example": "Group Chat"
-          },
-          "members": {
-            "example": [
-              "uuid-1",
-              "uuid-2"
-            ],
-            "description": "List of member IDs to add initially",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "UpdateChatRoomDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "example": "Group Chat"
-          },
-          "avatar-chat-room": {
-            "type": "string",
-            "format": "binary",
-            "description": "File ảnh đại diện phòng chat"
-          },
           "id": {
             "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "id"
-        ]
-      },
-      "UpdatePermissionAddMemberDto": {
-        "type": "object",
-        "properties": {
-          "new_permission_add_member": {
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "object"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "permission_add_member": {
+            "type": "string",
             "enum": [
               "admin",
               "member"
-            ],
-            "type": "string",
-            "example": "member"
+            ]
           },
-          "id": {
+          "created_at": {
+            "format": "date-time",
             "type": "string"
-          }
-        },
-        "required": [
-          "new_permission_add_member",
-          "id"
-        ]
-      },
-      "IdDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      },
-      "UpdateChatRoomSettingsDto": {
-        "type": "object",
-        "properties": {
-          "is_muted": {
-            "type": "boolean",
-            "example": true,
-            "description": "Trạng thái tắt thông báo"
-          }
-        },
-        "required": [
-          "is_muted"
-        ]
-      },
-      "UpdateChatRoomEmojiDto": {
-        "type": "object",
-        "properties": {
-          "emoji": {
-            "type": "string",
-            "example": "👍",
-            "description": "Biểu tượng cảm xúc nhanh của phòng chat"
-          }
-        },
-        "required": [
-          "emoji"
-        ]
-      },
-      "RequestJoinChatRoomDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "chat_room_id"
-        ]
-      },
-      "AddMembersDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string",
-            "description": "ID phòng chat"
           },
-          "user_ids": {
-            "description": "Danh sách các ID người dùng muốn thêm",
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reaction_default": {
+            "type": "string",
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ]
+          },
+          "quick_emoji": {
+            "type": "string"
+          },
+          "end_to_end_encryption": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "chat_members": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ChatMember"
+            }
+          },
+          "chat_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
+          },
+          "pin_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinMessage"
+            }
+          },
+          "pin_chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinChat"
+            }
+          },
+          "waiting_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WaitingMembers"
             }
           }
         },
         "required": [
-          "chat_room_id",
-          "user_ids"
-        ]
-      },
-      "RemoveMemberDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string",
-            "description": "ID phòng chat"
-          },
-          "target_user_id": {
-            "type": "string",
-            "description": "ID thành viên muốn xóa"
-          }
-        },
-        "required": [
-          "chat_room_id",
-          "target_user_id"
+          "id",
+          "name",
+          "type",
+          "avatar",
+          "created_by",
+          "permission_add_member",
+          "created_at",
+          "last_message_at",
+          "reaction_default",
+          "quick_emoji",
+          "end_to_end_encryption",
+          "user",
+          "chat_members",
+          "chat_messages",
+          "pin_messages",
+          "pin_chats",
+          "waiting_members"
         ]
       },
       "AppResponseSerialization": {

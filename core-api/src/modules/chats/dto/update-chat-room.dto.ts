@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsOptional,
@@ -13,14 +13,14 @@ export class UpdateChatRoomDto {
   @IsNotEmpty()
   id: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(30)
   @MinLength(3)
-  @IsNotEmpty()
-  @ApiProperty({ example: 'Group Chat' })
-  name: string;
+  @ApiPropertyOptional({ example: 'Group Chat' })
+  name?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'string',
     format: 'binary',
     required: false,

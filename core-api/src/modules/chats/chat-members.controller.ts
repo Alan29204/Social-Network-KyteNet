@@ -8,7 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ChatMembersService } from './chat-members.service';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
 import { RequestJoinChatRoomDto } from './dto/request-join-chat-room.dto';
@@ -68,6 +68,15 @@ export class ChatMembersController {
   @Delete('leave-room/:chat_room_id')
   @ResponseMessage('Leave chat room successfully')
   @ApiOperation({ summary: 'Leave a chat room' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        room_id: { type: 'string', format: 'uuid' },
+      },
+    },
+  })
   leaveRoom(
     @Param('chat_room_id', ParseUUIDPipe) chat_room_id: string,
     @User() user: IUser,

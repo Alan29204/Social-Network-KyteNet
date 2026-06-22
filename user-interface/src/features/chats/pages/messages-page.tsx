@@ -20,8 +20,6 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
-  Circle,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
@@ -56,6 +54,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { MessagePostCard } from '../components/message-post-card';
 import ChatDetailsDrawer from '../components/ChatDetailsDrawer';
 import { CreateChatModal } from '../components/CreateChatModal';
+import {
+  isChatRoomsQueryKey,
+  patchChatRoomInCaches,
+  removeChatRoomFromCaches,
+  updateChatRoomCaches,
+  upsertChatRoomInCaches,
+} from '../utils/chat-room-cache';
 
 /** 6 fixed reaction emojis (Messenger-style) */
 const REACTION_EMOJIS: Record<string, string> = {
@@ -82,6 +87,9 @@ export default function MessagesPage() {
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { roomId: selectedRoomId } = useParams<{ roomId: string }>();
+  const selectedRoomIdRef = useRef<string | undefined>(selectedRoomId);
+  const userIdRef = useRef<string | undefined>(user?.id);
+  const latestMessageIdRef = useRef<string | null>(null);
 
   // Custom states for premium features
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -106,6 +114,12 @@ export default function MessagesPage() {
   const [selectedTab, setSelectedTab] = useState<'primary' | 'requests'>(
     'primary',
   );
+  const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
+
+  useEffect(() => {
+    selectedRoomIdRef.current = selectedRoomId;
+    userIdRef.current = user?.id;
+  }, [selectedRoomId, user?.id]);
 
   // Focus input when replying
   useEffect(() => {
@@ -143,7 +157,6 @@ export default function MessagesPage() {
   );
 
   const messages: any[] = (messagesResponse as any)?.data?.data || [];
-  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
   const hasMore: boolean =
     (messagesResponse as any)?.data?.meta?.has_more || false;
 
@@ -221,6 +234,102 @@ export default function MessagesPage() {
     };
   }, [searchTerm, isSearchFocused, chatRooms, searchedUsers, user?.id]);
 
+  const updateRoomListCaches = useCallback(
+    (updater: (rooms: any[]) => any[]) => {
+      updateChatRoomCaches(queryClient, (rooms) => updater(rooms));
+    },
+    [queryClient],
+  );
+
+  const clearRoomUnread = useCallback(
+    (roomId: string, readByUserId?: string, clearCurrentRoomCount = false) => {
+      updateRoomListCaches((rooms) =>
+        rooms.map((room: any) => {
+          if (room.id !== roomId) return room;
+
+          return {
+            ...room,
+            unread_count: clearCurrentRoomCount ? 0 : room.unread_count,
+            members: (room.members || room.chat_members || []).map((m: any) =>
+              readByUserId && (m.id || m.user_id) === readByUserId
+                ? { ...m, unread_count: 0 }
+                : m,
+            ),
+          };
+        }),
+      );
+    },
+    [updateRoomListCaches],
+  );
+
+  const markRoomAsRead = useCallback(
+    (roomId?: string) => {
+      if (!roomId || !userIdRef.current) return;
+
+      clearRoomUnread(roomId, userIdRef.current, true);
+      orvalClient({
+        url: `/chat-rooms/${roomId}/read`,
+        method: 'POST',
+      }).catch(console.error);
+    },
+    [clearRoomUnread],
+  );
+
+  const updateSidebarWithMessage = useCallback(
+    (roomId: string, msg: any) => {
+      let shouldInvalidateRooms = false;
+
+      updateRoomListCaches((rooms) => {
+        const idx = rooms.findIndex((r: any) => r.id === roomId);
+        if (idx === -1) {
+          shouldInvalidateRooms = true;
+          return rooms;
+        }
+
+        const activeRoomId = selectedRoomIdRef.current;
+        const currentUserId = userIdRef.current;
+        const isActiveRoom = roomId === activeRoomId;
+        const isIncoming = msg.created_by !== currentUserId;
+        const isOwnDirectMessage =
+          rooms[idx].type === 'direct' && msg.created_by === currentUserId;
+        const updatedRoom = {
+          ...rooms[idx],
+          last_message: msg,
+          last_message_at: msg.created_at,
+          unread_count: isActiveRoom
+            ? 0
+            : isIncoming
+              ? (rooms[idx].unread_count || 0) + 1
+              : rooms[idx].unread_count || 0,
+          members: (rooms[idx].members || rooms[idx].chat_members || []).map(
+            (m: any) => {
+              const memberId = m.id || m.user_id;
+              if (isActiveRoom && memberId === currentUserId) {
+                return { ...m, unread_count: 0 };
+              }
+              if (isOwnDirectMessage && memberId !== currentUserId) {
+                return { ...m, unread_count: Math.max(m.unread_count || 0, 1) };
+              }
+              return m;
+            },
+          ),
+        };
+
+        const nextRooms = [...rooms];
+        nextRooms.splice(idx, 1);
+        nextRooms.unshift(updatedRoom);
+        return nextRooms;
+      });
+
+      if (shouldInvalidateRooms) {
+        queryClient.invalidateQueries({
+          queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+        });
+      }
+    },
+    [queryClient, updateRoomListCaches],
+  );
+
   // ═══════════════════════════════════════════
   // GLOBAL Socket Listeners (independent of selected room)
   // These listen for events from ALL chat rooms via userId broadcast.
@@ -264,6 +373,12 @@ export default function MessagesPage() {
       );
       // Optimistic sidebar update: move room to top + update last_message
       updateSidebarWithMessage(roomId, newMsg);
+      if (
+        roomId === selectedRoomIdRef.current &&
+        newMsg.created_by !== userIdRef.current
+      ) {
+        markRoomAsRead(roomId);
+      }
     };
 
     /**
@@ -404,30 +519,15 @@ export default function MessagesPage() {
       last_active,
     }: any) => {
       // Update room list cache
-      queryClient.setQueriesData(
-        {
-          queryKey: getChatRoomsControllerGetListChatRoomQueryKey({
-            page: 1,
-            limit: 50,
-          }),
-        },
-        (old: any) => {
-          if (!old || !old.data) return old;
-          const data = old.data?.data || old.data;
-          if (!Array.isArray(data)) return old;
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              data: data.map((room: any) => ({
-                ...room,
-                members: room.members.map((m: any) =>
-                  m.id === user_id ? { ...m, is_online, last_active } : m,
-                ),
-              })),
-            },
-          };
-        },
+      updateRoomListCaches((rooms) =>
+        rooms.map((room: any) => ({
+          ...room,
+          members: (room.members || room.chat_members || []).map((m: any) =>
+            (m.id || m.user_id) === user_id
+              ? { ...m, is_online, last_active }
+              : m,
+          ),
+        })),
       );
       // Update active header recipient
       setSelectedRecipient((prev: any) => {
@@ -514,30 +614,23 @@ export default function MessagesPage() {
       chat_room_id: string;
       quick_emoji: string;
     }) => {
-      queryClient.setQueriesData(
-        {
-          queryKey: getChatRoomsControllerGetListChatRoomQueryKey({
-            page: 1,
-            limit: 50,
-          }),
-        },
-        (old: any) => {
-          if (!old || !old.data) return old;
-          const list = old.data?.data || old.data;
-          if (!Array.isArray(list)) return old;
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              data: list.map((room: any) =>
-                room.id === data.chat_room_id
-                  ? { ...room, quick_emoji: data.quick_emoji }
-                  : room,
-              ),
-            },
-          };
-        },
-      );
+      patchChatRoomInCaches(queryClient, data.chat_room_id, {
+        quick_emoji: data.quick_emoji,
+      });
+    };
+
+    const handleRoomUpdated = (room: any) => {
+      if (!room?.id) return;
+      upsertChatRoomInCaches(queryClient, room, userIdRef.current);
+    };
+
+    const handleRoomRemoved = (data: { room_id?: string; id?: string }) => {
+      const roomId = data.room_id || data.id;
+      if (!roomId) return;
+      removeChatRoomFromCaches(queryClient, roomId);
+      if (selectedRoomIdRef.current === roomId) {
+        navigate('/messages');
+      }
     };
 
     /**
@@ -547,29 +640,7 @@ export default function MessagesPage() {
       chat_room_id: string;
       read_by_user_id: string;
     }) => {
-      queryClient.setQueriesData({ queryKey: ['/chat-rooms'] }, (old: any) => {
-        if (!old || !old.data) return old;
-        const list = old.data?.data || old.data;
-        if (!Array.isArray(list)) return old;
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            data: list.map((room: any) => {
-              if (room.id !== data.chat_room_id) return room;
-              return {
-                ...room,
-                members: (room.members || room.chat_members || []).map(
-                  (m: any) =>
-                    (m.id || m.user_id) === data.read_by_user_id
-                      ? { ...m, unread_count: 0 }
-                      : m,
-                ),
-              };
-            }),
-          },
-        };
-      });
+      clearRoomUnread(data.chat_room_id, data.read_by_user_id, false);
     };
 
     // Register all listeners
@@ -583,6 +654,9 @@ export default function MessagesPage() {
     socket.on('messagePinned', handleMessagePinned);
     socket.on('messageUnpinned', handleMessageUnpinned);
     socket.on('roomEmojiUpdated', handleRoomEmojiUpdated);
+    socket.on('roomUpdated', handleRoomUpdated);
+    socket.on('new_group_chat', handleRoomUpdated);
+    socket.on('roomRemoved', handleRoomRemoved);
     socket.on('roomRead', handleRoomRead);
 
     return () => {
@@ -596,9 +670,21 @@ export default function MessagesPage() {
       socket.off('messagePinned', handleMessagePinned);
       socket.off('messageUnpinned', handleMessageUnpinned);
       socket.off('roomEmojiUpdated', handleRoomEmojiUpdated);
+      socket.off('roomUpdated', handleRoomUpdated);
+      socket.off('new_group_chat', handleRoomUpdated);
+      socket.off('roomRemoved', handleRoomRemoved);
       socket.off('roomRead', handleRoomRead);
     };
-  }, [token, queryClient, toast]);
+  }, [
+    token,
+    queryClient,
+    toast,
+    navigate,
+    updateSidebarWithMessage,
+    markRoomAsRead,
+    updateRoomListCaches,
+    clearRoomUnread,
+  ]);
 
   // Scroll to bottom: instant on room change, smooth on new messages
   const prevMessagesLenRef = useRef(0);
@@ -610,92 +696,73 @@ export default function MessagesPage() {
     });
   }, []);
 
+  const isNearBottom = useCallback((threshold = 160) => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      threshold
+    );
+  }, []);
+
   // Reset scroll flag and reply state when switching rooms
   useEffect(() => {
     hasScrolledForRoom.current = null;
+    latestMessageIdRef.current = null;
+    prevMessagesLenRef.current = 0;
+    setShowNewMessagesButton(false);
     setReplyingTo(null);
 
-    // Mark as read when room is selected
     if (selectedRoomId && user) {
-      orvalClient({
-        url: `/chat-rooms/${selectedRoomId}/read`,
-        method: 'POST',
-      }).catch(console.error);
-
-      // Optimistically clear unread count in sidebar
-      queryClient.setQueryData(
-        getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
-        (old: any) => {
-          if (!old?.data?.data) return old;
-          const updatedRooms = old.data.data.map((r: any) => {
-            if (r.id === selectedRoomId) {
-              return { ...r, unread_count: 0 };
-            }
-            return r;
-          });
-          return { ...old, data: { ...old.data, data: updatedRooms } };
-        },
-      );
+      markRoomAsRead(selectedRoomId);
     }
-  }, [selectedRoomId, user?.id, queryClient]);
+  }, [selectedRoomId, user?.id, markRoomAsRead]);
 
-  // Smooth scroll to bottom if new messages arrive AND user is already near bottom
   useEffect(() => {
-    if (messages.length > prevMessagesLenRef.current && !isLoadingMore) {
-      const container = messagesContainerRef.current;
-      if (container && container.scrollTop < 150) {
-        scrollToBottom('smooth');
+    if (!selectedRoomId) return;
+
+    if (messages.length === 0) {
+      prevMessagesLenRef.current = 0;
+      latestMessageIdRef.current = null;
+      return;
+    }
+
+    const newestMsg = messages[messages.length - 1];
+    const newestMsgId = newestMsg?.id || null;
+    const previousNewestMsgId = latestMessageIdRef.current;
+    const isInitialRoomPaint = hasScrolledForRoom.current !== selectedRoomId;
+    const hasNewBottomMessage =
+      !!newestMsgId && newestMsgId !== previousNewestMsgId;
+
+    if (isInitialRoomPaint) {
+      scrollToBottom('auto');
+      hasScrolledForRoom.current = selectedRoomId;
+      setShowNewMessagesButton(false);
+    } else if (hasNewBottomMessage && !isLoadingMore) {
+      if (newestMsg.created_by !== user?.id) {
+        markRoomAsRead(selectedRoomId);
       }
 
-      // If we receive a message from someone else while in the active room, mark it as read
-      const newestMsg = messages[0];
-      if (newestMsg && newestMsg.created_by !== user?.id) {
-        orvalClient({
-          url: `/chat-rooms/${selectedRoomId}/read`,
-          method: 'POST',
-        }).catch(console.error);
+      if (newestMsg.created_by === user?.id || isNearBottom(240)) {
+        scrollToBottom('smooth');
+        setShowNewMessagesButton(false);
+      } else {
+        setShowNewMessagesButton(true);
       }
     }
-    prevMessagesLenRef.current = messages.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, isLoadingMore, selectedRoomId]);
 
-  /**
-   * Optimistic sidebar update: move room to top + update last_message preview.
-   * Avoids full API refetch — instant UI update.
-   */
-  const updateSidebarWithMessage = useCallback(
-    (roomId: string, msg: any) => {
-      queryClient.setQueriesData({ queryKey: ['/chat-rooms'] }, (old: any) => {
-        if (!old?.data?.data) return old;
-        const rooms = [...old.data.data];
-        const idx = rooms.findIndex((r: any) => r.id === roomId);
-        if (idx === -1) {
-          // Room not in list — fallback to refetch
-          queryClient.invalidateQueries({
-            queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
-          });
-          return old;
-        }
-        // Update last_message and move to top
-        const updatedRoom = {
-          ...rooms[idx],
-          last_message: msg,
-          last_message_at: msg.created_at,
-        };
-        // If the message is for the currently selected room, mark as read immediately in UI
-        if (roomId === selectedRoomId) {
-          updatedRoom.unread_count = 0;
-        } else if (msg.created_by !== user?.id) {
-          updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1;
-        }
-        rooms.splice(idx, 1);
-        rooms.unshift(updatedRoom);
-        return { ...old, data: { ...old.data, data: rooms } };
-      });
-    },
-    [queryClient],
-  );
+    prevMessagesLenRef.current = messages.length;
+    latestMessageIdRef.current = newestMsgId;
+  }, [
+    messages,
+    isLoadingMore,
+    selectedRoomId,
+    user?.id,
+    isNearBottom,
+    scrollToBottom,
+    markRoomAsRead,
+  ]);
 
   // Pagination loader (appending old messages to cache)
   const handleLoadMore = useCallback(async () => {
@@ -708,6 +775,7 @@ export default function MessagesPage() {
         // Save scroll position before prepending
         const container = messagesContainerRef.current;
         const prevScrollHeight = container?.scrollHeight || 0;
+        const prevScrollTop = container?.scrollTop || 0;
 
         try {
           const res = await chatMessagesControllerGetMessageHistory(
@@ -738,7 +806,8 @@ export default function MessagesPage() {
             requestAnimationFrame(() => {
               if (container) {
                 const newScrollHeight = container.scrollHeight;
-                container.scrollTop = newScrollHeight - prevScrollHeight;
+                container.scrollTop =
+                  prevScrollTop + (newScrollHeight - prevScrollHeight);
               }
             });
           }
@@ -811,65 +880,52 @@ export default function MessagesPage() {
           targetUserId: virtualRecipient.id,
         });
         const newRoomId = (res as any)?.data?.room_id || (res as any)?.room_id;
+        const roomView = (res as any)?.data?.room || (res as any)?.room;
         if (newRoomId) {
           targetRoomId = newRoomId;
 
-          // Optimistically add the new room to the chatRooms cache
-          queryClient.setQueryData(
-            getChatRoomsControllerGetListChatRoomQueryKey({
-              page: 1,
-              limit: 50,
-            }),
-            (old: any) => {
-              const currentRooms = old?.data?.data || [];
-              // Prevent duplicates if already added
-              if (currentRooms.some((r: any) => r.id === newRoomId)) return old;
-
-              const optimisticRoom = {
-                id: newRoomId,
-                type: 'direct',
-                name: virtualRecipient.username,
-                avatar: virtualRecipient.avatar,
-                unread_count: 0,
-                is_muted: false,
-                quick_emoji: '👍',
-                is_blocked: false,
-                is_request: false,
-                last_message: null,
-                last_message_at: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-                members: [
-                  {
-                    id: user?.id,
-                    username: user?.username,
-                    full_name: user?.full_name,
-                    avatar: user?.avatar,
-                    member_type: 'ADMIN',
-                    is_online: true,
-                  },
-                  {
-                    id: virtualRecipient.id,
-                    username: virtualRecipient.username,
-                    full_name: virtualRecipient.full_name,
-                    avatar: virtualRecipient.avatar,
-                    member_type: 'ADMIN',
-                    is_online: virtualRecipient.is_online,
-                    last_active: virtualRecipient.last_active,
-                  },
-                ],
-              };
-
-              return {
-                ...old,
-                data: {
-                  ...(old?.data || {}),
-                  data: [optimisticRoom, ...currentRooms],
+          const optimisticRoom =
+            roomView ||
+            {
+              id: newRoomId,
+              type: 'direct',
+              name: virtualRecipient.username,
+              avatar: virtualRecipient.avatar,
+              unread_count: 0,
+              is_muted: false,
+              quick_emoji: '👍',
+              is_blocked: false,
+              is_request: false,
+              last_message: null,
+              last_message_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              members: [
+                {
+                  id: user?.id,
+                  username: user?.username,
+                  full_name: user?.full_name,
+                  avatar: user?.avatar,
+                  member_type: 'ADMIN',
+                  status: 'accepted',
+                  is_online: true,
                 },
-              };
-            },
-          );
+                {
+                  id: virtualRecipient.id,
+                  username: virtualRecipient.username,
+                  full_name: virtualRecipient.full_name,
+                  avatar: virtualRecipient.avatar,
+                  member_type: 'ADMIN',
+                  status: 'pending',
+                  is_online: virtualRecipient.is_online,
+                  last_active: virtualRecipient.last_active,
+                },
+              ],
+            };
+
+          upsertChatRoomInCaches(queryClient, optimisticRoom, user?.id);
 
           setVirtualRecipient(null);
+          setSelectedTab('primary');
           navigate(`/messages/${newRoomId}`);
           // Fall through to the optimistic update + WebSocket send below
         } else {
@@ -1161,12 +1217,36 @@ export default function MessagesPage() {
     handleSendMessage(emoji);
   };
 
+  const findDirectRoomForUser = useCallback(
+    (targetUserId: string) => {
+      const cachedQueries = queryClient.getQueryCache().findAll({
+        predicate: (query) => isChatRoomsQueryKey(query.queryKey),
+      });
+      const candidateLists = [
+        chatRooms,
+        ...cachedQueries.map((query) => {
+          const cached = query.state.data as any;
+          return cached?.data?.data || cached?.data || [];
+        }),
+      ];
+
+      for (const rooms of candidateLists) {
+        const room = (Array.isArray(rooms) ? rooms : []).find(
+          (item: any) =>
+            item.type === 'direct' &&
+            item.members?.some((member: any) => member.id === targetUserId),
+        );
+        if (room) return room;
+      }
+
+      return null;
+    },
+    [chatRooms, queryClient],
+  );
+
   // Selecting a Suggested/Search User — Virtual Room pattern
-  const handleSelectUser = (targetUser: any) => {
-    // Check if a room already exists with this user
-    const existingRoom = chatRooms.find((room: any) =>
-      room.members.some((m: any) => m.id === targetUser.id),
-    );
+  const handleSelectUser = useCallback((targetUser: any) => {
+    const existingRoom = findDirectRoomForUser(targetUser.id);
 
     if (existingRoom) {
       // Room exists → just navigate to it
@@ -1179,7 +1259,8 @@ export default function MessagesPage() {
     }
     setSearchTerm('');
     setIsSearchFocused(false);
-  };
+    setShowCreateChatModal(false);
+  }, [findDirectRoomForUser, navigate]);
 
   const activeRoom = chatRooms.find((r: any) => r.id === selectedRoomId);
   const otherUser =
@@ -1701,21 +1782,148 @@ export default function MessagesPage() {
                   );
                 })()}
 
-                {/* Chat Messages Container — Native column-reverse infinite scroll */}
+                {/* Chat Messages Container */}
                 <div
                   ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto p-4 flex flex-col-reverse"
+                  className="flex-1 overflow-y-auto p-4 flex flex-col relative"
+                  onScroll={() => {
+                    if (isNearBottom()) {
+                      setShowNewMessagesButton(false);
+                    }
+                  }}
                 >
-                  <div ref={messagesEndRef} className="h-1 shrink-0" />
+                  {/* Infinite scroll sentinel — triggers auto-load when visible at top */}
+                  <div ref={loadMoreSentinelRef} className="h-1 shrink-0" />
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+
+                  {/* Avatar introduction — shown before the oldest loaded message */}
+                  {!hasMore && (
+                    <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3">
+                      {activeRoom?.type === 'group' ? (
+                        <>
+                          {!activeRoom.avatar ||
+                          activeRoom.avatar === 'chat-room.png' ? (
+                            <div className="relative w-24 h-24">
+                              <Avatar className="w-16 h-16 absolute top-0 left-0 border-4 border-background">
+                                <AvatarImage
+                                  src={
+                                    activeRoom.members?.filter(
+                                      (m: any) => m.id !== user?.id,
+                                    )[0]?.profile_picture_url ||
+                                    activeRoom.members?.filter(
+                                      (m: any) => m.id !== user?.id,
+                                    )[0]?.avatar ||
+                                    '/default-avatar.png'
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {activeRoom.members
+                                    ?.filter((m: any) => m.id !== user?.id)[0]
+                                    ?.username?.[0]?.toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              {activeRoom.members?.filter(
+                                (m: any) => m.id !== user?.id,
+                              ).length > 1 && (
+                                <Avatar className="w-16 h-16 absolute bottom-0 right-0 border-4 border-background">
+                                  <AvatarImage
+                                    src={
+                                      activeRoom.members?.filter(
+                                        (m: any) => m.id !== user?.id,
+                                      )[1]?.profile_picture_url ||
+                                      activeRoom.members?.filter(
+                                        (m: any) => m.id !== user?.id,
+                                      )[1]?.avatar ||
+                                      '/default-avatar.png'
+                                    }
+                                  />
+                                  <AvatarFallback>
+                                    {activeRoom.members
+                                      ?.filter((m: any) => m.id !== user?.id)[1]
+                                      ?.username?.[0]?.toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          ) : (
+                            <Avatar className="w-24 h-24">
+                              <AvatarImage src={activeRoom.avatar} />
+                              <AvatarFallback>
+                                {activeRoom.name?.[0]?.toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <h2 className="text-xl font-bold">
+                            {activeRoom.name}
+                          </h2>
+                          <p className="text-muted-foreground text-sm">
+                            {activeRoom.members?.length} thành viên
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Avatar className="w-24 h-24">
+                            <AvatarImage
+                              src={
+                                otherUser.profile_picture_url ||
+                                otherUser.avatar ||
+                                '/default-avatar.png'
+                              }
+                            />
+                            <AvatarFallback>
+                              {otherUser.username?.[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <h2 className="text-xl font-bold">
+                            {otherUser.username}
+                          </h2>
+                          <button
+                            className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors mt-2"
+                            onClick={() =>
+                              otherUser?.id &&
+                              navigate(`/profile/${otherUser.id}`)
+                            }
+                          >
+                            Xem trang cá nhân
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {/* Messages Mapping — Instagram/Messenger-style connected bubbles */}
                   {(() => {
                     const targetUser = activeRoom?.members?.find(
                       (m: any) => m.id !== user?.id,
                     );
-                    const lastReadIdxByOther = targetUser?.unread_count || 0;
+                    const latestMineMessage = [...messages]
+                      .reverse()
+                      .find(
+                        (m: any) =>
+                          m.created_by === user?.id &&
+                          m.message_status !== 'system' &&
+                          m.message_status !== 'SYSTEM' &&
+                          m.message_status !== 'deleted' &&
+                          m.message_status !== 'DELETED',
+                      );
+                    const isGroupableMessage = (item: any) =>
+                      item &&
+                      item.message_status !== 'system' &&
+                      item.message_status !== 'SYSTEM' &&
+                      item.message_status !== 'deleted' &&
+                      item.message_status !== 'DELETED';
+                    const isWithinGroupWindow = (a: any, b: any) =>
+                      Math.abs(
+                        new Date(a.created_at).getTime() -
+                          new Date(b.created_at).getTime(),
+                      ) <=
+                      5 * 60 * 1000;
 
-                    return reversedMessages.map((msg: any, idx: number) => {
+                    return messages.map((msg: any, idx: number) => {
                       const isMine = msg.created_by === user?.id;
                       const sender =
                         msg.user ||
@@ -1723,19 +1931,24 @@ export default function MessagesPage() {
                           (m: any) => m.id === msg.created_by,
                         ) ||
                         otherUser;
-                      // In flex-col-reverse, idx 0 is BOTTOM (Newest). idx N is TOP (Oldest).
-                      // Visually ABOVE is OLDER (idx + 1). Visually BELOW is NEWER (idx - 1).
-                      const prevMsg =
-                        idx < reversedMessages.length - 1
-                          ? reversedMessages[idx + 1]
-                          : null;
+                      const prevMsg = idx > 0 ? messages[idx - 1] : null;
                       const nextMsg =
-                        idx > 0 ? reversedMessages[idx - 1] : null;
+                        idx < messages.length - 1 ? messages[idx + 1] : null;
                       const isSameSenderAsPrev =
-                        prevMsg && prevMsg.created_by === msg.created_by;
+                        prevMsg &&
+                        prevMsg.created_by === msg.created_by &&
+                        isGroupableMessage(prevMsg) &&
+                        isGroupableMessage(msg) &&
+                        isWithinGroupWindow(prevMsg, msg);
                       const isSameSenderAsNext =
-                        nextMsg && nextMsg.created_by === msg.created_by;
+                        nextMsg &&
+                        nextMsg.created_by === msg.created_by &&
+                        isGroupableMessage(nextMsg) &&
+                        isGroupableMessage(msg) &&
+                        isWithinGroupWindow(nextMsg, msg);
                       const showAvatar = !isMine && !isSameSenderAsNext;
+                      const shouldShowOwnStatus =
+                        isMine && latestMineMessage?.id === msg.id;
 
                       // Time separator: show if >5 min gap from previous message
                       const showTimeSeparator = (() => {
@@ -2338,29 +2551,22 @@ export default function MessagesPage() {
                               )}
 
                               {/* Message Status Indicators */}
-                              {isMine && (
-                                <div className="mt-0.5 h-3.5 flex items-center justify-end">
-                                  {msg.is_sending && idx === 0 && (
-                                    <Circle className="w-3 h-3 text-muted-foreground" />
-                                  )}
-                                  {!msg.is_sending &&
-                                    idx === 0 &&
-                                    lastReadIdxByOther !== 0 && (
-                                      <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
-                                    )}
-                                  {idx === lastReadIdxByOther && targetUser && (
-                                    <Avatar className="w-3.5 h-3.5">
-                                      <AvatarImage
-                                        src={
-                                          targetUser.avatar ||
-                                          '/default-avatar.png'
-                                        }
-                                      />
-                                      <AvatarFallback className="text-[8px]">
-                                        {targetUser.username?.[0]?.toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  )}
+                              {shouldShowOwnStatus && (
+                                <div
+                                  className={`mt-1 min-h-4 text-right text-[11px] ${
+                                    msg.is_failed
+                                      ? 'text-destructive'
+                                      : 'text-muted-foreground'
+                                  }`}
+                                >
+                                  {msg.is_failed
+                                    ? 'Không gửi được'
+                                    : msg.is_sending
+                                      ? 'Đang gửi...'
+                                      : activeRoom?.type === 'direct' &&
+                                          targetUser?.unread_count === 0
+                                        ? 'Đã xem'
+                                        : 'Đã gửi'}
                                 </div>
                               )}
                             </div>
@@ -2497,108 +2703,21 @@ export default function MessagesPage() {
                       );
                     });
                   })()}
-                  {/* Avatar introduction — shown at the visual TOP (end of list) */}
-                  {!hasMore && (
-                    <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3 mt-auto">
-                      {activeRoom?.type === 'group' ? (
-                        <>
-                          {!activeRoom.avatar ||
-                          activeRoom.avatar === 'chat-room.png' ? (
-                            <div className="relative w-24 h-24">
-                              <Avatar className="w-16 h-16 absolute top-0 left-0 border-4 border-background">
-                                <AvatarImage
-                                  src={
-                                    activeRoom.members?.filter(
-                                      (m: any) => m.id !== user?.id,
-                                    )[0]?.profile_picture_url ||
-                                    activeRoom.members?.filter(
-                                      (m: any) => m.id !== user?.id,
-                                    )[0]?.avatar ||
-                                    '/default-avatar.png'
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {activeRoom.members
-                                    ?.filter((m: any) => m.id !== user?.id)[0]
-                                    ?.username?.[0]?.toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              {activeRoom.members?.filter(
-                                (m: any) => m.id !== user?.id,
-                              ).length > 1 && (
-                                <Avatar className="w-16 h-16 absolute bottom-0 right-0 border-4 border-background">
-                                  <AvatarImage
-                                    src={
-                                      activeRoom.members?.filter(
-                                        (m: any) => m.id !== user?.id,
-                                      )[1]?.profile_picture_url ||
-                                      activeRoom.members?.filter(
-                                        (m: any) => m.id !== user?.id,
-                                      )[1]?.avatar ||
-                                      '/default-avatar.png'
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {activeRoom.members
-                                      ?.filter((m: any) => m.id !== user?.id)[1]
-                                      ?.username?.[0]?.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          ) : (
-                            <Avatar className="w-24 h-24">
-                              <AvatarImage src={activeRoom.avatar} />
-                              <AvatarFallback>
-                                {activeRoom.name?.[0]?.toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <h2 className="text-xl font-bold">
-                            {activeRoom.name}
-                          </h2>
-                          <p className="text-muted-foreground text-sm">
-                            {activeRoom.members?.length} thành viên
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <Avatar className="w-24 h-24">
-                            <AvatarImage
-                              src={
-                                otherUser.profile_picture_url ||
-                                otherUser.avatar ||
-                                '/default-avatar.png'
-                              }
-                            />
-                            <AvatarFallback>
-                              {otherUser.username?.[0]?.toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <h2 className="text-xl font-bold">
-                            {otherUser.username}
-                          </h2>
-                          <button
-                            className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors mt-2"
-                            onClick={() =>
-                              otherUser?.id &&
-                              navigate(`/profile/${otherUser.id}`)
-                            }
-                          >
-                            Xem trang cá nhân
-                          </button>
-                        </>
-                      )}
-                    </div>
+                  {showNewMessagesButton && (
+                    <button
+                      className="sticky bottom-3 z-20 self-center rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lg"
+                      onClick={() => {
+                        scrollToBottom('smooth');
+                        setShowNewMessagesButton(false);
+                        if (selectedRoomId) {
+                          markRoomAsRead(selectedRoomId);
+                        }
+                      }}
+                    >
+                      Tin nhắn mới
+                    </button>
                   )}
-
-                  {/* Infinite scroll sentinel — triggers auto-load when visible (visually AT TOP) */}
-                  <div ref={loadMoreSentinelRef} className="h-1 shrink-0" />
-                  {isLoadingMore && (
-                    <div className="flex justify-center py-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
+                  <div ref={messagesEndRef} className="h-1 shrink-0" />
                 </div>
 
                 {/* Previews of selected files */}
@@ -2758,19 +2877,42 @@ export default function MessagesPage() {
                                   url: `/chat-rooms/${activeRoom.id}/accept-request`,
                                   method: 'POST',
                                 })
-                                  .then(() => {
+                                  .then((response: any) => {
+                                    const acceptedRoom =
+                                      response?.data?.room || response?.room;
+                                    if (acceptedRoom) {
+                                      upsertChatRoomInCaches(
+                                        queryClient,
+                                        {
+                                          ...acceptedRoom,
+                                          is_request: false,
+                                        },
+                                        user?.id,
+                                      );
+                                    } else {
+                                      patchChatRoomInCaches(
+                                        queryClient,
+                                        activeRoom.id,
+                                        { is_request: false },
+                                      );
+                                      queryClient.invalidateQueries({
+                                        queryKey:
+                                          getChatRoomsControllerGetListChatRoomQueryKey(),
+                                      });
+                                    }
+                                    setSelectedTab('primary');
+                                    toast({ title: 'Đã chấp nhận tin nhắn' });
+                                  })
+                                  .catch(() => {
                                     queryClient.invalidateQueries({
                                       queryKey:
                                         getChatRoomsControllerGetListChatRoomQueryKey(),
                                     });
-                                    toast({ title: 'Đã chấp nhận tin nhắn' });
-                                  })
-                                  .catch(() =>
                                     toast({
                                       title: 'Lỗi khi chấp nhận',
                                       variant: 'destructive',
-                                    }),
-                                  );
+                                    });
+                                  });
                               }}
                             >
                               Chấp nhận
@@ -2783,19 +2925,23 @@ export default function MessagesPage() {
                                   method: 'POST',
                                 })
                                   .then(() => {
+                                    removeChatRoomFromCaches(
+                                      queryClient,
+                                      activeRoom.id,
+                                    );
+                                    navigate('/messages');
+                                    toast({ title: 'Đã từ chối tin nhắn' });
+                                  })
+                                  .catch(() => {
                                     queryClient.invalidateQueries({
                                       queryKey:
                                         getChatRoomsControllerGetListChatRoomQueryKey(),
                                     });
-                                    navigate('/messages');
-                                    toast({ title: 'Đã từ chối tin nhắn' });
-                                  })
-                                  .catch(() =>
                                     toast({
                                       title: 'Lỗi khi từ chối',
                                       variant: 'destructive',
-                                    }),
-                                  );
+                                    });
+                                  });
                               }}
                             >
                               Từ chối
@@ -2812,10 +2958,10 @@ export default function MessagesPage() {
                                       relation: 'block',
                                     },
                                   }).then(() => {
-                                    queryClient.invalidateQueries({
-                                      queryKey:
-                                        getChatRoomsControllerGetListChatRoomQueryKey(),
-                                    });
+                                    removeChatRoomFromCaches(
+                                      queryClient,
+                                      activeRoom.id,
+                                    );
                                     navigate('/messages');
                                     toast({ title: 'Đã chặn người dùng' });
                                   });
@@ -3242,9 +3388,12 @@ export default function MessagesPage() {
                 onClick={async () => {
                   try {
                     await orvalClient({
-                      url: `/chats/members/${activeRoom?.id}/leave`,
+                      url: `/chat-members/leave-room/${activeRoom?.id}`,
                       method: 'DELETE',
                     });
+                    if (activeRoom?.id) {
+                      removeChatRoomFromCaches(queryClient, activeRoom.id);
+                    }
                     toast({
                       title: 'Đã rời nhóm',
                       description: 'Bạn đã rời khỏi nhóm này.',
@@ -3270,6 +3419,7 @@ export default function MessagesPage() {
       <CreateChatModal
         open={showCreateChatModal}
         onOpenChange={setShowCreateChatModal}
+        onStartDirectChat={handleSelectUser}
       />
     </>
   );

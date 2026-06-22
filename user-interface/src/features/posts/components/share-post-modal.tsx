@@ -8,10 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useUsersControllerSearchUsersForMessage, useChatRoomsControllerGetOrCreateDirectChat } from '@/services/apis/gen/queries';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  chatMessagesControllerCreateMessage,
+  getChatMessagesControllerGetMessageHistoryQueryKey,
+  useUsersControllerSearchUsersForMessage,
+  useChatRoomsControllerGetOrCreateDirectChat,
+} from '@/services/apis/gen/queries';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { socketService } from '@/services/socket.service';
+import { useAuthStore } from '@/features/auth/stores/auth-store';
+import {
+  isChatRoomsQueryKey,
+  upsertChatRoomInCaches,
+} from '@/features/chats/utils/chat-room-cache';
 
 interface SharePostModalProps {
   post: any;
@@ -25,6 +35,8 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const { data: usersResponse, isLoading } = useUsersControllerSearchUsersForMessage(
     { q: searchTerm },
@@ -34,6 +46,69 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
   const users: any[] = (usersResponse as any)?.data?.data || [];
 
   const createDirectChatMutation = useChatRoomsControllerGetOrCreateDirectChat();
+
+  const appendMessageToOpenCaches = (roomId: string, message: any) => {
+    if (!message?.id) return;
+    const queries = queryClient.getQueryCache().findAll({
+      predicate: (query) =>
+        query.queryKey[0] === `/chat-messages/${roomId}` ||
+        (query.queryKey[0] === 'infinite' &&
+          query.queryKey[1] === `/chat-messages/${roomId}`),
+    });
+
+    if (queries.length === 0) {
+      queryClient.setQueryData(
+        getChatMessagesControllerGetMessageHistoryQueryKey(roomId),
+        {
+          data: {
+            data: [message],
+            meta: { has_more: false, next_cursor: null },
+          },
+        },
+      );
+      return;
+    }
+
+    queries.forEach((query) => {
+      queryClient.setQueryData(query.queryKey, (old: any) => {
+        if (!old) return old;
+
+        const addToList = (list: any[] = []) =>
+          list.some((item) => item.id === message.id)
+            ? list
+            : [...list, message];
+
+        if (Array.isArray(old?.data?.data)) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: addToList(old.data.data),
+            },
+          };
+        }
+
+        if (Array.isArray(old?.pages)) {
+          return {
+            ...old,
+            pages: old.pages.map((page: any, index: number) =>
+              index === old.pages.length - 1 && Array.isArray(page?.data?.data)
+                ? {
+                    ...page,
+                    data: {
+                      ...page.data,
+                      data: addToList(page.data.data),
+                    },
+                  }
+                : page,
+            ),
+          };
+        }
+
+        return old;
+      });
+    });
+  };
 
   const handleToggleUser = (userId: string) => {
     setSelectedUserIds((prev) =>
@@ -54,31 +129,49 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
           targetUserId,
         });
         const roomId = roomRes?.data?.room_id || roomRes?.room_id;
+        const roomView = roomRes?.data?.room || roomRes?.room;
 
         if (!roomId) throw new Error('Không thể tạo phòng chat');
 
-        // 2. Send the Post Card message via WebSocket to guarantee shared_post_id transmission
-        const socket = socketService.getSocket();
-        if (socket?.connected) {
-          // Emit post card
-          socket.emit('sendMessage', {
+        const sentPostMessageRes: any = await chatMessagesControllerCreateMessage(
+          {
             chat_room_id: roomId,
             shared_post_id: post.id,
-            tempId: 'temp-' + Date.now(),
-          });
-          
-          // Emit optional text message (if any)
-          if (messageText.trim()) {
-            socket.emit('sendMessage', {
+          } as any,
+        );
+        const sentPostMessage =
+          sentPostMessageRes?.data || sentPostMessageRes;
+        appendMessageToOpenCaches(roomId, sentPostMessage);
+
+        let lastMessage = sentPostMessage;
+        if (messageText.trim()) {
+          const sentTextMessageRes: any =
+            await chatMessagesControllerCreateMessage({
               chat_room_id: roomId,
               message: messageText.trim(),
-              tempId: 'temp-' + Date.now() + 1,
-            });
-          }
-        } else {
-          throw new Error('Socket disconnected');
+            } as any);
+          const sentTextMessage = sentTextMessageRes?.data || sentTextMessageRes;
+          appendMessageToOpenCaches(roomId, sentTextMessage);
+          lastMessage = sentTextMessage;
+        }
+
+        if (roomView?.id) {
+          upsertChatRoomInCaches(
+            queryClient,
+            {
+              ...roomView,
+              last_message: lastMessage,
+              last_message_at:
+                lastMessage?.created_at || new Date().toISOString(),
+            },
+            user?.id,
+          );
         }
       }
+
+      queryClient.invalidateQueries({
+        predicate: (query) => isChatRoomsQueryKey(query.queryKey),
+      });
 
       toast({
         title: 'Đã gửi thành công',

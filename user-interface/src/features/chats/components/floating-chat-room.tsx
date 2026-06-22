@@ -1,25 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import {
-  useChatRoomsControllerFindChatRoomById,
-  useChatMessagesControllerGetMessageHistory,
   chatRoomsControllerMarkRoomAsRead,
   getChatMessagesControllerGetMessageHistoryQueryKey,
+  useChatMessagesControllerCreateMessage,
+  useChatMessagesControllerGetMessageHistory,
+  useChatRoomsControllerFindChatRoomById,
+  useChatRoomsControllerGetOrCreateDirectChat,
 } from '@/services/apis/gen/queries';
-import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
+import {
+  FloatingChatRecipient,
+  useFloatingChatStore,
+} from '@/features/chats/stores/floating-chat-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
+  ArrowLeft,
+  ImageIcon,
   Loader2,
   Maximize2,
-  X,
-  ArrowLeft,
   Send,
-  ImageIcon,
   Smile,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { socketService } from '@/services/socket.service';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import {
+  isChatRoomsQueryKey,
+  upsertChatRoomInCaches,
+} from '@/features/chats/utils/chat-room-cache';
+import { MessagePostCard } from './message-post-card';
 
 type FloatingRoomMember = {
   id: string;
@@ -27,6 +39,8 @@ type FloatingRoomMember = {
   full_name?: string;
   avatar?: string;
   profile_picture_url?: string;
+  status?: string;
+  unread_count?: number;
 };
 
 type FloatingRoom = {
@@ -34,6 +48,8 @@ type FloatingRoom = {
   name?: string;
   type?: string;
   avatar?: string;
+  quick_emoji?: string;
+  is_blocked?: boolean;
   members?: FloatingRoomMember[];
 };
 
@@ -43,260 +59,774 @@ type FloatingMessage = {
   created_by: string;
   message?: string;
   content?: string;
+  medias?: string[];
+  local_media_types?: string[];
+  shared_post_id?: string;
+  shared_post?: any;
+  user?: any;
   created_at?: string;
+  message_status?: string;
+  is_sending?: boolean;
+  is_failed?: boolean;
 };
 
-export function FloatingChatRoom({ roomId }: { roomId: string }) {
-  const { user } = useAuthStore();
+type FloatingChatRoomProps = {
+  roomId: string | null;
+  virtualRecipient?: FloatingChatRecipient | null;
+};
+
+const EMOJIS = ['❤️', '😂', '👍', '🔥', '😍', '😢', '🙌', '👏'];
+
+const isVideo = (url: string, type?: string) =>
+  type?.startsWith('video') ||
+  /\.(mp4|webm|ogg|mov|m4v)$/i.test(url.split('?')[0] || '');
+
+const mediaUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  const base = import.meta.env.VITE_MEDIA_URL || 'http://localhost:3000';
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
+const isSystemOrDeleted = (msg: FloatingMessage) => {
+  const status = (msg.message_status || '').toLowerCase();
+  return status === 'system' || status === 'deleted';
+};
+
+const isGroupableMessage = (msg: FloatingMessage) =>
+  !isSystemOrDeleted(msg) &&
+  !msg.shared_post_id &&
+  !(msg.medias && msg.medias.length > 0);
+
+const isWithinFiveMinutes = (a?: FloatingMessage | null, b?: FloatingMessage) => {
+  if (!a?.created_at || !b?.created_at) return false;
+  return (
+    Math.abs(new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) <=
+    5 * 60 * 1000
+  );
+};
+
+export function FloatingChatRoom({
+  roomId,
+  virtualRecipient,
+}: FloatingChatRoomProps) {
+  const { user, accessToken } = useAuthStore();
   const {
     goBackToList,
     closeChat,
     hasUnreadInOtherRoom,
     setHasUnreadInOtherRoom,
+    setActiveRoom,
   } = useFloatingChatStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [messageText, setMessageText] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const { data: roomData, isLoading: isLoadingRoom } =
-    useChatRoomsControllerFindChatRoomById(roomId);
+    useChatRoomsControllerFindChatRoomById(roomId || '', {
+      query: { enabled: !!roomId },
+    });
   const roomPayload = roomData as unknown as { data?: FloatingRoom };
   const room = roomPayload?.data;
 
   const { data: messagesData, isLoading: isLoadingMessages } =
-    useChatMessagesControllerGetMessageHistory(roomId, {
-      limit: 50,
-    });
+    useChatMessagesControllerGetMessageHistory(
+      roomId || '',
+      { limit: 50 },
+      { query: { enabled: !!roomId } },
+    );
 
+  const createDirectChatMutation = useChatRoomsControllerGetOrCreateDirectChat();
+  const createMessageMutation = useChatMessagesControllerCreateMessage();
+
+  const virtualRoom = useMemo<FloatingRoom | null>(() => {
+    if (!virtualRecipient || !user) return null;
+    return {
+      id: 'virtual',
+      type: 'direct',
+      name: virtualRecipient.full_name || virtualRecipient.username,
+      quick_emoji: '👍',
+      members: [
+        {
+          id: user.id,
+          username: user.username,
+          full_name: user.full_name,
+          avatar: user.avatar,
+          status: 'accepted',
+        },
+        {
+          id: virtualRecipient.id,
+          username: virtualRecipient.username,
+          full_name: virtualRecipient.full_name,
+          avatar: virtualRecipient.avatar,
+          profile_picture_url:
+            virtualRecipient.profile_picture_url || virtualRecipient.avatar,
+          status: 'pending',
+        },
+      ],
+    };
+  }, [user, virtualRecipient]);
+
+  const activeRoom = room || virtualRoom;
   const messagesPayload = messagesData as unknown as {
     data?: { data?: FloatingMessage[] };
   };
   const messages = messagesPayload?.data?.data || [];
+  const displayMessages = useMemo(
+    () =>
+      [...messages].sort(
+        (a, b) =>
+          new Date(a.created_at || 0).getTime() -
+          new Date(b.created_at || 0).getTime(),
+      ),
+    [messages],
+  );
 
-  // Scroll to bottom on load or new message
+  const currentMember = activeRoom?.members?.find((m) => m.id === user?.id);
+  const otherUser = activeRoom?.members?.find((m) => m.id !== user?.id);
+  const isGroup = activeRoom?.type === 'group';
+  const roomName = isGroup
+    ? activeRoom?.name || 'Group Chat'
+    : otherUser?.full_name || otherUser?.username || 'Người dùng';
+  const roomAvatar = isGroup
+    ? activeRoom?.avatar
+    : otherUser?.profile_picture_url ||
+      otherUser?.avatar ||
+      '/default-avatar.png';
+  const canSend =
+    !activeRoom?.is_blocked &&
+    (currentMember?.status || '').toLowerCase() !== 'pending';
+
+  const latestMineMessage = useMemo(
+    () =>
+      [...displayMessages]
+        .reverse()
+        .find((msg) => msg.created_by === user?.id && !isSystemOrDeleted(msg)),
+    [displayMessages, user?.id],
+  );
+
+  const updateMessageCaches = (
+    targetRoomId: string,
+    updater: (messages: FloatingMessage[]) => FloatingMessage[],
+  ) => {
+    const queries = queryClient.getQueryCache().findAll({
+      predicate: (query) =>
+        query.queryKey[0] === `/chat-messages/${targetRoomId}` ||
+        (query.queryKey[0] === 'infinite' &&
+          query.queryKey[1] === `/chat-messages/${targetRoomId}`),
+    });
+
+    if (queries.length === 0) {
+      queryClient.setQueryData(
+        getChatMessagesControllerGetMessageHistoryQueryKey(targetRoomId, {
+          limit: 50,
+        }),
+        {
+          data: {
+            data: updater([]),
+            meta: { has_more: false, next_cursor: null },
+          },
+        },
+      );
+      return;
+    }
+
+    queries.forEach((query) => {
+      queryClient.setQueryData(query.queryKey, (old: any) => {
+        if (!old) return old;
+
+        if (Array.isArray(old?.data?.data)) {
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              data: updater(old.data.data),
+            },
+          };
+        }
+
+        if (Array.isArray(old?.pages)) {
+          return {
+            ...old,
+            pages: old.pages.map((page: any, index: number) =>
+              index === old.pages.length - 1 && Array.isArray(page?.data?.data)
+                ? {
+                    ...page,
+                    data: {
+                      ...page.data,
+                      data: updater(page.data.data),
+                    },
+                  }
+                : page,
+            ),
+          };
+        }
+
+        return old;
+      });
+    });
+  };
+
+  const appendMessage = (message: FloatingMessage) => {
+    updateMessageCaches(message.chat_room_id, (list) =>
+      list.some((item) => item.id === message.id) ? list : [...list, message],
+    );
+  };
+
+  const replaceTempMessage = (
+    targetRoomId: string,
+    tempId: string,
+    savedMessage: FloatingMessage,
+  ) => {
+    updateMessageCaches(targetRoomId, (list) => {
+      const withoutDuplicate = list.filter(
+        (item) => item.id !== savedMessage.id,
+      );
+      if (withoutDuplicate.some((item) => item.id === tempId)) {
+        return withoutDuplicate.map((item) =>
+          item.id === tempId ? savedMessage : item,
+        );
+      }
+      return [...withoutDuplicate, savedMessage];
+    });
+  };
+
+  const markTempFailed = (targetRoomId: string, tempId: string) => {
+    updateMessageCaches(targetRoomId, (list) =>
+      list.map((item) =>
+        item.id === tempId
+          ? { ...item, is_failed: true, is_sending: false }
+          : item,
+      ),
+    );
+  };
+
+  useEffect(() => {
+    if (accessToken) socketService.connect(accessToken);
+  }, [accessToken]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages.length]);
+  }, [displayMessages.length, roomId]);
 
-  // Mark as read when entering
   useEffect(() => {
-    chatRoomsControllerMarkRoomAsRead(roomId).catch(() => {});
-  }, [roomId, messages.length]);
+    if (roomId) {
+      chatRoomsControllerMarkRoomAsRead(roomId).catch(() => {});
+    }
+  }, [roomId, displayMessages.length]);
 
-  // Handle Socket Events
   useEffect(() => {
     const socket = socketService.getSocket();
     if (!socket) return;
 
-    const appendMessageToCache = (newMsg: FloatingMessage) => {
+    const handleNewMessage = (newMsg: FloatingMessage) => {
       if (newMsg.chat_room_id === roomId) {
-        queryClient.setQueryData(
-          getChatMessagesControllerGetMessageHistoryQueryKey(roomId, {
-            limit: 50,
-          }),
-          (old: unknown) => {
-            const cached = old as { data?: { data?: FloatingMessage[] } };
-            if (!cached.data?.data) return old;
-            // Prevent duplicates
-            if (cached.data?.data?.some((m) => m.id === newMsg.id)) return old;
-
-            return {
-              ...cached,
-              data: {
-                ...cached.data,
-                data: [...(cached.data?.data || []), newMsg],
-              },
-            };
-          },
-        );
-        // Mark read
+        appendMessage(newMsg);
         if (newMsg.created_by !== user?.id) {
-          chatRoomsControllerMarkRoomAsRead(roomId).catch(() => {});
+          chatRoomsControllerMarkRoomAsRead(newMsg.chat_room_id).catch(() => {});
         }
       } else {
-        // From another room -> Show red dot on back button
         setHasUnreadInOtherRoom(true);
       }
     };
 
-    const handleNewMessage = (newMsg: FloatingMessage) => {
-      appendMessageToCache(newMsg);
+    const handleMessageSaved = (payload: {
+      tempId?: string;
+      message?: FloatingMessage;
+    }) => {
+      if (!payload.message) return;
+      if (payload.tempId) {
+        replaceTempMessage(
+          payload.message.chat_room_id,
+          payload.tempId,
+          payload.message,
+        );
+      } else {
+        appendMessage(payload.message);
+      }
     };
 
-    const handleMessageSaved = (payload: { message?: FloatingMessage }) => {
-      if (payload.message) appendMessageToCache(payload.message);
+    const handleMessageError = (payload: { tempId?: string }) => {
+      if (payload.tempId && roomId) markTempFailed(roomId, payload.tempId);
     };
 
     socket.on('newMessage', handleNewMessage);
     socket.on('messageSaved', handleMessageSaved);
+    socket.on('messageError', handleMessageError);
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('messageSaved', handleMessageSaved);
+      socket.off('messageError', handleMessageError);
     };
   }, [roomId, queryClient, user?.id, setHasUnreadInOtherRoom]);
 
-  const handleExpand = () => {
-    closeChat();
-    navigate(`/messages/${roomId}`);
+  const invalidateRoomLists = () => {
+    queryClient.invalidateQueries({
+      predicate: (query) => isChatRoomsQueryKey(query.queryKey),
+    });
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageText.trim()) return;
+  const ensureRealRoom = async () => {
+    if (roomId) return roomId;
+    if (!virtualRecipient) return null;
 
-    const socket = socketService.getSocket();
-    if (socket?.connected) {
-      socket.emit('sendMessage', {
-        chat_room_id: roomId,
-        message: messageText.trim(),
-        tempId: `floating-${Date.now()}`,
+    const res: any = await createDirectChatMutation.mutateAsync({
+      targetUserId: virtualRecipient.id,
+    });
+    const newRoomId = res?.data?.room_id || res?.room_id;
+    const roomView = res?.data?.room || res?.room;
+
+    if (!newRoomId) throw new Error('Không thể tạo phòng chat');
+
+    if (roomView?.id) {
+      upsertChatRoomInCaches(queryClient, roomView, user?.id);
+    }
+    setActiveRoom(newRoomId);
+    return newRoomId;
+  };
+
+  const sendViaRest = async (
+    targetRoomId: string,
+    tempId: string,
+    payload: Record<string, unknown>,
+  ) => {
+    const res: any = await createMessageMutation.mutateAsync({
+      data: {
+        chat_room_id: targetRoomId,
+        ...payload,
+      } as any,
+    });
+    const savedMessage = res?.data || res;
+    replaceTempMessage(targetRoomId, tempId, savedMessage);
+    invalidateRoomLists();
+    return savedMessage;
+  };
+
+  const handleExpand = () => {
+    closeChat();
+    navigate(roomId ? `/messages/${roomId}` : '/messages');
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...files]);
+    }
+    e.target.value = '';
+  };
+
+  const handleSendMessage = async (customMessage?: string) => {
+    const text = customMessage ?? messageText.trim();
+    const files = customMessage ? [] : selectedFiles;
+    if ((!text && files.length === 0) || !canSend || isSending) return;
+
+    setIsSending(true);
+    const previousText = messageText;
+    const previousFiles = selectedFiles;
+    setMessageText('');
+    setSelectedFiles([]);
+    setShowEmojiPicker(false);
+
+    try {
+      const targetRoomId = await ensureRealRoom();
+      if (!targetRoomId) return;
+
+      const tempId = `floating-${Date.now()}`;
+      const tempMessage: FloatingMessage = {
+        id: tempId,
+        chat_room_id: targetRoomId,
+        created_by: user?.id || '',
+        message: text,
+        medias: files.map((file) => URL.createObjectURL(file)),
+        local_media_types: files.map((file) => file.type),
+        created_at: new Date().toISOString(),
+        user,
+        is_sending: true,
+        message_status: 'normal',
+      };
+      appendMessage(tempMessage);
+
+      if (files.length > 0) {
+        await sendViaRest(targetRoomId, tempId, {
+          message: text,
+          'medias-messages': files as any,
+        });
+        return;
+      }
+
+      const socket = socketService.getSocket();
+      if (socket?.connected) {
+        socket.emit('sendMessage', {
+          chat_room_id: targetRoomId,
+          message: text,
+          tempId,
+        });
+      } else {
+        await sendViaRest(targetRoomId, tempId, { message: text });
+      }
+    } catch (error: any) {
+      setMessageText(previousText);
+      setSelectedFiles(previousFiles);
+      toast({
+        title: 'Không thể gửi tin nhắn',
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          'Vui lòng thử lại sau.',
+        variant: 'destructive',
       });
-      setMessageText('');
+    } finally {
+      setIsSending(false);
     }
   };
 
-  if (isLoadingRoom) {
+  if (roomId && isLoadingRoom) {
     return (
-      <div className="flex flex-col h-[500px] w-[340px] bg-card border border-border shadow-2xl rounded-t-xl overflow-hidden pointer-events-auto z-50">
-        <div className="flex items-center justify-center h-full">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
+      <div className="flex h-[500px] w-[340px] items-center justify-center overflow-hidden rounded-t-xl border border-border bg-card shadow-2xl pointer-events-auto">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const isGroup = room?.type === 'group';
-  const otherUser = room?.members?.find((m) => m.id !== user?.id);
-
-  const roomName = isGroup
-    ? room?.name || 'Group Chat'
-    : otherUser?.username || otherUser?.full_name || 'Người dùng';
-
-  const roomAvatar = isGroup
-    ? room?.avatar
-    : otherUser?.profile_picture_url ||
-      otherUser?.avatar ||
-      '/default-avatar.png';
-
-  const displayMessages = messages;
-
   return (
-    <div className="flex flex-col h-[500px] w-[340px] bg-card border border-border shadow-2xl rounded-t-xl overflow-hidden pointer-events-auto z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-2 border-b border-border bg-card/95 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-2">
+    <div className="flex h-[500px] w-[340px] flex-col overflow-hidden rounded-t-xl border border-border bg-card shadow-2xl pointer-events-auto z-50">
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/95 p-2 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             onClick={goBackToList}
-            className="p-2 hover:bg-secondary rounded-full transition-colors relative"
+            className="relative rounded-full p-2 transition-colors hover:bg-secondary"
             title="Quay lại"
           >
-            <ArrowLeft className="w-4 h-4 text-snet-purple" />
+            <ArrowLeft className="h-4 w-4 text-snet-purple" />
             {hasUnreadInOtherRoom && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-card" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-card bg-destructive" />
             )}
           </button>
-          <Avatar className="w-8 h-8 shrink-0">
+          <Avatar className="h-8 w-8 shrink-0">
             <AvatarImage src={roomAvatar} className="object-cover" />
             <AvatarFallback className="bg-muted text-xs">
-              {roomName?.[0]?.toUpperCase()}
+              {roomName?.[0]?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold truncate max-w-[120px]">
-              {roomName}
-            </span>
-          </div>
+          <span className="max-w-[140px] truncate text-sm font-bold">
+            {roomName}
+          </span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
           <button
             onClick={handleExpand}
-            className="p-2 hover:bg-secondary rounded-full transition-colors"
+            className="rounded-full p-2 transition-colors hover:bg-secondary"
             title="Mở toàn màn hình"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="h-4 w-4" />
           </button>
           <button
             onClick={closeChat}
-            className="p-2 hover:bg-secondary rounded-full transition-colors"
+            className="rounded-full p-2 transition-colors hover:bg-secondary"
             title="Đóng"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      {/* Body */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar p-3 bg-secondary/10 flex flex-col gap-3"
+        className="custom-scrollbar flex-1 overflow-y-auto bg-secondary/10 p-3"
       >
         {isLoadingMessages ? (
-          <div className="flex justify-center my-4">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          <div className="my-4 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : displayMessages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
+            Bắt đầu cuộc trò chuyện
           </div>
         ) : (
-          displayMessages.map((msg) => {
-            const isMe = msg.created_by === user?.id;
+          displayMessages.map((msg, idx) => {
+            const isMine = msg.created_by === user?.id;
+            const sender =
+              msg.user ||
+              activeRoom?.members?.find((member) => member.id === msg.created_by) ||
+              otherUser;
+            const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
+            const nextMsg =
+              idx < displayMessages.length - 1 ? displayMessages[idx + 1] : null;
+            const sameAsPrev =
+              prevMsg &&
+              prevMsg.created_by === msg.created_by &&
+              isGroupableMessage(prevMsg) &&
+              isGroupableMessage(msg) &&
+              isWithinFiveMinutes(prevMsg, msg);
+            const sameAsNext =
+              nextMsg &&
+              nextMsg.created_by === msg.created_by &&
+              isGroupableMessage(nextMsg) &&
+              isGroupableMessage(msg) &&
+              isWithinFiveMinutes(nextMsg, msg);
+            const showAvatar = !isMine && !sameAsNext;
+            const status = (msg.message_status || '').toLowerCase();
+            const isDeleted = status === 'deleted';
+            const isSystem = status === 'system';
+            const showOwnStatus = isMine && latestMineMessage?.id === msg.id;
+
+            const R = '18px';
+            const r = '4px';
+            let bubbleRadius = `${R} ${R} ${R} ${R}`;
+            if (isMine) {
+              if (sameAsPrev && sameAsNext) bubbleRadius = `${R} ${r} ${r} ${R}`;
+              else if (sameAsPrev) bubbleRadius = `${R} ${r} ${R} ${R}`;
+              else if (sameAsNext) bubbleRadius = `${R} ${R} ${r} ${R}`;
+            } else {
+              if (sameAsPrev && sameAsNext) bubbleRadius = `${r} ${R} ${R} ${r}`;
+              else if (sameAsPrev) bubbleRadius = `${r} ${R} ${R} ${R}`;
+              else if (sameAsNext) bubbleRadius = `${R} ${R} ${R} ${r}`;
+            }
+
+            if (isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center py-2">
+                  <span className="rounded-full bg-muted/50 px-3 py-1 text-xs text-muted-foreground">
+                    {msg.message}
+                  </span>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={msg.id}
-                className={`flex flex-col max-w-[75%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
+                className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+                style={{ marginTop: sameAsPrev ? 2 : 12 }}
               >
+                {!isMine &&
+                  (showAvatar ? (
+                    <Avatar className="h-7 w-7 shrink-0">
+                      <AvatarImage
+                        src={
+                          sender?.profile_picture_url ||
+                          sender?.avatar ||
+                          '/default-avatar.png'
+                        }
+                      />
+                      <AvatarFallback className="text-xs">
+                        {sender?.username?.[0]?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="h-7 w-7 shrink-0" />
+                  ))}
+
                 <div
-                  className={`px-3 py-2 rounded-2xl ${
-                    isMe
-                      ? 'bg-snet-purple text-white rounded-br-sm'
-                      : 'bg-secondary text-foreground rounded-bl-sm border border-border'
-                  }`}
-                  style={{ wordBreak: 'break-word' }}
+                  className={`flex max-w-[74%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 >
-                  <span className="text-[14px] leading-relaxed">
-                    {msg.message || msg.content}
-                  </span>
+                  {isDeleted ? (
+                    <div className="rounded-2xl border border-border/80 px-3 py-1.5 text-sm italic text-muted-foreground">
+                      Tin nhắn đã thu hồi
+                    </div>
+                  ) : (
+                    <>
+                      {msg.shared_post_id && (
+                        <div className={msg.is_sending ? 'opacity-70' : ''}>
+                          <MessagePostCard post={msg.shared_post} />
+                        </div>
+                      )}
+
+                      {msg.medias && msg.medias.length > 0 && (
+                        <div
+                          className={`grid gap-1 overflow-hidden ${
+                            msg.medias.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+                          } ${msg.is_sending ? 'opacity-70' : ''}`}
+                          style={{ borderRadius: bubbleRadius }}
+                        >
+                          {msg.medias.map((url, mediaIdx) => {
+                            const fullUrl = mediaUrl(url);
+                            const video = isVideo(
+                              url,
+                              msg.local_media_types?.[mediaIdx],
+                            );
+                            return video ? (
+                              <video
+                                key={`${msg.id}-${mediaIdx}`}
+                                src={fullUrl}
+                                controls
+                                className="max-h-44 w-full object-cover"
+                              />
+                            ) : (
+                              <img
+                                key={`${msg.id}-${mediaIdx}`}
+                                src={fullUrl}
+                                alt="attachment"
+                                className="max-h-44 w-full object-cover"
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {(msg.message || msg.content) && (
+                        <div
+                          className={`w-fit px-3 py-2 text-[14px] leading-relaxed ${
+                            isMine
+                              ? 'bg-snet-purple text-white'
+                              : 'border border-border bg-secondary text-foreground'
+                          } ${msg.is_sending ? 'opacity-70' : ''} ${
+                            msg.is_failed ? 'bg-destructive text-white' : ''
+                          }`}
+                          style={{ borderRadius: bubbleRadius, wordBreak: 'break-word' }}
+                        >
+                          {msg.message || msg.content}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {showOwnStatus && (
+                    <div
+                      className={`mt-1 min-h-4 text-[11px] ${
+                        msg.is_failed
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {msg.is_failed
+                        ? 'Không gửi được'
+                        : msg.is_sending
+                          ? 'Đang gửi...'
+                          : activeRoom?.type === 'direct' &&
+                              otherUser?.unread_count === 0
+                            ? 'Đã xem'
+                            : 'Đã gửi'}
+                    </div>
+                  )}
                 </div>
-                {/* <span className="text-[10px] text-muted-foreground mt-1 mx-1">{formatTimeAgo(msg.created_at)}</span> */}
               </div>
             );
           })
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-2 border-t border-border bg-card shrink-0">
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <div className="flex-1 flex items-center bg-secondary rounded-full px-3 py-1.5 border border-transparent focus-within:border-snet-purple/30 focus-within:bg-background transition-all">
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-snet-purple shrink-0 mr-2"
-            >
-              <Smile className="w-5 h-5" />
-            </button>
-            <input
-              type="text"
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Nhắn tin..."
-              className="flex-1 bg-transparent border-none outline-none text-sm h-8"
-            />
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-snet-purple shrink-0 ml-2"
-            >
-              <ImageIcon className="w-5 h-5" />
-            </button>
+      <div className="shrink-0 border-t border-border bg-card p-2">
+        {activeRoom?.is_blocked ? (
+          <div className="py-2 text-center text-sm text-muted-foreground">
+            Bạn không thể nhắn tin với người dùng này.
           </div>
-          <button
-            type="submit"
-            disabled={!messageText.trim()}
-            className="p-2 rounded-full bg-snet-purple text-white disabled:opacity-50 disabled:bg-secondary disabled:text-muted-foreground transition-all shrink-0"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+        ) : currentMember?.status?.toLowerCase() === 'pending' ? (
+          <div className="py-2 text-center text-sm text-muted-foreground">
+            Bạn cần chấp nhận tin nhắn đang chờ trong trang Messages.
+          </div>
+        ) : (
+          <>
+            {selectedFiles.length > 0 && (
+              <div className="mb-2 flex max-h-16 gap-2 overflow-x-auto">
+                {selectedFiles.map((file, idx) => (
+                  <div
+                    key={`${file.name}-${idx}`}
+                    className="flex max-w-[130px] items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs"
+                  >
+                    <span className="truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedFiles((prev) =>
+                          prev.filter((_, fileIdx) => fileIdx !== idx),
+                        )
+                      }
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="relative flex flex-1 items-center rounded-full border border-transparent bg-secondary px-3 py-1.5 transition-all focus-within:border-snet-purple/30 focus-within:bg-background">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((prev) => !prev)}
+                  className="mr-2 shrink-0 text-muted-foreground hover:text-snet-purple"
+                >
+                  <Smile className="h-5 w-5" />
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-12 left-2 z-50 flex gap-1 rounded-2xl border border-border bg-background p-2 shadow-lg">
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          setMessageText((prev) => prev + emoji);
+                          setShowEmojiPicker(false);
+                        }}
+                        className="rounded-lg p-2 text-lg transition-colors hover:bg-muted"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSendMessage();
+                  }}
+                  placeholder="Nhắn tin..."
+                  className="h-8 flex-1 border-none bg-transparent text-sm outline-none"
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="ml-2 shrink-0 text-muted-foreground hover:text-snet-purple"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                </button>
+              </div>
+              {messageText.trim() || selectedFiles.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => handleSendMessage()}
+                  disabled={isSending}
+                  className="shrink-0 rounded-full bg-snet-purple p-2 text-white transition-all disabled:opacity-50"
+                >
+                  {isSending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSendMessage(activeRoom?.quick_emoji || '👍')}
+                  disabled={isSending}
+                  className="shrink-0 rounded-full p-1 text-2xl leading-none transition-colors hover:bg-secondary"
+                >
+                  {activeRoom?.quick_emoji || '👍'}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

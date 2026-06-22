@@ -24,6 +24,8 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
+import { getChatRoomsControllerGetListChatRoomQueryKey } from '@/services/apis/gen/queries';
+import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +66,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const [showBlockDialog, setShowBlockDialog] = useState(false);
 
   const queryClient = useQueryClient();
+  const openVirtualUser = useFloatingChatStore((state) => state.openVirtualUser);
 
   useEffect(() => {
     // Reset image loading state when user changes
@@ -115,6 +118,9 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         };
       });
 
+      queryClient.invalidateQueries({
+        queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+      });
       // Also update current user's following count if we view our own following list?
       // Just update the profile we are viewing.
     },
@@ -238,7 +244,20 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                       )}
                     </Button>
                   )}
-                  <Button variant="secondary" size="sm" className="gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() =>
+                      openVirtualUser({
+                        id: user.id,
+                        username: user.username,
+                        full_name: user.full_name,
+                        avatar: user.avatar,
+                        profile_picture_url: user.avatar,
+                      })
+                    }
+                  >
                     <MessageCircle className="w-4 h-4" />
                     Nhắn tin
                   </Button>

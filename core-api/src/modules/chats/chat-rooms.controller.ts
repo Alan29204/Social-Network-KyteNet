@@ -13,7 +13,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { ChatRoomsService } from './chat-rooms.service';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { ResponseMessage, User } from 'src/common/decorators/customize';
@@ -40,8 +47,17 @@ export class ChatRoomsController {
   @Get(':id')
   @ResponseMessage('Find chat room success')
   @ApiOperation({ summary: 'Find chat room by ID' })
-  findChatRoomById(@Param('id', ParseUUIDPipe) id: string) {
-    const room = this.chatRoomsService.findChatRoomByID(id);
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+    },
+  })
+  async findChatRoomById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @User() user: IUser,
+  ) {
+    const room = await this.chatRoomsService.getRoomViewForUser(id, user.id);
     if (!room) throw new NotFoundException('Not found chat room');
 
     return room;
@@ -57,6 +73,16 @@ export class ChatRoomsController {
   @Post('direct/:targetUserId')
   @ResponseMessage('Get or create direct chat success')
   @ApiOperation({ summary: 'Get or create a direct (1-on-1) chat' })
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        room_id: { type: 'string', format: 'uuid' },
+        is_new: { type: 'boolean' },
+        room: { type: 'object', additionalProperties: true, nullable: true },
+      },
+    },
+  })
   getOrCreateDirectChat(
     @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
     @User() user: IUser,
@@ -76,6 +102,15 @@ export class ChatRoomsController {
   @ApiOperation({ summary: 'Update name or avatar chat room' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UpdateChatRoomDto })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        room: { type: 'object', additionalProperties: true, nullable: true },
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('avatar-chat-room'))
   updateNameOrAvatar(
     @Body() dto: UpdateChatRoomDto,
@@ -140,6 +175,15 @@ export class ChatRoomsController {
   @Post(':id/accept-request')
   @ResponseMessage('Accept message request success')
   @ApiOperation({ summary: 'Accept a message request' })
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        room: { type: 'object', additionalProperties: true, nullable: true },
+      },
+    },
+  })
   acceptMessageRequest(
     @Param('id', ParseUUIDPipe) id: string,
     @User() user: IUser,
@@ -150,6 +194,15 @@ export class ChatRoomsController {
   @Post(':id/decline-request')
   @ResponseMessage('Decline message request success')
   @ApiOperation({ summary: 'Decline a message request' })
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        room_id: { type: 'string', format: 'uuid' },
+      },
+    },
+  })
   declineMessageRequest(
     @Param('id', ParseUUIDPipe) id: string,
     @User() user: IUser,

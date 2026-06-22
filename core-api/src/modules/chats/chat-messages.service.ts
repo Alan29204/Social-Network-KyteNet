@@ -17,6 +17,7 @@ import { ChatMember } from './entities/chat-member.entity';
 import { MessageReaction } from './entities/message-reaction.entity';
 import { MessageStatusType } from 'src/common/enums/message-status.enum';
 import { ReactionType } from 'src/common/enums/reaction.enum';
+import { ChatMemberStatus } from 'src/common/enums/chat-member-status.enum';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -43,7 +44,10 @@ export class ChatMessagesService {
    */
   async getRoomMemberIds(roomId: string): Promise<string[]> {
     const members = await this.chatMembersRepository.find({
-      where: { chat_room_id: roomId },
+      where: [
+        { chat_room_id: roomId, status: ChatMemberStatus.ACCEPTED },
+        { chat_room_id: roomId, status: ChatMemberStatus.PENDING },
+      ],
       select: ['user_id'],
     });
     return members.map((m) => m.user_id);
@@ -71,39 +75,55 @@ export class ChatMessagesService {
     if (!member) {
       throw new BadRequestException('You are not a member of this chat room');
     }
+    if (member.status !== ChatMemberStatus.ACCEPTED) {
+      throw new BadRequestException('You must accept this chat before messaging');
+    }
 
-    // PRIVACY CHECK: Check if the room is a direct chat
     const room = await this.chatRoomsRepository.findOne({
       where: { id: dto.chat_room_id },
       relations: ['chat_members'],
     });
 
+    if (!room) {
+      throw new NotFoundException('Chat room not found');
+    }
+
     if (room && room.type === 'direct') {
       const otherMember = room.chat_members.find((m) => m.user_id !== user.id);
-      if (otherMember) {
-        // Query other user's message privacy
-        const otherUser = await this.dataSource.query(
-          `SELECT message_privacy FROM "user" WHERE id = $1`,
-          [otherMember.user_id],
+      if (!otherMember) {
+        throw new BadRequestException('Direct chat recipient not found');
+      }
+
+      const blockRows = await this.dataSource.query(
+        `SELECT id FROM relation
+         WHERE relation_type = 'block'
+           AND (
+             (request_side_id = $1 AND accept_side_id = $2)
+             OR (request_side_id = $2 AND accept_side_id = $1)
+           )
+         LIMIT 1`,
+        [user.id, otherMember.user_id],
+      );
+
+      if (blockRows.length > 0) {
+        throw new BadRequestException(
+          'Bạn không thể gửi tin nhắn cho người dùng này',
         );
+      }
 
-        if (
-          otherUser &&
-          otherUser.length > 0 &&
-          otherUser[0].message_privacy === 'following'
-        ) {
-          // Check if other user is following the current user
-          const isFollowing = await this.dataSource.query(
-            `SELECT id FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'following'`,
-            [otherMember.user_id, user.id],
-          );
-
-          if (!isFollowing || isFollowing.length === 0) {
-            throw new BadRequestException(
-              'Bạn không thể gửi tin nhắn cho tài khoản này do cài đặt quyền riêng tư của họ',
-            );
-          }
-        }
+      if (otherMember.status === ChatMemberStatus.DECLINED) {
+        await this.chatMembersRepository.update(
+          { chat_room_id: room.id, user_id: otherMember.user_id },
+          { status: ChatMemberStatus.PENDING, deleted_at: null },
+        );
+        await this.redisService.del(`chat-room:${room.id}`);
+        await this.redisService.del(`chat-members:${room.id}`);
+      } else if (
+        ![ChatMemberStatus.ACCEPTED, ChatMemberStatus.PENDING].includes(
+          otherMember.status,
+        )
+      ) {
+        throw new BadRequestException('This chat is not available');
       }
     }
 
@@ -171,7 +191,11 @@ export class ChatMessagesService {
 
       // Increment unread_count for all other members in the room
       await this.dataSource.query(
-        `UPDATE chat_member SET unread_count = unread_count + 1 WHERE chat_room_id = $1 AND user_id != $2`,
+        `UPDATE chat_member
+         SET unread_count = unread_count + 1
+         WHERE chat_room_id = $1
+           AND user_id != $2
+           AND status IN ('accepted', 'pending')`,
         [dto.chat_room_id, user.id],
       );
 
@@ -199,7 +223,12 @@ export class ChatMessagesService {
       where: { chat_room_id: roomId, user_id: userId },
     });
 
-    if (!member) {
+    if (
+      !member ||
+      ![ChatMemberStatus.ACCEPTED, ChatMemberStatus.PENDING].includes(
+        member.status,
+      )
+    ) {
       throw new BadRequestException('You are not a member of this chat room');
     }
 

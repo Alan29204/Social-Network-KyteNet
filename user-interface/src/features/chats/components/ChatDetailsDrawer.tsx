@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   useChatRoomsControllerUpdateSettings,
+  useChatRoomsControllerUpdateNameOrAvatar,
   useChatRoomsControllerUpdateEmoji,
   useChatRoomsControllerSoftDeleteHistory,
   useRelationsControllerUpdateRelation,
@@ -50,6 +51,11 @@ import { useChatMembersControllerRemoveMember } from '@/services/apis/gen/querie
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
+import {
+  patchChatRoomInCaches,
+  removeChatRoomFromCaches,
+  upsertChatRoomInCaches,
+} from '../utils/chat-room-cache';
 
 interface ChatDetailsDrawerProps {
   roomId: string;
@@ -68,6 +74,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
   // Mutations
   const updateSettingsMutation = useChatRoomsControllerUpdateSettings();
+  const updateRoomMutation = useChatRoomsControllerUpdateNameOrAvatar();
   const updateEmojiMutation = useChatRoomsControllerUpdateEmoji();
   const deleteHistoryMutation = useChatRoomsControllerSoftDeleteHistory();
   const leaveRoomMutation = useChatMembersControllerLeaveRoom();
@@ -86,9 +93,17 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const muteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const muteRequestSeqRef = useRef(0);
+  const lastCommittedMuteRef = useRef(false);
+  const pendingMuteRef = useRef<boolean | null>(null);
+  const [localIsMuted, setLocalIsMuted] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [groupNameInput, setGroupNameInput] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  const isDirect = activeRoom?.type === 'direct';
   const currentUserRole = activeRoom?.members?.find((m: any) => m.id === currentUser?.id)?.member_type;
-  const isCurrentUserAdmin = currentUserRole === 'ADMIN' || currentUserRole === 'admin';
+  const isCurrentUserAdmin = !isDirect && (currentUserRole === 'ADMIN' || currentUserRole === 'admin');
 
   // Fetch relation info between currentUser and otherMember to know if we blocked them
   const otherMember = activeRoom?.members?.find((m: any) => m.id !== currentUser?.id);
@@ -102,35 +117,45 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   
   const blockedByMe = (relationRes as any)?.data === 'block';
 
+  useEffect(() => {
+    if (!activeRoom) return;
+    setGroupNameInput(activeRoom.name || '');
+    if (pendingMuteRef.current === null) {
+      const nextMuted = activeRoom.is_muted || false;
+      setLocalIsMuted(nextMuted);
+      lastCommittedMuteRef.current = nextMuted;
+    }
+    setAvatarPreview(null);
+  }, [activeRoom?.id, activeRoom?.name, activeRoom?.avatar, activeRoom?.is_muted]);
+
+  useEffect(
+    () => () => {
+      if (muteTimeoutRef.current) {
+        clearTimeout(muteTimeoutRef.current);
+      }
+      if (avatarPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    },
+    [avatarPreview],
+  );
+
   if (!activeRoom) return null;
-  const isDirect = activeRoom.type === 'direct';
 
   // Trạng thái mute hiện tại của bản thân
-  const isMuted = activeRoom.is_muted || false;
+  const isMuted = localIsMuted;
   const currentEmoji = activeRoom.quick_emoji || '👍';
 
   const handleToggleMute = (checked: boolean) => {
-    // Optimistic update trong cache room list
-    const roomListKey = getChatRoomsControllerGetListChatRoomQueryKey();
-    const previousRooms = queryClient.getQueryData(roomListKey);
-
-    queryClient.setQueryData(roomListKey, (old: any) => {
-      if (!old?.data?.data) return old;
-      return {
-        ...old,
-        data: {
-          ...old.data,
-          data: old.data.data.map((r: any) => 
-            r.id === roomId ? { ...r, is_muted: checked } : r
-          )
-        }
-      };
-    });
+    setLocalIsMuted(checked);
+    pendingMuteRef.current = checked;
+    patchChatRoomInCaches(queryClient, roomId, { is_muted: checked });
 
     if (muteTimeoutRef.current) {
       clearTimeout(muteTimeoutRef.current);
     }
 
+    const requestSeq = ++muteRequestSeqRef.current;
     muteTimeoutRef.current = setTimeout(() => {
       updateSettingsMutation.mutate(
         {
@@ -139,14 +164,22 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
         },
         {
           onSuccess: () => {
+            if (requestSeq !== muteRequestSeqRef.current) return;
+            lastCommittedMuteRef.current = checked;
+            pendingMuteRef.current = null;
             toast({
               title: checked ? 'Đã tắt thông báo' : 'Đã bật thông báo',
               description: `Bạn sẽ ${checked ? 'không nhận' : 'nhận'} thông báo đẩy từ cuộc trò chuyện này.`,
             });
           },
           onError: () => {
-            // Revert cache
-            queryClient.setQueryData(roomListKey, previousRooms);
+            if (requestSeq !== muteRequestSeqRef.current) return;
+            const rollbackValue = lastCommittedMuteRef.current;
+            pendingMuteRef.current = null;
+            setLocalIsMuted(rollbackValue);
+            patchChatRoomInCaches(queryClient, roomId, {
+              is_muted: rollbackValue,
+            });
             toast({
               title: 'Lỗi',
               description: 'Không thể cập nhật cài đặt thông báo',
@@ -162,22 +195,39 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData() as any;
-    formData.append('avatar-chat-room', file);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    patchChatRoomInCaches(queryClient, roomId, { avatar: previewUrl });
 
-    updateSettingsMutation.mutate(
+    updateRoomMutation.mutate(
       {
-        id: roomId,
-        data: formData
+        data: {
+          id: roomId,
+          name: activeRoom.name,
+          'avatar-chat-room': file,
+        } as any,
       },
       {
-        onSuccess: () => {
+        onSuccess: (response: any) => {
+          const updatedRoom = response?.data?.room || response?.room;
+          if (updatedRoom) {
+            upsertChatRoomInCaches(queryClient, updatedRoom, currentUser?.id);
+          } else {
+            queryClient.invalidateQueries({
+              queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+            });
+          }
+          setAvatarPreview(null);
           toast({
             title: 'Thành công',
             description: 'Đã cập nhật ảnh nhóm',
           });
         },
         onError: () => {
+          setAvatarPreview(null);
+          patchChatRoomInCaches(queryClient, roomId, {
+            avatar: activeRoom.avatar,
+          });
           toast({
             title: 'Lỗi',
             description: 'Không thể cập nhật ảnh nhóm',
@@ -190,22 +240,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
   // 2. Change Emoji handler
   const handleChangeEmoji = (emoji: string) => {
-    // Optimistic update
-    const roomListKey = getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 });
-    const previousRooms = queryClient.getQueryData(roomListKey);
-
-    queryClient.setQueryData(roomListKey, (old: any) => {
-      if (!old?.data?.data) return old;
-      return {
-        ...old,
-        data: {
-          ...old.data,
-          data: old.data.data.map((r: any) => 
-            r.id === roomId ? { ...r, quick_emoji: emoji } : r
-          )
-        }
-      };
-    });
+    const previousEmoji = currentEmoji;
+    patchChatRoomInCaches(queryClient, roomId, { quick_emoji: emoji });
 
     updateEmojiMutation.mutate(
       {
@@ -220,7 +256,9 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           });
         },
         onError: () => {
-          queryClient.setQueryData(roomListKey, previousRooms);
+          patchChatRoomInCaches(queryClient, roomId, {
+            quick_emoji: previousEmoji,
+          });
           toast({
             title: 'Lỗi',
             description: 'Không thể đổi biểu tượng cảm xúc',
@@ -257,22 +295,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             },
           );
 
-          // ── Rule 3: Update badge count by removing this room from sidebar cache ──
-          queryClient.setQueryData(
-            getChatRoomsControllerGetListChatRoomQueryKey({ page: 1, limit: 50 }),
-            (old: any) => {
-              if (!old?.data?.data) return old;
-              return {
-                ...old,
-                data: {
-                  ...old.data,
-                  data: (old.data.data as any[]).filter(
-                    (r: any) => r.id !== roomId
-                  ),
-                },
-              };
-            },
-          );
+          removeChatRoomFromCaches(queryClient, roomId);
 
           // ── Rule 2: Realtime safety — new messages from WebSocket will
           //    be appended by the global handleNewMessage listener, which also
@@ -343,6 +366,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   };
 
   const handleLeaveGroup = () => {
+    removeChatRoomFromCaches(queryClient, roomId);
     leaveRoomMutation.mutate(
       { chatRoomId: roomId },
       {
@@ -351,11 +375,13 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             title: 'Đã rời nhóm',
             description: 'Bạn không còn nhận tin nhắn từ nhóm này nữa.',
           });
-          queryClient.invalidateQueries({ queryKey: getChatRoomsControllerGetListChatRoomQueryKey() });
           navigate('/messages');
           if (onClose) onClose();
         },
         onError: () => {
+          queryClient.invalidateQueries({
+            queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+          });
           toast({
             title: 'Lỗi',
             description: 'Không thể rời nhóm',
@@ -366,8 +392,52 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
     );
   };
 
+  const handleSaveGroupName = () => {
+    const nextName = groupNameInput.trim();
+    if (!nextName || nextName === activeRoom.name) {
+      setIsEditingName(false);
+      setGroupNameInput(activeRoom.name || '');
+      return;
+    }
+
+    const previousName = activeRoom.name;
+    patchChatRoomInCaches(queryClient, roomId, { name: nextName });
+
+    updateRoomMutation.mutate(
+      {
+        data: {
+          id: roomId,
+          name: nextName,
+        } as any,
+      },
+      {
+        onSuccess: (response: any) => {
+          const updatedRoom = response?.data?.room || response?.room;
+          if (updatedRoom) {
+            upsertChatRoomInCaches(queryClient, updatedRoom, currentUser?.id);
+          } else {
+            queryClient.invalidateQueries({
+              queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
+            });
+          }
+          setIsEditingName(false);
+          toast({ title: 'Thành công', description: 'Đã đổi tên nhóm' });
+        },
+        onError: () => {
+          patchChatRoomInCaches(queryClient, roomId, { name: previousName });
+          setGroupNameInput(previousName || '');
+          toast({
+            title: 'Lỗi',
+            description: 'Không thể đổi tên nhóm',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  };
+
   return (
-    <div className="flex flex-col h-full bg-card text-card-foreground">
+    <div className="flex flex-col h-full min-h-0 bg-card text-card-foreground">
       {/* Header Info Drawer */}
       <div className="p-6 flex flex-col items-center border-b border-border/50 gap-3">
         <div className="relative group w-20 h-20">
@@ -375,7 +445,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             <AvatarImage 
               src={isDirect 
                 ? (otherMember?.avatar || '/default-avatar.png') 
-                : activeRoom.avatar
+                : avatarPreview || activeRoom.avatar
               } 
             />
             <AvatarFallback>{isDirect ? otherMember?.username?.[0]?.toUpperCase() : activeRoom.name?.[0]}</AvatarFallback>
@@ -399,33 +469,50 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           )}
         </div>
         <div className="text-center">
-          <div className="flex items-center justify-center gap-2">
-            <h3 className="font-bold text-lg leading-tight truncate max-w-[240px]">
-              {isDirect ? (otherMember?.username || 'Người dùng') : activeRoom.name}
-            </h3>
-            {!isDirect && (
+          {isEditingName && !isDirect ? (
+            <div className="flex flex-col items-center gap-2">
+              <input
+                value={groupNameInput}
+                onChange={(event) => setGroupNameInput(event.target.value)}
+                maxLength={30}
+                className="w-[220px] rounded-lg border border-border bg-background px-3 py-2 text-center text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/30"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                  disabled={updateRoomMutation.isPending}
+                  onClick={handleSaveGroupName}
+                >
+                  Lưu
+                </button>
+                <button
+                  className="rounded-lg bg-muted px-3 py-1.5 text-xs font-semibold"
+                  onClick={() => {
+                    setIsEditingName(false);
+                    setGroupNameInput(activeRoom.name || '');
+                  }}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <h3 className="font-bold text-lg leading-tight truncate max-w-[240px]">
+                {isDirect ? (otherMember?.username || 'Người dùng') : activeRoom.name}
+              </h3>
+              {!isDirect && (
               <button 
                 className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  const newName = prompt('Nhập tên nhóm mới:', activeRoom.name);
-                  if (newName && newName.trim() !== activeRoom.name) {
-                    const formData = new FormData() as any;
-                    formData.append('name', newName.trim());
-                    updateSettingsMutation.mutate({
-                      id: roomId,
-                      data: formData
-                    }, {
-                      onSuccess: () => toast({ title: 'Thành công', description: 'Đã đổi tên nhóm' }),
-                      onError: () => toast({ title: 'Lỗi', description: 'Không thể đổi tên nhóm', variant: 'destructive' })
-                    });
-                  }
-                }}
+                onClick={() => setIsEditingName(true)}
                 title="Đổi tên nhóm"
               >
                 <Pencil className="w-4 h-4" />
               </button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           {isDirect && (
             <p className="text-xs text-muted-foreground mt-0.5">@{otherMember?.username}</p>
           )}
@@ -433,7 +520,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
       </div>
 
       {/* Action Options List */}
-      <div className="flex-1 p-4 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
         
         {/* Section 1: Settings */}
         <div className="space-y-4">
@@ -452,7 +539,6 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             <Switch 
               checked={isMuted}
               onCheckedChange={handleToggleMute}
-              disabled={updateSettingsMutation.isPending}
             />
           </div>
 
@@ -514,14 +600,16 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                       <p className="text-xs font-semibold truncate max-w-[130px] hover:underline">
                         {member.username}
                       </p>
-                      <p className="text-[10px] text-muted-foreground capitalize flex items-center gap-1">
-                        {(member.member_type === 'ADMIN' || member.member_type === 'admin') && <Crown className="w-3 h-3 text-amber-500" />}
-                        {member.member_type === 'admin' ? 'ADMIN' : (member.member_type || 'Thành viên')}
-                      </p>
+                      {!isDirect && (
+                        <p className="text-[10px] text-muted-foreground capitalize flex items-center gap-1">
+                          {(member.member_type === 'ADMIN' || member.member_type === 'admin') && <Crown className="w-3 h-3 text-amber-500" />}
+                          {member.member_type === 'admin' ? 'ADMIN' : (member.member_type || 'Thành viên')}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
-                  {isCurrentUserAdmin && member.id !== currentUser?.id && (
+                  {!isDirect && isCurrentUserAdmin && member.id !== currentUser?.id && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
@@ -535,6 +623,14 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                             onClick={() => {
                               promoteAdminMutation.mutate(member.id, {
                                 onSuccess: () => {
+                                  patchChatRoomInCaches(queryClient, roomId, {
+                                    members: (activeRoom.members || []).map(
+                                      (m: any) =>
+                                        m.id === member.id
+                                          ? { ...m, member_type: 'ADMIN' }
+                                          : m,
+                                    ),
+                                  });
                                   toast({ title: 'Thành công', description: `Đã chỉ định ${member.username} làm quản trị viên.` });
                                 },
                                 onError: () => {
@@ -556,6 +652,11 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                               }
                             }, {
                               onSuccess: () => {
+                                patchChatRoomInCaches(queryClient, roomId, {
+                                  members: (activeRoom.members || []).filter(
+                                    (m: any) => m.id !== member.id,
+                                  ),
+                                });
                                 toast({ title: 'Thành công', description: `Đã xóa ${member.username} khỏi nhóm.` });
                               },
                               onError: () => {

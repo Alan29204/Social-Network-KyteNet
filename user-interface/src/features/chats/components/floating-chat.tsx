@@ -10,7 +10,8 @@ type FloatingRoomSummary = {
 
 export function FloatingChat() {
   const location = useLocation();
-  const { isOpen, activeRoomId, toggleOpen } = useFloatingChatStore();
+  const { isOpen, activeRoomId, virtualRecipient, toggleOpen } =
+    useFloatingChatStore();
 
   const { data: roomsRes } = useChatRoomsControllerGetListChatRoom({
     page: 1,
@@ -38,8 +39,11 @@ export function FloatingChat() {
         }`}
       >
         {isOpen && (
-          activeRoomId ? (
-            <FloatingChatRoom roomId={activeRoomId} />
+          activeRoomId || virtualRecipient ? (
+            <FloatingChatRoom
+              roomId={activeRoomId}
+              virtualRecipient={virtualRecipient}
+            />
           ) : (
             <FloatingChatList />
           )
