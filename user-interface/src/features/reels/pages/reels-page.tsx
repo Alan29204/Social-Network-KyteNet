@@ -7,15 +7,17 @@ import { ReelItem, type ReelData } from '../components/reel-item';
 import { ReelCommentPanel } from '../components/reel-comment-panel';
 import { SharePostModal } from '@/features/posts/components/share-post-modal';
 import { SaveToListModal } from '@/features/saved/components/save-to-list-modal';
-
-const VIDEO_REGEX = /\.(mp4|mov|webm|m4v)(\?.*)?$/i;
+import {
+  isVideoPostMedia,
+  normalizePostMediaUrl,
+} from '@/features/posts/utils/post-card-mapper';
 
 /** Lấy URL video đầu tiên từ mảng medias của post. */
 function pickVideoUrl(medias: any[]): string | null {
   if (!Array.isArray(medias)) return null;
   for (const m of medias) {
     const url = typeof m === 'string' ? m : m?.url || m?.media_url;
-    if (url && VIDEO_REGEX.test(url)) return url;
+    if (url && isVideoPostMedia(url)) return normalizePostMediaUrl(url);
   }
   return null;
 }
@@ -24,6 +26,7 @@ export default function ReelsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const startId = searchParams.get('start');
+  const scopedUserId = searchParams.get('user_id');
   const { ref, inView } = useInView();
   const [muted, setMuted] = useState(true);
 
@@ -34,17 +37,27 @@ export default function ReelsPage() {
   const [saveReel, setSaveReel] = useState<ReelData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrolledToStart = useRef(false);
+  const postsParams = useMemo(
+    () => ({
+      limit: 10,
+      media_type: 'video',
+      ...(scopedUserId ? { user_id: scopedUserId, is_repost: false } : {}),
+    }),
+    [scopedUserId],
+  );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     usePostsControllerFindAllInfinite(
-      { limit: 10, media_type: 'video' },
+      postsParams,
       {
         query: {
-          getNextPageParam: (lastPage: any, allPages: any[]) => {
-            const arr = Array.isArray(lastPage)
-              ? lastPage
-              : lastPage.data?.data || lastPage.data || [];
-            return arr.length === 0 ? undefined : allPages.length + 1;
+          initialPageParam: 1,
+          getNextPageParam: (lastPage: any) => {
+            const meta = lastPage?.data?.meta;
+            if (meta && meta.page < meta.last_page) {
+              return meta.page + 1;
+            }
+            return undefined;
           },
         },
       },
@@ -84,6 +97,13 @@ export default function ReelsPage() {
     return result;
   }, [data]);
 
+  useEffect(() => {
+    scrolledToStart.current = false;
+    setIsCommentOpen(false);
+    setActiveReelId(null);
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [startId, scopedUserId]);
+
   // Cuộn tới reel được mở từ feed (?start=:id)
   useEffect(() => {
     if (scrolledToStart.current || !startId || reels.length === 0) return;
@@ -91,8 +111,19 @@ export default function ReelsPage() {
     if (el) {
       el.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
       scrolledToStart.current = true;
+      return;
     }
-  }, [startId, reels]);
+
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [
+    startId,
+    reels,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   return (
     <div className="fixed inset-0 z-40 bg-black flex">

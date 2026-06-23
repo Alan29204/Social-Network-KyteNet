@@ -159,6 +159,14 @@ export type UpdateUserDto = {
   'avatar-user'?: Blob;
 };
 
+export type ChangePasswordDto = {
+  current_password: string;
+  /** @minLength 6 */
+  new_password: string;
+  /** @minLength 6 */
+  confirm_password: string;
+};
+
 /**
  * gender
  */
@@ -264,6 +272,14 @@ export type NotificationMetadataDto = {
   thumbnail?: string | null;
   /** @nullable */
   reaction?: string | null;
+  /** @nullable */
+  context?: string | null;
+  /** @nullable */
+  postId?: string | null;
+  /** @nullable */
+  commentId?: string | null;
+  /** @nullable */
+  aggregationKey?: string | null;
   /** @nullable */
   comment_type?: string | null;
   /** @nullable */
@@ -966,6 +982,68 @@ export type AddAdminDto = {
   user_id: string;
 };
 
+export type ReportType = typeof ReportType[keyof typeof ReportType];
+
+
+export const ReportType = {
+  post: 'post',
+  user: 'user',
+  message: 'message',
+} as const;
+
+export type ReportReason = typeof ReportReason[keyof typeof ReportReason];
+
+
+export const ReportReason = {
+  spam: 'spam',
+  violence: 'violence',
+  adult_content: 'adult_content',
+  harassment: 'harassment',
+  fake_info: 'fake_info',
+  other: 'other',
+} as const;
+
+export type ReportStatus = typeof ReportStatus[keyof typeof ReportStatus];
+
+
+export const ReportStatus = {
+  pending: 'pending',
+  resolved: 'resolved',
+  rejected: 'rejected',
+} as const;
+
+export type ReportAdminAction = typeof ReportAdminAction[keyof typeof ReportAdminAction];
+
+
+export const ReportAdminAction = {
+  no_action: 'no_action',
+  warn_reported: 'warn_reported',
+  remove_post: 'remove_post',
+  lock_user: 'lock_user',
+} as const;
+
+export type Report = {
+  id: string;
+  type: ReportType;
+  reason: ReportReason;
+  description: string;
+  status: ReportStatus;
+  reporter_id: string;
+  reported_post_id: string;
+  reported_user_id: string;
+  reported_message_id: string;
+  admin_note: string;
+  admin_action: ReportAdminAction;
+  resolved_by: string;
+  resolved_at: string;
+  created_at: string;
+  reporter: User;
+  reported_post: Post;
+  reported_user: User;
+  reported_message: ChatMessage;
+  resolved_by_user: User;
+};
+
 /**
  * Trạng thái giải quyết báo cáo
  */
@@ -977,9 +1055,24 @@ export const ResolveReportDtoStatus = {
   rejected: 'rejected',
 } as const;
 
+/**
+ * Hành động xử lý nội dung/tài khoản sau khi duyệt báo cáo
+ */
+export type ResolveReportDtoAdminAction = typeof ResolveReportDtoAdminAction[keyof typeof ResolveReportDtoAdminAction];
+
+
+export const ResolveReportDtoAdminAction = {
+  no_action: 'no_action',
+  warn_reported: 'warn_reported',
+  remove_post: 'remove_post',
+  lock_user: 'lock_user',
+} as const;
+
 export type ResolveReportDto = {
   /** Trạng thái giải quyết báo cáo */
   status: ResolveReportDtoStatus;
+  /** Hành động xử lý nội dung/tài khoản sau khi duyệt báo cáo */
+  admin_action: ResolveReportDtoAdminAction;
   /** Ghi chú của admin */
   admin_note: string;
 };
@@ -1115,11 +1208,130 @@ export type RelationsControllerGetSuggestedUsersParams = {
 limit: number;
 };
 
-export type RelationsControllerGetSuggestedUsers200 = { [key: string]: unknown };
+export type RelationsControllerGetSuggestedUsers200DataItemPrivacy = typeof RelationsControllerGetSuggestedUsers200DataItemPrivacy[keyof typeof RelationsControllerGetSuggestedUsers200DataItemPrivacy];
+
+
+export const RelationsControllerGetSuggestedUsers200DataItemPrivacy = {
+  public: 'public',
+  private: 'private',
+  follower: 'follower',
+} as const;
+
+export type RelationsControllerGetSuggestedUsers200DataItemRelationStatus = typeof RelationsControllerGetSuggestedUsers200DataItemRelationStatus[keyof typeof RelationsControllerGetSuggestedUsers200DataItemRelationStatus];
+
+
+export const RelationsControllerGetSuggestedUsers200DataItemRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemPrivacy = typeof RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemPrivacy[keyof typeof RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemPrivacy];
+
+
+export const RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemPrivacy = {
+  public: 'public',
+  private: 'private',
+  follower: 'follower',
+} as const;
+
+export type RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemRelationStatus = typeof RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemRelationStatus[keyof typeof RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemRelationStatus];
+
+
+export const RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItem = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  privacy?: RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemPrivacy;
+  relationStatus?: RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItemRelationStatus;
+  isFollowing?: boolean;
+};
+
+export type RelationsControllerGetSuggestedUsers200DataItem = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  privacy?: RelationsControllerGetSuggestedUsers200DataItemPrivacy;
+  relationStatus?: RelationsControllerGetSuggestedUsers200DataItemRelationStatus;
+  isFollowing?: boolean;
+  mutual_count?: number;
+  mutual_friends?: RelationsControllerGetSuggestedUsers200DataItemMutualFriendsItem[];
+};
+
+export type RelationsControllerGetSuggestedUsers200 = {
+  statusCode?: number;
+  message?: string;
+  data?: RelationsControllerGetSuggestedUsers200DataItem[];
+};
 
 export type RelationsControllerGetBlockedUsersParams = {
 page?: number;
 limit?: number;
+};
+
+export type RelationsControllerGetBlockedUsers200DataDataItemUserPrivacy = typeof RelationsControllerGetBlockedUsers200DataDataItemUserPrivacy[keyof typeof RelationsControllerGetBlockedUsers200DataDataItemUserPrivacy];
+
+
+export const RelationsControllerGetBlockedUsers200DataDataItemUserPrivacy = {
+  public: 'public',
+  private: 'private',
+  follower: 'follower',
+} as const;
+
+export type RelationsControllerGetBlockedUsers200DataDataItemUserRelationStatus = typeof RelationsControllerGetBlockedUsers200DataDataItemUserRelationStatus[keyof typeof RelationsControllerGetBlockedUsers200DataDataItemUserRelationStatus];
+
+
+export const RelationsControllerGetBlockedUsers200DataDataItemUserRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerGetBlockedUsers200DataDataItemUser = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  privacy?: RelationsControllerGetBlockedUsers200DataDataItemUserPrivacy;
+  relationStatus?: RelationsControllerGetBlockedUsers200DataDataItemUserRelationStatus;
+  isFollowing?: boolean;
+};
+
+export type RelationsControllerGetBlockedUsers200DataDataItem = {
+  id?: string;
+  user?: RelationsControllerGetBlockedUsers200DataDataItemUser;
+  requested_at?: string;
+  blocked_at?: string;
+};
+
+export type RelationsControllerGetBlockedUsers200Data = {
+  page?: number;
+  limit?: number;
+  total?: number;
+  data?: RelationsControllerGetBlockedUsers200DataDataItem[];
+};
+
+export type RelationsControllerGetBlockedUsers200 = {
+  statusCode?: number;
+  message?: string;
+  data?: RelationsControllerGetBlockedUsers200Data;
 };
 
 export type RelationsControllerGetPendingRequestsParams = {
@@ -1127,7 +1339,110 @@ page?: number;
 limit?: number;
 };
 
-export type RelationsControllerUpdateRelation201 = { [key: string]: unknown };
+export type RelationsControllerGetPendingRequests200DataDataItemUserPrivacy = typeof RelationsControllerGetPendingRequests200DataDataItemUserPrivacy[keyof typeof RelationsControllerGetPendingRequests200DataDataItemUserPrivacy];
+
+
+export const RelationsControllerGetPendingRequests200DataDataItemUserPrivacy = {
+  public: 'public',
+  private: 'private',
+  follower: 'follower',
+} as const;
+
+export type RelationsControllerGetPendingRequests200DataDataItemUserRelationStatus = typeof RelationsControllerGetPendingRequests200DataDataItemUserRelationStatus[keyof typeof RelationsControllerGetPendingRequests200DataDataItemUserRelationStatus];
+
+
+export const RelationsControllerGetPendingRequests200DataDataItemUserRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerGetPendingRequests200DataDataItemUser = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  privacy?: RelationsControllerGetPendingRequests200DataDataItemUserPrivacy;
+  relationStatus?: RelationsControllerGetPendingRequests200DataDataItemUserRelationStatus;
+  isFollowing?: boolean;
+};
+
+export type RelationsControllerGetPendingRequests200DataDataItem = {
+  id?: string;
+  user?: RelationsControllerGetPendingRequests200DataDataItemUser;
+  requested_at?: string;
+  blocked_at?: string;
+};
+
+export type RelationsControllerGetPendingRequests200Data = {
+  page?: number;
+  limit?: number;
+  total?: number;
+  data?: RelationsControllerGetPendingRequests200DataDataItem[];
+};
+
+export type RelationsControllerGetPendingRequests200 = {
+  statusCode?: number;
+  message?: string;
+  data?: RelationsControllerGetPendingRequests200Data;
+};
+
+export type RelationsControllerUpdateRelation201DataRelationStatus = typeof RelationsControllerUpdateRelation201DataRelationStatus[keyof typeof RelationsControllerUpdateRelation201DataRelationStatus];
+
+
+export const RelationsControllerUpdateRelation201DataRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerUpdateRelation201DataUserPrivacy = typeof RelationsControllerUpdateRelation201DataUserPrivacy[keyof typeof RelationsControllerUpdateRelation201DataUserPrivacy];
+
+
+export const RelationsControllerUpdateRelation201DataUserPrivacy = {
+  public: 'public',
+  private: 'private',
+  follower: 'follower',
+} as const;
+
+export type RelationsControllerUpdateRelation201DataUserRelationStatus = typeof RelationsControllerUpdateRelation201DataUserRelationStatus[keyof typeof RelationsControllerUpdateRelation201DataUserRelationStatus];
+
+
+export const RelationsControllerUpdateRelation201DataUserRelationStatus = {
+  none: 'none',
+  following: 'following',
+  pending: 'pending',
+  block: 'block',
+} as const;
+
+export type RelationsControllerUpdateRelation201DataUser = {
+  id?: string;
+  username?: string;
+  /** @nullable */
+  full_name?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  privacy?: RelationsControllerUpdateRelation201DataUserPrivacy;
+  relationStatus?: RelationsControllerUpdateRelation201DataUserRelationStatus;
+  isFollowing?: boolean;
+};
+
+export type RelationsControllerUpdateRelation201Data = {
+  message?: string;
+  relationStatus?: RelationsControllerUpdateRelation201DataRelationStatus;
+  isFollowing?: boolean;
+  user?: RelationsControllerUpdateRelation201DataUser;
+};
+
+export type RelationsControllerUpdateRelation201 = {
+  statusCode?: number;
+  message?: string;
+  data?: RelationsControllerUpdateRelation201Data;
+};
 
 export type NotificationControllerGetUserNotificationsParams = {
 page?: number;
@@ -1410,11 +1725,14 @@ export type AdminsControllerListUsersParams = {
 page?: number;
 limit?: number;
 search?: string;
+created_from?: string;
 };
 
 export type AdminsControllerListPostsParams = {
 page?: number;
 limit?: number;
+search?: string;
+created_from?: string;
 };
 
 export type AdminsControllerListReportsParams = {
@@ -2317,6 +2635,88 @@ export const useUsersControllerUpdateUser = <TError = unknown,
         TContext
       > => {
       return useMutation(getUsersControllerUpdateUserMutationOptions(options), queryClient);
+    }
+
+export type usersControllerChangePasswordResponse200 = {
+  data: void
+  status: 200
+}
+
+export type usersControllerChangePasswordResponseSuccess = (usersControllerChangePasswordResponse200) & {
+  headers: Headers;
+};
+;
+
+export type usersControllerChangePasswordResponse = (usersControllerChangePasswordResponseSuccess)
+
+export const getUsersControllerChangePasswordUrl = () => {
+
+
+
+
+  return `/users/profile/password`
+}
+
+/**
+ * @summary Change current user password
+ */
+export const usersControllerChangePassword = async (changePasswordDto: ChangePasswordDto, options?: RequestInit): Promise<usersControllerChangePasswordResponse> => {
+
+  return orvalClient<usersControllerChangePasswordResponse>(getUsersControllerChangePasswordUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(changePasswordDto)
+  }
+);}
+
+
+
+
+export const getUsersControllerChangePasswordMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerChangePassword>>, TError,{data: ChangePasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof usersControllerChangePassword>>, TError,{data: ChangePasswordDto}, TContext> => {
+
+const mutationKey = ['usersControllerChangePassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof usersControllerChangePassword>>, {data: ChangePasswordDto}> = (props) => {
+          const {data} = props ?? {};
+
+          return  usersControllerChangePassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UsersControllerChangePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof usersControllerChangePassword>>>
+    export type UsersControllerChangePasswordMutationBody = ChangePasswordDto
+    export type UsersControllerChangePasswordMutationError = unknown
+
+    /**
+ * @summary Change current user password
+ */
+export const useUsersControllerChangePassword = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof usersControllerChangePassword>>, TError,{data: ChangePasswordDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof usersControllerChangePassword>>,
+        TError,
+        {data: ChangePasswordDto},
+        TContext
+      > => {
+      return useMutation(getUsersControllerChangePasswordMutationOptions(options), queryClient);
     }
 
 export type usersControllerUpdateCoverPhotoResponse200 = {
@@ -3303,7 +3703,7 @@ export const useRelationsControllerUnblockUser = <TError = unknown,
     }
 
 export type relationsControllerGetBlockedUsersResponse200 = {
-  data: void
+  data: RelationsControllerGetBlockedUsers200
   status: 200
 }
 
@@ -3496,7 +3896,7 @@ export function useRelationsControllerGetBlockedUsers<TData = Awaited<ReturnType
 
 
 export type relationsControllerGetPendingRequestsResponse200 = {
-  data: void
+  data: RelationsControllerGetPendingRequests200
   status: 200
 }
 
@@ -11877,6 +12277,119 @@ export function useAdminsControllerListReports<TData = Awaited<ReturnType<typeof
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getAdminsControllerListReportsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export type adminsControllerGetReportDetailResponse200 = {
+  data: Report
+  status: 200
+}
+
+export type adminsControllerGetReportDetailResponseSuccess = (adminsControllerGetReportDetailResponse200) & {
+  headers: Headers;
+};
+;
+
+export type adminsControllerGetReportDetailResponse = (adminsControllerGetReportDetailResponseSuccess)
+
+export const getAdminsControllerGetReportDetailUrl = (id: string,) => {
+
+
+
+
+  return `/admins/reports/${id}`
+}
+
+/**
+ * @summary Admin: Get report detail
+ */
+export const adminsControllerGetReportDetail = async (id: string, options?: RequestInit): Promise<adminsControllerGetReportDetailResponse> => {
+
+  return orvalClient<adminsControllerGetReportDetailResponse>(getAdminsControllerGetReportDetailUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminsControllerGetReportDetailQueryKey = (id: string,) => {
+    return [
+    `/admins/reports/${id}`
+    ] as const;
+    }
+
+
+export const getAdminsControllerGetReportDetailQueryOptions = <TData = Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminsControllerGetReportDetailQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>> = ({ signal }) => adminsControllerGetReportDetail(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AdminsControllerGetReportDetailQueryResult = NonNullable<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>>
+export type AdminsControllerGetReportDetailQueryError = unknown
+
+
+export function useAdminsControllerGetReportDetail<TData = Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminsControllerGetReportDetail>>,
+          TError,
+          Awaited<ReturnType<typeof adminsControllerGetReportDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAdminsControllerGetReportDetail<TData = Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminsControllerGetReportDetail>>,
+          TError,
+          Awaited<ReturnType<typeof adminsControllerGetReportDetail>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAdminsControllerGetReportDetail<TData = Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Admin: Get report detail
+ */
+
+export function useAdminsControllerGetReportDetail<TData = Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof adminsControllerGetReportDetail>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAdminsControllerGetReportDetailQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

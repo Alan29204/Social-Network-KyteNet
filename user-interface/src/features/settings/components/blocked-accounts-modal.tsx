@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
 } from '@/services/apis/gen/queries';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useBlockUser } from '@/features/profile/hooks/use-block-user';
-import { Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
 
@@ -40,10 +40,13 @@ export function BlockedAccountsModal({
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { ref, inView } = useInView();
+  const unblockSnapshotsRef = useRef<Array<[readonly unknown[], unknown]> | null>(
+    null,
+  );
 
   const [unblockUserId, setUnblockUserId] = useState<string | null>(null);
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useRelationsControllerGetBlockedUsersInfinite(
       { limit: 20 },
       {
@@ -61,28 +64,99 @@ export function BlockedAccountsModal({
 
   const { unblockMutation } = useBlockUser();
 
+  const snapshotBlockedUsers = () =>
+    queryClient.getQueriesData({
+      predicate: (query) =>
+        query.queryKey[0] === 'infinite' &&
+        query.queryKey[1] === '/relations/blocked/list',
+    });
+
+  const removeBlockedUserFromCache = (userId: string) => {
+    queryClient.setQueriesData(
+      {
+        predicate: (query) =>
+          query.queryKey[0] === 'infinite' &&
+          query.queryKey[1] === '/relations/blocked/list',
+      },
+      (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => {
+            if (Array.isArray(page?.data?.data)) {
+              return {
+                ...page,
+                data: {
+                  ...page.data,
+                  total: Math.max(0, (page.data.total || 0) - 1),
+                  data: page.data.data.filter(
+                    (item: any) => item.user?.id !== userId,
+                  ),
+                },
+              };
+            }
+            if (Array.isArray(page?.data?.data?.data)) {
+              return {
+                ...page,
+                data: {
+                  ...page.data,
+                  data: {
+                    ...page.data.data,
+                    total: Math.max(0, (page.data.data.total || 0) - 1),
+                    data: page.data.data.data.filter(
+                      (item: any) => item.user?.id !== userId,
+                    ),
+                  },
+                },
+              };
+            }
+            return page;
+          }),
+        };
+      },
+    );
+  };
+
+  const restoreBlockedUsers = () => {
+    unblockSnapshotsRef.current?.forEach(([queryKey, data]) => {
+      queryClient.setQueryData(queryKey, data);
+    });
+    unblockSnapshotsRef.current = null;
+  };
+
   const handleUnblockConfirmed = () => {
     if (unblockUserId) {
+      unblockSnapshotsRef.current = snapshotBlockedUsers();
+      removeBlockedUserFromCache(unblockUserId);
       unblockMutation.mutate(unblockUserId, {
         onSuccess: () => {
           setUnblockUserId(null);
+          unblockSnapshotsRef.current = null;
           queryClient.invalidateQueries({
             queryKey: getRelationsControllerGetBlockedUsersInfiniteQueryKey(),
           });
         },
         onError: () => {
+          restoreBlockedUsers();
           setUnblockUserId(null);
         }
       });
     }
   };
 
-  if (inView && hasNextPage && !isFetchingNextPage) {
-    fetchNextPage();
-  }
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const blockedUsers =
-    data?.pages.flatMap((page: any) => page?.data?.data || []) || [];
+    data?.pages.flatMap((page: any) => {
+      const pageData = page?.data?.data || page?.data || page;
+      if (Array.isArray(pageData)) return pageData;
+      if (Array.isArray(pageData?.data)) return pageData.data;
+      return [];
+    }) || [];
 
   return (
     <>
@@ -98,6 +172,11 @@ export function BlockedAccountsModal({
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center h-full text-center text-destructive">
+                <AlertCircle className="w-10 h-10 mb-3 opacity-70" />
+                <p>Không thể tải danh sách đã chặn.</p>
               </div>
             ) : blockedUsers.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">

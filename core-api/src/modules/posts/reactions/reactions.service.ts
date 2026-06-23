@@ -95,10 +95,24 @@ export class ReactionsService {
                 postId,
                 'POST',
                 NotificationType.REACTION,
+                `reaction:post:${postId}`,
               );
             }
           } catch (e) {
             console.error('Error undoing reaction notification:', e);
+          }
+        } else if (commentId && targetPostId && commentOwnerId) {
+          try {
+            await this.notificationService.undoNotification(
+              user.id,
+              commentOwnerId,
+              targetPostId,
+              'POST',
+              NotificationType.REACTION,
+              `reaction:comment:${commentId}`,
+            );
+          } catch (e) {
+            console.error('Error undoing comment reaction notification:', e);
           }
         }
 
@@ -150,6 +164,7 @@ export class ReactionsService {
               commentOwnerId,
               targetPostId,
               result.reaction,
+              commentId,
             );
           }
         }

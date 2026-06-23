@@ -12,7 +12,9 @@ import { IAdmin } from './admin.interface';
 import { AddAdminDto } from './dto/add-admin.dto';
 import { RoleType } from 'src/common/enums/role.enum';
 import { ReportsService } from '../reports/reports.service';
-import { ReportStatus } from '../reports/entities/report.entity';
+import { ReportAction, ReportStatus } from '../reports/entities/report.entity';
+import { DeviceSessionsService } from '../users/device-sessions/device-sessions.service';
+import { NotificationService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminsService {
@@ -22,6 +24,8 @@ export class AdminsService {
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     private readonly reportsService: ReportsService,
+    private readonly deviceSessionsService: DeviceSessionsService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /** Promote a user to admin role */
@@ -30,8 +34,11 @@ export class AdminsService {
       const user = await this.userRepository.findOneBy({ id: dto.user_id });
       if (user && user.role === RoleType.USER) {
         user.role = RoleType.ADMIN;
-        await this.userRepository.save(user);
-        return { message: 'Admin added successfully' };
+        const updatedUser = await this.userRepository.save(user);
+        return {
+          message: 'Admin added successfully',
+          user: this.toAdminUser(updatedUser),
+        };
       }
       throw new BadRequestException('User not found or role is not user');
     } catch (error) {
@@ -41,7 +48,9 @@ export class AdminsService {
   }
 
   /** List all users with pagination and optional search */
-  async listUsers(page = 1, limit = 20, search?: string) {
+  async listUsers(page = 1, limit = 20, search?: string, createdFrom?: string) {
+    page = Math.max(1, Number(page) || 1);
+    limit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (page - 1) * limit;
     const query = this.userRepository
       .createQueryBuilder('user')
@@ -49,6 +58,7 @@ export class AdminsService {
         'user.id',
         'user.email',
         'user.username',
+        'user.full_name',
         'user.avatar',
         'user.role',
         'user.privacy',
@@ -59,9 +69,21 @@ export class AdminsService {
       .take(limit);
 
     if (search) {
-      query.where('user.username ILIKE :q OR user.email ILIKE :q', {
+      query.andWhere(
+        '(user.username ILIKE :q OR user.email ILIKE :q OR user.full_name ILIKE :q)',
+        {
         q: `%${search}%`,
-      });
+        },
+      );
+    }
+
+    if (createdFrom) {
+      const fromDate = new Date(createdFrom);
+      if (!Number.isNaN(fromDate.getTime())) {
+        query.andWhere('user.created_at >= :createdFrom', {
+          createdFrom: fromDate,
+        });
+      }
     }
 
     const [users, total] = await query.getManyAndCount();
@@ -72,18 +94,32 @@ export class AdminsService {
   }
 
   /** Ban or unban a user by setting/clearing their role */
-  async banUser(userId: string, ban: boolean) {
+  async banUser(admin: IAdmin, userId: string, ban: boolean) {
     const user = await this.userRepository.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User not found');
+    if (admin?.id === userId && ban) {
+      throw new BadRequestException('Cannot ban your own account');
+    }
     if (user.role === RoleType.ADMIN) {
       throw new BadRequestException('Cannot ban an admin user');
     }
 
-    await this.userRepository.update(userId, {
-      role: ban ? RoleType.BANNED : RoleType.USER,
-    });
+    user.role = ban ? RoleType.BANNED : RoleType.USER;
+    const updatedUser = await this.userRepository.save(user);
+
+    if (ban) {
+      await this.notificationService.notifySystemToUser(
+        userId,
+        'Tài khoản của bạn đã bị khóa',
+        'Tài khoản của bạn đã bị khóa bởi quản trị viên vì vi phạm tiêu chuẩn cộng đồng.',
+        { context: 'admin_account_lock' },
+      );
+      await this.deviceSessionsService.revokeAllForUser(userId);
+    }
+
     return {
       message: ban ? 'User banned successfully' : 'User unbanned successfully',
+      user: this.toAdminUser(updatedUser),
     };
   }
 
@@ -99,14 +135,34 @@ export class AdminsService {
   }
 
   /** List all posts with pagination */
-  async listPosts(page = 1, limit = 20) {
+  async listPosts(page = 1, limit = 20, search?: string, createdFrom?: string) {
+    page = Math.max(1, Number(page) || 1);
+    limit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (page - 1) * limit;
-    const [posts, total] = await this.postRepository.findAndCount({
-      relations: ['user'],
-      order: { created_at: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const query = this.postRepository
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.user', 'user')
+      .orderBy('post.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (search) {
+      query.andWhere(
+        '(post.content ILIKE :q OR user.username ILIKE :q OR user.full_name ILIKE :q)',
+        { q: `%${search}%` },
+      );
+    }
+
+    if (createdFrom) {
+      const fromDate = new Date(createdFrom);
+      if (!Number.isNaN(fromDate.getTime())) {
+        query.andWhere('post.created_at >= :createdFrom', {
+          createdFrom: fromDate,
+        });
+      }
+    }
+
+    const [posts, total] = await query.getManyAndCount();
     return {
       data: posts,
       meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
@@ -123,23 +179,33 @@ export class AdminsService {
 
   /** Get system stats */
   async getStats() {
-    const [totalUsers, totalPosts, pendingReports] = await Promise.all([
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [
+      totalUsers,
+      totalPosts,
+      pendingReports,
+      newUsers,
+      newPosts,
+    ] = await Promise.all([
       this.userRepository.count(),
       this.postRepository.count(),
       this.reportsService.listReports(ReportStatus.PENDING, 1, 1),
+      this.userRepository
+        .createQueryBuilder('user')
+        .where('user.created_at >= :since', { since: sevenDaysAgo })
+        .getCount(),
+      this.postRepository
+        .createQueryBuilder('post')
+        .where('post.created_at >= :since', { since: sevenDaysAgo })
+        .getCount(),
     ]);
-
-    // Posts created in the last 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentPosts = await this.postRepository
-      .createQueryBuilder('post')
-      .where('post.created_at > :since', { since: sevenDaysAgo })
-      .getCount();
 
     return {
       total_users: totalUsers,
       total_posts: totalPosts,
-      recent_posts_7d: recentPosts,
+      new_users_7d: newUsers,
+      new_posts_7d: newPosts,
+      recent_posts_7d: newPosts,
       pending_reports: pendingReports.meta.total,
     };
   }
@@ -149,8 +215,37 @@ export class AdminsService {
     return this.reportsService.listReports(status, page, limit);
   }
 
+  async getReportDetail(id: string) {
+    return this.reportsService.getReportDetail(id);
+  }
+
   /** Proxy to reports service — resolve/reject a report */
-  async resolveReport(id: string, admin_note: string, status: ReportStatus) {
-    return this.reportsService.resolveReport(id, admin_note, status);
+  async resolveReport(
+    id: string,
+    admin: IAdmin,
+    admin_note: string,
+    status: ReportStatus,
+    admin_action: ReportAction,
+  ) {
+    return this.reportsService.resolveReport(
+      id,
+      admin.id,
+      admin_note,
+      status,
+      admin_action,
+    );
+  }
+
+  private toAdminUser(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      full_name: user.full_name,
+      avatar: user.avatar,
+      role: user.role,
+      privacy: user.privacy,
+      created_at: user.created_at,
+    };
   }
 }

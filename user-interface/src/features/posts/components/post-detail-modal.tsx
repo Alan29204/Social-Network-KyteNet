@@ -19,6 +19,8 @@ import {
   Share2,
   FileX2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +37,10 @@ import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
+import {
+  isVideoPostMedia,
+  normalizePostMediaUrl,
+} from '@/features/posts/utils/post-card-mapper';
 
 interface PostResponse {
   id: string;
@@ -63,6 +69,12 @@ interface PostDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCommentId?: string | null;
+  syncUrl?: boolean;
+  canNavigatePrevious?: boolean;
+  canNavigateNext?: boolean;
+  isNavigatingNext?: boolean;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
 }
 
 const sortCommentsForDisplay = (comments: any[]) => {
@@ -88,6 +100,12 @@ export function PostDetailModal({
   open,
   onOpenChange,
   defaultCommentId,
+  syncUrl = false,
+  canNavigatePrevious,
+  canNavigateNext,
+  isNavigatingNext,
+  onNavigatePrevious,
+  onNavigateNext,
 }: PostDetailModalProps) {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
@@ -125,7 +143,7 @@ export function PostDetailModal({
   }, [onOpenChange]);
 
   useEffect(() => {
-    if (open) {
+    if (open && syncUrl) {
       const isAlreadyOnRoute = window.location.pathname.startsWith(`/post/${initialPost.id}`);
       
       if (!isAlreadyOnRoute) {
@@ -144,13 +162,20 @@ export function PostDetailModal({
          }
       };
     }
-  }, [open, initialPost.id]);
+  }, [open, initialPost.id, syncUrl]);
 
 
   const isPostUnavailable = isError || (!isLoading && queryData && !queryData?.data);
   const post = queryData?.data || initialPost;
-  const comments = sortCommentsForDisplay(post?.comments || []);
+  const comments = sortCommentsForDisplay(post?.comments || []).filter(
+    (comment: any) => comment?.id && comment?.user?.id,
+  );
   const displayPost = post?.shared_post || post;
+  const mediaUrls = (
+    displayPost?.images ||
+    displayPost?.medias ||
+    []
+  ).map((url: string) => normalizePostMediaUrl(url));
   const isRepost = !!post?.shared_post;
   const isMyPost = currentUser?.id === (post?.user?.id || initialPost.user.id);
 
@@ -386,6 +411,8 @@ export function PostDetailModal({
 
   // Render 1 comment item
   const renderComment = (c: any, isChild = false) => {
+    if (!c?.user?.id) return null;
+
     const isLiked = c.interactions?.is_liked;
     const likesCount = c.interactions?.likes || 0;
 
@@ -499,6 +526,42 @@ export function PostDetailModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0">
         <DialogTitle className="sr-only">Chi tiết bài viết</DialogTitle>
+        {onNavigatePrevious && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="absolute left-2 top-1/2 z-[70] h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg backdrop-blur hover:bg-background"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigatePrevious();
+            }}
+            disabled={!canNavigatePrevious}
+            aria-label="Bài viết trước"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        )}
+        {onNavigateNext && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="absolute right-2 top-1/2 z-[70] h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg backdrop-blur hover:bg-background"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigateNext();
+            }}
+            disabled={!canNavigateNext || isNavigatingNext}
+            aria-label="Bài viết tiếp theo"
+          >
+            {isNavigatingNext ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ChevronRight className="h-5 w-5" />
+            )}
+          </Button>
+        )}
 
         {/* Header (Cố định ở trên) */}
         {isRepost && (
@@ -569,21 +632,19 @@ export function PostDetailModal({
           )}
 
           {/* Media bài viết */}
-          {(displayPost?.images || displayPost?.medias || []).length > 0 && (
+          {mediaUrls.length > 0 && (
             <div className="w-full bg-black flex items-center justify-center">
-              {(displayPost?.images || displayPost?.medias || []).length > 1 ? (
+              {mediaUrls.length > 1 ? (
                 <Carousel className="w-full">
                   <CarouselContent>
-                    {(displayPost?.images || displayPost?.medias || []).map(
+                    {mediaUrls.map(
                       (img: string, index: number) => (
                         <CarouselItem
                           key={index}
                           className="flex items-center justify-center"
                         >
                           {(() => {
-                            const isVideo =
-                              img.match(/\.(mp4|webm|mov|mkv)$/i) ||
-                              img.includes('video');
+                            const isVideo = isVideoPostMedia(img);
                             return isVideo ? (
                               <video
                                 src={img}
@@ -607,8 +668,8 @@ export function PostDetailModal({
                 </Carousel>
               ) : (
                 (() => {
-                  const url = (displayPost?.images || displayPost?.medias || [])[0];
-                  const isVideo = url.match(/\.(mp4|webm|mov|mkv)$/i) || url.includes('video');
+                  const url = mediaUrls[0];
+                  const isVideo = isVideoPostMedia(url);
                   return isVideo ? (
                     <video
                       src={url}

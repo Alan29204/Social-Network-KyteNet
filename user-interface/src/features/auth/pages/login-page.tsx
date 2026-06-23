@@ -46,13 +46,17 @@ export default function LoginPage() {
         const token = payloadData.accessToken || payloadData.access_token || res.accessToken;
         const user = payloadData.user || res.user;
         setAuth(token, user);
-        navigate('/');
+        navigate(user?.role === 'admin' ? '/admin' : '/');
       },
       onError: (err) => {
         console.error('Login failed', err);
+        const status = (err as any)?.response?.status;
         toast({
-          title: 'Đăng nhập thất bại',
-          description: 'Vui lòng kiểm tra lại email và mật khẩu.',
+          title: status === 403 ? 'Tài khoản đã bị khóa' : 'Đăng nhập thất bại',
+          description:
+            status === 403
+              ? 'Tài khoản của bạn đã bị khóa bởi quản trị viên.'
+              : 'Vui lòng kiểm tra lại email và mật khẩu.',
           variant: 'destructive',
         });
       },

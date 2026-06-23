@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
-import { Trash2, Eye, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Search, Trash2, Eye, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,16 +27,26 @@ import { vi } from 'date-fns/locale';
 
 export default function AdminPostsPage() {
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [deletePost, setDeletePost] = useState<any>(null);
   const [viewPost, setViewPost] = useState<any>(null);
   const { toast } = useToast();
   const limit = 15;
 
-  const { data, isLoading } = useAdminPosts({ page, limit });
+  const { data, isLoading } = useAdminPosts({ page, limit, search: search || undefined });
   const posts = data?.data?.data || data?.data || [];
   const meta = data?.data?.meta || data?.meta || { page: 1, total_pages: 1 };
 
   const deleteMutation = useDeletePost();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   const handleDelete = () => {
     if (!deletePost) return;
@@ -152,6 +163,16 @@ export default function AdminPostsPage() {
         <p className="text-muted-foreground mt-1">Xem và gỡ bỏ bài viết vi phạm</p>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Tìm theo nội dung hoặc tác giả..."
+          className="pl-9"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+      </div>
+
       {/* Table */}
       <AdminDataTable columns={columns} data={posts} isLoading={isLoading} emptyMessage="Không có bài viết nào" />
 
@@ -218,7 +239,11 @@ export default function AdminPostsPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {viewPost.medias.map((url: string, i: number) => (
                     <div key={i} className="rounded-lg overflow-hidden border border-border bg-muted aspect-square">
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      {/\.(mp4|webm|ogg)(\?|$)/i.test(url) ? (
+                        <video src={url} controls className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      )}
                     </div>
                   ))}
                 </div>

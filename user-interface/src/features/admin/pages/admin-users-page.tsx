@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Search, MoreHorizontal, ShieldCheck, Ban, Trash2, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ const roleBadge = (role: string) => {
   };
   const labels: Record<string, string> = {
     admin: 'Admin',
-    user: 'User',
+    user: 'Active',
     banned: 'Banned',
   };
   return (
@@ -71,15 +71,13 @@ export default function AdminUsersPage() {
   const deleteMutation = useDeleteUser();
   const promoteMutation = useAddAdmin();
 
-  // Debounced search
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
+  useEffect(() => {
     const timeout = setTimeout(() => {
-      setSearch(value);
+      setSearch(searchInput.trim());
       setPage(1);
     }, 500);
     return () => clearTimeout(timeout);
-  };
+  }, [searchInput]);
 
   const handleAction = () => {
     const { type, user } = dialogState;
@@ -242,7 +240,7 @@ export default function AdminUsersPage() {
           placeholder="Tìm theo username hoặc email..."
           className="pl-9"
           value={searchInput}
-          onChange={(e) => handleSearchChange(e.target.value)}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
       </div>
 
@@ -270,9 +268,17 @@ export default function AdminUsersPage() {
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAction}
+              disabled={
+                banMutation.isPending ||
+                unbanMutation.isPending ||
+                deleteMutation.isPending ||
+                promoteMutation.isPending
+              }
               className={dialogState.type === 'delete' ? 'bg-destructive hover:bg-destructive/90' : ''}
             >
-              Xác nhận
+              {banMutation.isPending || unbanMutation.isPending || deleteMutation.isPending || promoteMutation.isPending
+                ? 'Đang xử lý...'
+                : 'Xác nhận'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

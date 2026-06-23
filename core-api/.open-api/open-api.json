@@ -208,6 +208,31 @@
         ]
       }
     },
+    "/users/profile/password": {
+      "patch": {
+        "operationId": "UsersController_changePassword",
+        "summary": "Change current user password",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/users/profile/cover-photo": {
       "patch": {
         "operationId": "UsersController_updateCoverPhoto",
@@ -430,11 +455,108 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Get suggested users successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "username": {
+                            "type": "string"
+                          },
+                          "full_name": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "avatar": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "privacy": {
+                            "type": "string",
+                            "enum": [
+                              "public",
+                              "private",
+                              "follower"
+                            ]
+                          },
+                          "relationStatus": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "following",
+                              "pending",
+                              "block"
+                            ]
+                          },
+                          "isFollowing": {
+                            "type": "boolean"
+                          },
+                          "mutual_count": {
+                            "type": "number"
+                          },
+                          "mutual_friends": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "full_name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "avatar": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "privacy": {
+                                  "type": "string",
+                                  "enum": [
+                                    "public",
+                                    "private",
+                                    "follower"
+                                  ]
+                                },
+                                "relationStatus": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "following",
+                                    "pending",
+                                    "block"
+                                  ]
+                                },
+                                "isFollowing": {
+                                  "type": "boolean"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -519,7 +641,96 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Get blocked users successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "username": {
+                                    "type": "string"
+                                  },
+                                  "full_name": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatar": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "privacy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "private",
+                                      "follower"
+                                    ]
+                                  },
+                                  "relationStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "following",
+                                      "pending",
+                                      "block"
+                                    ]
+                                  },
+                                  "isFollowing": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "requested_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "blocked_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -551,7 +762,96 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Get pending follow requests successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "username": {
+                                    "type": "string"
+                                  },
+                                  "full_name": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatar": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "privacy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "private",
+                                      "follower"
+                                    ]
+                                  },
+                                  "relationStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "following",
+                                      "pending",
+                                      "block"
+                                    ]
+                                  },
+                                  "isFollowing": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "requested_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "blocked_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -650,11 +950,79 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "Update relation successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "relationStatus": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "following",
+                            "pending",
+                            "block"
+                          ]
+                        },
+                        "isFollowing": {
+                          "type": "boolean"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "username": {
+                              "type": "string"
+                            },
+                            "full_name": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "avatar": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "privacy": {
+                              "type": "string",
+                              "enum": [
+                                "public",
+                                "private",
+                                "follower"
+                              ]
+                            },
+                            "relationStatus": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "following",
+                                "pending",
+                                "block"
+                              ]
+                            },
+                            "isFollowing": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2812,6 +3180,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "created_from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2916,6 +3292,22 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "created_from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2990,6 +3382,37 @@
         "responses": {
           "200": {
             "description": ""
+          }
+        },
+        "tags": [
+          "Admins"
+        ]
+      }
+    },
+    "/admins/reports/{id}": {
+      "get": {
+        "operationId": "AdminsController_getReportDetail",
+        "summary": "Admin: Get report detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3670,6 +4093,30 @@
           "message_privacy"
         ]
       },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "example": "currentPassword123"
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "newPassword123"
+          },
+          "confirm_password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "newPassword123"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password",
+          "confirm_password"
+        ]
+      },
       "AfterSignUpDto": {
         "type": "object",
         "properties": {
@@ -3862,6 +4309,22 @@
             "nullable": true
           },
           "reaction": {
+            "type": "string",
+            "nullable": true
+          },
+          "context": {
+            "type": "string",
+            "nullable": true
+          },
+          "postId": {
+            "type": "string",
+            "nullable": true
+          },
+          "commentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "aggregationKey": {
             "type": "string",
             "nullable": true
           },
@@ -5568,6 +6031,115 @@
           "user_id"
         ]
       },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "post",
+              "user",
+              "message"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "spam",
+              "violence",
+              "adult_content",
+              "harassment",
+              "fake_info",
+              "other"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "resolved",
+              "rejected"
+            ]
+          },
+          "reporter_id": {
+            "type": "string"
+          },
+          "reported_post_id": {
+            "type": "string"
+          },
+          "reported_user_id": {
+            "type": "string"
+          },
+          "reported_message_id": {
+            "type": "string"
+          },
+          "admin_note": {
+            "type": "string"
+          },
+          "admin_action": {
+            "type": "string",
+            "enum": [
+              "no_action",
+              "warn_reported",
+              "remove_post",
+              "lock_user"
+            ]
+          },
+          "resolved_by": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reporter": {
+            "$ref": "#/components/schemas/User"
+          },
+          "reported_post": {
+            "$ref": "#/components/schemas/Post"
+          },
+          "reported_user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "reported_message": {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          "resolved_by_user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "reason",
+          "description",
+          "status",
+          "reporter_id",
+          "reported_post_id",
+          "reported_user_id",
+          "reported_message_id",
+          "admin_note",
+          "admin_action",
+          "resolved_by",
+          "resolved_at",
+          "created_at",
+          "reporter",
+          "reported_post",
+          "reported_user",
+          "reported_message",
+          "resolved_by_user"
+        ]
+      },
       "ResolveReportDto": {
         "type": "object",
         "properties": {
@@ -5579,6 +6151,17 @@
             "type": "string",
             "description": "Trạng thái giải quyết báo cáo"
           },
+          "admin_action": {
+            "enum": [
+              "no_action",
+              "warn_reported",
+              "remove_post",
+              "lock_user"
+            ],
+            "type": "string",
+            "example": "warn_reported",
+            "description": "Hành động xử lý nội dung/tài khoản sau khi duyệt báo cáo"
+          },
           "admin_note": {
             "type": "string",
             "example": "Bài viết vi phạm tiêu chuẩn cộng đồng.",
@@ -5587,6 +6170,7 @@
         },
         "required": [
           "status",
+          "admin_action",
           "admin_note"
         ]
       },

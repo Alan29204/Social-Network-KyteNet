@@ -1,6 +1,7 @@
 import { DeviceSessionsService } from './device-sessions/device-sessions.service';
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -14,6 +15,7 @@ import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { IUser } from './users.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { AfterSignUpDto } from './dto/after-signup.dto';
 import { ConfigService } from '@nestjs/config';
@@ -23,6 +25,8 @@ import { RelationType } from 'src/common/enums/relation.enum';
 import { MediaService } from 'src/infra/media/media.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { Post } from 'src/modules/posts/entities/post.entity';
+import { RoleType } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class UsersService {
@@ -139,6 +143,9 @@ export class UsersService {
     if (!user || !this.isValidPassword(password, user.password)) {
       throw new UnauthorizedException('Info is incorrect');
     }
+    if (user.role === RoleType.BANNED) {
+      throw new ForbiddenException('Account has been locked');
+    }
     return user;
   }
 
@@ -242,11 +249,10 @@ export class UsersService {
     }
   }
 
-  async getProfileStats(id: string) {
+  async getProfileStats(id: string, viewerId?: string) {
     const stats = await this.usersRepository
       .createQueryBuilder('user')
       .where('user.id = :id', { id })
-      .loadRelationCountAndMap('user.postsCount', 'user.posts')
       .loadRelationCountAndMap(
         'user.followersCount',
         'user.received_relations',
@@ -267,11 +273,67 @@ export class UsersService {
       )
       .getOne();
 
+    if (!stats) {
+      throw new NotFoundException('User not found');
+    }
+
+    const postRepository = this.usersRepository.manager.getRepository(Post);
+    const postsQb = postRepository
+      .createQueryBuilder('post')
+      .where('post.user_id = :id', { id })
+      .andWhere('post.shared_post_id IS NULL');
+
+    if (viewerId && viewerId !== id) {
+      const relation = await this.relationsService.getRelation(viewerId, id);
+      const isFollowing = relation === RelationType.FOLLOWING;
+
+      if (stats.privacy !== PrivacyType.PUBLIC && !isFollowing) {
+        postsQb.andWhere('1 = 0');
+      } else if (isFollowing) {
+        postsQb.andWhere('post.privacy IN (:...visiblePostPrivacies)', {
+          visiblePostPrivacies: [PrivacyType.PUBLIC, PrivacyType.FOLLOWER],
+        });
+      } else {
+        postsQb.andWhere('post.privacy = :publicPostPrivacy', {
+          publicPostPrivacy: PrivacyType.PUBLIC,
+        });
+      }
+    }
+
+    const postsCount = await postsQb.getCount();
+
     return {
-      postsCount: (stats as any)?.postsCount || 0,
+      postsCount,
       followersCount: (stats as any)?.followersCount || 0,
       followingCount: (stats as any)?.followingCount || 0,
     };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    if (dto.new_password !== dto.confirm_password) {
+      throw new BadRequestException('New password confirmation does not match');
+    }
+
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!this.isValidPassword(dto.current_password, user.password)) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    if (this.isValidPassword(dto.new_password, user.password)) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    user.password = await this.getHashPassword(dto.new_password);
+    await this.usersRepository.save(user);
+    await this.redisService.del(`user:${userId}`);
+
+    return { message: 'Password updated successfully' };
   }
 
   async updateUser(dto: UpdateUserDto, user: IUser, file: Express.Multer.File) {

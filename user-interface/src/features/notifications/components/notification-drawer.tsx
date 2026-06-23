@@ -379,16 +379,6 @@ function NotificationItem({
   });
 
   const handleClick = async () => {
-    console.log(
-      '[NOTI-DEBUG] FULL notification object:',
-      JSON.stringify(notification, null, 2),
-    );
-    console.log('[NOTI-DEBUG] ALL KEYS:', Object.keys(notification));
-    console.log('[NOTI-DEBUG] handleClick called', {
-      isHandling,
-      target_type: notification.target_type,
-      target_id: notification.target_id,
-    });
     if (isHandling) return;
     setIsHandling(true);
 
@@ -412,24 +402,14 @@ function NotificationItem({
     }
 
     const { target_type, target_id, metadata } = notification;
-    console.log(
-      '[NOTI-DEBUG] target_type:',
-      target_type,
-      'target_id:',
-      target_id,
-      'metadata:',
-      metadata,
-    );
 
     if (target_type === 'POST') {
       try {
-        console.log('[NOTI-DEBUG] Fetching post...');
         await queryClient.fetchQuery({
           queryKey: ['postDetail', target_id],
           queryFn: () =>
             orvalClient({ url: `/posts/${target_id}`, method: 'GET' }),
         });
-        console.log('[NOTI-DEBUG] Post fetched. Opening modal...');
 
         // IMPORTANT: Set store state BEFORE closing drawer to avoid React batching issues
         if (metadata?.commentId) {
@@ -437,10 +417,6 @@ function NotificationItem({
         } else {
           usePostModalStore.getState().openPost(target_id);
         }
-        console.log(
-          '[NOTI-DEBUG] Store state after openPost:',
-          usePostModalStore.getState(),
-        );
 
         // Close drawer AFTER store is updated
         onClose();

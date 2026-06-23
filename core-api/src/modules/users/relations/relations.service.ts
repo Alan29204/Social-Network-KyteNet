@@ -34,6 +34,102 @@ export class RelationsService {
     private readonly blockSweepQueue: Queue,
   ) {}
 
+  private relationResponse(
+    message: string,
+    targetUser: any,
+    relationStatus: RelationType = RelationType.NONE,
+  ) {
+    return {
+      message,
+      relationStatus,
+      isFollowing: relationStatus === RelationType.FOLLOWING,
+      user: targetUser
+        ? {
+            id: targetUser.id,
+            username: targetUser.username,
+            full_name: targetUser.full_name,
+            avatar: targetUser.avatar,
+            privacy: targetUser.privacy,
+            relationStatus,
+            isFollowing: relationStatus === RelationType.FOLLOWING,
+          }
+        : null,
+    };
+  }
+
+  private async clearSuggestedCaches(...userIds: Array<string | undefined>) {
+    const ids = [...new Set(userIds.filter((id): id is string => !!id))];
+    await Promise.all(ids.map((id) => this.redisService.del(`suggested:${id}`)));
+  }
+
+  private normalizeMutualFriends(value: any) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    try {
+      return JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+
+  private async hydrateSuggestedUsers(
+    userId: string,
+    candidates: any[],
+    limit: number,
+  ) {
+    const candidateMap = new Map<string, any>();
+    for (const candidate of candidates || []) {
+      if (candidate?.id && !candidateMap.has(candidate.id)) {
+        candidateMap.set(candidate.id, candidate);
+      }
+    }
+
+    const candidateIds = [...candidateMap.keys()];
+    if (candidateIds.length === 0) return [];
+
+    const rows = await this.relationRepository.query(
+      `
+      SELECT
+        u.id,
+        u.username,
+        u.full_name,
+        u.avatar,
+        u.privacy,
+        COALESCE(current_rel.relation_type, 'none') AS "relationStatus",
+        false AS "isFollowing"
+      FROM "user" u
+      LEFT JOIN relation current_rel
+        ON current_rel.request_side_id = $1
+       AND current_rel.accept_side_id = u.id
+      LEFT JOIN relation reverse_block
+        ON reverse_block.request_side_id = u.id
+       AND reverse_block.accept_side_id = $1
+       AND reverse_block.relation_type = 'block'
+      WHERE u.id = ANY($2::uuid[])
+        AND u.id != $1
+        AND reverse_block.id IS NULL
+        AND COALESCE(current_rel.relation_type, 'none') NOT IN ('following', 'pending', 'block')
+      `,
+      [userId, candidateIds],
+    );
+
+    const rowsById = new Map(rows.map((row: any) => [row.id, row]));
+
+    return candidateIds
+      .map((id) => {
+        const row = rowsById.get(id) as Record<string, any> | undefined;
+        if (!row) return null;
+        const cached = candidateMap.get(id) || {};
+        return {
+          ...row,
+          mutual_count: Number(cached.mutual_count || 0),
+          mutual_friends: this.normalizeMutualFriends(cached.mutual_friends),
+        };
+      })
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+
   private async acceptMutualDirectMessageRequests(userAId: string, userBId: string) {
     const rows = await this.relationRepository.manager.query(
       `
@@ -173,6 +269,7 @@ export class RelationsService {
     // Clear Redis Cache for Blocked Users
     await this.redisService.del(`blocked_users:${user.id}`);
     await this.redisService.del(`blocked_users:${targetId}`);
+    await this.clearSuggestedCaches(user.id, targetId);
 
     return { message: 'User blocked successfully' };
   }
@@ -201,6 +298,7 @@ export class RelationsService {
     // Clear Redis Cache for Blocked Users
     await this.redisService.del(`blocked_users:${user.id}`);
     await this.redisService.del(`blocked_users:${targetId}`);
+    await this.clearSuggestedCaches(user.id, targetId);
 
     return { message: 'User unblocked successfully' };
   }
@@ -254,6 +352,8 @@ export class RelationsService {
 
   /** Danh sách user mà `userId` đã chặn (phân trang) - Mục VII. */
   async getBlockedUsers(userId: string, page: number, limit: number) {
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.max(1, Math.floor(Number(limit) || 20));
     const offset = (page - 1) * limit;
     const [relations, total] = await this.relationRepository.findAndCount({
       where: {
@@ -287,6 +387,8 @@ export class RelationsService {
 
   /** Danh sách yêu cầu theo dõi đang chờ duyệt */
   async getPendingRequests(userId: string, page: number, limit: number) {
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.max(1, Math.floor(Number(limit) || 20));
     const offset = (page - 1) * limit;
     const [relations, total] = await this.relationRepository.findAndCount({
       where: {
@@ -384,6 +486,7 @@ export class RelationsService {
         e,
       );
     }
+    await this.clearSuggestedCaches(user.id, requestUserId);
 
     return { message: 'Follow request accepted' };
   }
@@ -418,6 +521,7 @@ export class RelationsService {
     } catch (e) {
       console.error('Error undoing follow request notification:', e);
     }
+    await this.clearSuggestedCaches(user.id, requestUserId);
 
     return { message: 'Follow request rejected' };
   }
@@ -429,16 +533,11 @@ export class RelationsService {
     relationType: RelationType,
     mode?: 'followers' | 'following',
   ) {
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.max(1, Math.floor(Number(limit) || 10));
     const offset = (page - 1) * limit;
 
-    // Kiểm tra user có tồn tại không
-    const exists = await this.relationRepository.count({
-      where: [{ request_side_id: userId }, { accept_side_id: userId }],
-    });
-
-    if (!exists) {
-      throw new NotFoundException('User not found');
-    }
+    await this.usersService.findUserById(userId);
 
     // Truy vấn danh sách quan hệ
     const query = this.relationRepository
@@ -458,12 +557,13 @@ export class RelationsService {
       );
     }
 
-    const relations = await query.skip(offset).take(limit).getMany();
+    query.orderBy('relation.created_at', 'DESC');
+    const [relations, total] = await query.skip(offset).take(limit).getManyAndCount();
 
     return {
       page,
       limit,
-      total: relations.length,
+      total,
       data: relations.map((relation) => ({
         id: relation.id,
         relation_type: relation.relation_type,
@@ -501,6 +601,7 @@ export class RelationsService {
     } catch (e) {
       console.error('Error undoing follow notification:', e);
     }
+    await this.clearSuggestedCaches(userId, followerId);
 
     return { message: 'Follower removed successfully' };
   }
@@ -560,7 +661,12 @@ export class RelationsService {
           break;
       }
       await this.relationRepository.save(relationRequestAccept);
-      return { message: `Action ${dto.action} performed successfully` };
+      await this.clearSuggestedCaches(user.id, dto.user_id);
+      return this.relationResponse(
+        `Action ${dto.action} performed successfully`,
+        acceptUser,
+        relationRequestAccept.relation_type,
+      );
     }
 
     const relationNew = dto.relation;
@@ -631,11 +737,13 @@ export class RelationsService {
         } catch (e) {
           console.error('Error handling notifications for follow request:', e);
         }
+        await this.clearSuggestedCaches(user.id, dto.user_id);
 
-        return {
-          message: 'Action following performed successfully',
-          relationStatus: newType,
-        };
+        return this.relationResponse(
+          'Action following performed successfully',
+          acceptUser,
+          newType,
+        );
       case relationNew === RelationType.FOLLOWING &&
         relationRequestAccept?.relation_type === RelationType.FOLLOWING:
         // Already following, do nothing to be idempotent
@@ -684,6 +792,7 @@ export class RelationsService {
         } catch (e) {
           console.error('Error undoing follow notification:', e);
         }
+        await this.clearSuggestedCaches(user.id, dto.user_id);
         break;
 
       case relationNew === RelationType.NONE &&
@@ -718,6 +827,7 @@ export class RelationsService {
         } catch (e) {
           console.error('Error purging notifications on block:', e);
         }
+        await this.clearSuggestedCaches(user.id, dto.user_id);
         break;
 
       // Other case
@@ -725,37 +835,85 @@ export class RelationsService {
         throw new BadRequestException('Info input is incorrect');
     }
 
-    return {
-      message: `Update relation successfully`,
-    };
+    const relationStatus =
+      relationRequestAccept?.relation_type || RelationType.NONE;
+
+    return this.relationResponse(
+      `Update relation successfully`,
+      acceptUser,
+      relationStatus,
+    );
   }
 
   async getSuggestedUsers(userId: string, limit: number) {
+    limit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 5)));
+
     // 1. Try to get pre-calculated suggestions from Redis (set by CronJob)
     const cached = await this.redisService.get(`suggested:${userId}`);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.slice(0, limit);
+          const hydrated = await this.hydrateSuggestedUsers(
+            userId,
+            parsed,
+            limit,
+          );
+          if (hydrated.length >= limit) {
+            return hydrated;
+          }
         }
       } catch (e) {
         console.error('Error parsing cached suggestions:', e);
       }
     }
 
-    // 2. Fallback: If no cache (e.g., new user or cron hasn't run), return random users
+    // 2. Fallback: mutual-follow candidates first, then recent users.
     const fallbackQuery = `
-      SELECT u.id, u.username, u.full_name, u.avatar, 0 as mutual_count, '[]'::json as mutual_friends
+      SELECT
+        u.id,
+        u.username,
+        u.full_name,
+        u.avatar,
+        u.privacy,
+        CAST(COUNT(DISTINCT mutual_user.id) AS INTEGER) AS mutual_count,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', mutual_user.id,
+              'username', mutual_user.username,
+              'avatar', mutual_user.avatar
+            )
+          ) FILTER (WHERE mutual_user.id IS NOT NULL),
+          '[]'
+        ) AS mutual_friends,
+        COALESCE(current_rel.relation_type, 'none') AS "relationStatus",
+        false AS "isFollowing"
       FROM "user" u
+      LEFT JOIN relation r2
+        ON r2.accept_side_id = u.id
+       AND r2.relation_type = 'following'
+       AND r2.is_restricted = false
+      LEFT JOIN relation r1
+        ON r1.accept_side_id = r2.request_side_id
+       AND r1.request_side_id = $1
+       AND r1.relation_type = 'following'
+       AND r1.is_restricted = false
+      LEFT JOIN "user" mutual_user
+        ON mutual_user.id = r2.request_side_id
+       AND r1.id IS NOT NULL
+      LEFT JOIN relation current_rel
+        ON current_rel.request_side_id = $1
+       AND current_rel.accept_side_id = u.id
+      LEFT JOIN relation reverse_block
+        ON reverse_block.request_side_id = u.id
+       AND reverse_block.accept_side_id = $1
+       AND reverse_block.relation_type = 'block'
       WHERE u.id != $1
-      AND u.id NOT IN (
-          SELECT accept_side_id FROM relation WHERE request_side_id = $1 AND relation_type IN ('following', 'pending', 'block')
-      )
-      AND u.id NOT IN (
-          SELECT request_side_id FROM relation WHERE accept_side_id = $1 AND relation_type = 'block'
-      )
-      ORDER BY RANDOM()
+        AND reverse_block.id IS NULL
+        AND COALESCE(current_rel.relation_type, 'none') NOT IN ('following', 'pending', 'block')
+      GROUP BY u.id, current_rel.relation_type
+      ORDER BY mutual_count DESC, u.created_at DESC
       LIMIT $2
     `;
 

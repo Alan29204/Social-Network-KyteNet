@@ -3,13 +3,11 @@ import { Button } from '@/components/ui/button';
 import { useRelationsControllerGetSuggestedUsers } from '@/services/apis/gen/queries';
 import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { orvalClient } from '@/services/apis/axios-client';
-import { useState, useRef } from 'react';
+import { useFollowAction } from '@/features/profile/hooks/use-follow-action';
+import { getAvatarUrl, getDisplayName } from '@/utils/user';
 
 function SuggestedUserItem({ user }: { user: any }) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const followTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const followAction = useFollowAction(user);
   const mutualCount = user.mutual_count || 0;
   const mutualFriends = user.mutual_friends || [];
   
@@ -20,38 +18,19 @@ function SuggestedUserItem({ user }: { user: any }) {
     infoText = `Có ${mutualFriends[0].username} và ${mutualCount - 1} người khác theo dõi`;
   }
 
-  const toggleFollowMutation = useMutation({
-    mutationFn: (action: 'following' | 'none') =>
-      orvalClient({ 
-        url: '/relations/update', 
-        method: 'POST', 
-        data: { user_id: user.id, relation: action } 
-      }),
-  });
-
-  const handleToggleFollow = () => {
-    const newStatus = !isFollowing;
-    setIsFollowing(newStatus);
-
-    if (followTimerRef.current) clearTimeout(followTimerRef.current);
-    followTimerRef.current = setTimeout(() => {
-      toggleFollowMutation.mutate(newStatus ? 'following' : 'none');
-    }, 500);
-  };
-
   return (
     <div className="flex items-center justify-between">
       <Link to={`/profile/${user.id}`} className="flex items-center gap-4 cursor-pointer hover:bg-muted/50 p-2 rounded-xl transition-colors flex-1 min-w-0 mr-4">
         <div className="relative shrink-0">
           <Avatar className="w-12 h-12">
-            <AvatarImage src={user.avatar || '/default-avatar.png'} />
+            <AvatarImage src={getAvatarUrl(user.avatar)} />
             <AvatarFallback className="bg-secondary text-sm uppercase">
-              {user.username.substring(0, 2)}
+              {(user.username || 'U').substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           {mutualFriends.length > 0 && (
             <Avatar className="w-5 h-5 absolute -bottom-1 -right-1 ring-2 ring-background">
-              <AvatarImage src={mutualFriends[0].avatar || '/default-avatar.png'} />
+              <AvatarImage src={getAvatarUrl(mutualFriends[0].avatar)} />
               <AvatarFallback className="text-[10px] uppercase">
                 {mutualFriends[0].username[0]}
               </AvatarFallback>
@@ -59,8 +38,8 @@ function SuggestedUserItem({ user }: { user: any }) {
           )}
         </div>
         <div className="flex flex-col flex-1 min-w-0 justify-center">
-          <span className="text-sm font-semibold truncate">{user.username}</span>
-          <span className="text-sm text-muted-foreground truncate">{user.fullname || user.username}</span>
+          <span className="text-sm font-semibold truncate">{getDisplayName(user)}</span>
+          <span className="text-sm text-muted-foreground truncate">{user.username ? `@${user.username}` : ''}</span>
           <span className="text-[13px] text-muted-foreground truncate mt-0.5" title={infoText}>
             {infoText}
           </span>
@@ -69,15 +48,20 @@ function SuggestedUserItem({ user }: { user: any }) {
       <div className="shrink-0">
         <Button 
           size="sm" 
-          onClick={handleToggleFollow}
-          variant={isFollowing ? "secondary" : "default"}
+          onClick={followAction.toggleFollow}
+          disabled={followAction.isMutating || followAction.isBlocked}
+          variant={followAction.isFollowing || followAction.isPendingFollow ? "secondary" : "default"}
           className={
-            isFollowing 
+            followAction.isFollowing || followAction.isPendingFollow
               ? "px-6 rounded-lg font-semibold min-w-[100px]" 
               : "px-6 rounded-lg font-semibold bg-[#0095f6] hover:bg-[#1877f2] text-white min-w-[100px]"
           }
         >
-          {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+          {followAction.isPendingFollow
+            ? 'Đã gửi yêu cầu'
+            : followAction.isFollowing
+              ? 'Đang theo dõi'
+              : 'Theo dõi'}
         </Button>
       </div>
     </div>
@@ -86,7 +70,8 @@ function SuggestedUserItem({ user }: { user: any }) {
 
 export default function SuggestedPeoplePage() {
   const { data: suggestedRes, isLoading } = useRelationsControllerGetSuggestedUsers({ limit: 30 });
-  const suggestions = Array.isArray(suggestedRes?.data) ? suggestedRes.data : [];
+  const rawSuggestions = (suggestedRes as any)?.data?.data || (suggestedRes as any)?.data || [];
+  const suggestions = Array.isArray(rawSuggestions) ? rawSuggestions : [];
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 w-full h-full min-h-screen">

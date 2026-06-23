@@ -188,16 +188,11 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               {isMe ? (
                 <>
                   <Link to="/profile/edit">
-                    <Button variant="secondary" size="sm">
+                    <Button variant="secondary" size="sm" className="gap-2">
+                      <Settings className="w-4 h-4" />
                       Chỉnh sửa trang cá nhân
                     </Button>
                   </Link>
-                  <Button variant="secondary" size="sm">
-                    Xem kho lưu trữ
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Settings className="w-5 h-5" />
-                  </Button>
                 </>
               ) : (
                 <>

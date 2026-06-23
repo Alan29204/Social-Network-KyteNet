@@ -31,6 +31,13 @@ export enum ReportStatus {
   REJECTED = 'rejected',
 }
 
+export enum ReportAction {
+  NO_ACTION = 'no_action',
+  WARN_REPORTED = 'warn_reported',
+  REMOVE_POST = 'remove_post',
+  LOCK_USER = 'lock_user',
+}
+
 @Entity()
 export class Report {
   @PrimaryGeneratedColumn('uuid')
@@ -68,6 +75,15 @@ export class Report {
   @Column({ nullable: true })
   admin_note: string;
 
+  @Column({ type: 'enum', enum: ReportAction, nullable: true })
+  admin_action: ReportAction;
+
+  @Column({ type: 'uuid', nullable: true })
+  resolved_by: string;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  resolved_at: Date;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -86,4 +102,8 @@ export class Report {
   @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reported_message_id' })
   reported_message: ChatMessage;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'resolved_by' })
+  resolved_by_user: User;
 }

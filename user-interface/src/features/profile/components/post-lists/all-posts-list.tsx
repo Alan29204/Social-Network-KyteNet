@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { PostCard } from '@/features/home/components/post-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { mapApiPostToPostCard } from '@/features/posts/utils/post-card-mapper';
 
 export function AllPostsList({ userId }: { userId: string }) {
   const {
@@ -64,61 +65,9 @@ export function AllPostsList({ userId }: { userId: string }) {
         posts.map((post: any) => (
           <PostCard
             key={post.id}
-            post={{
-              id: post.id,
-              user: {
-                id: post.user?.id || '',
-                username: post.user?.username || 'User',
-                avatarUrl:
-                  post.user?.avatar ||
-                  post.user?.profilePicture ||
-                  post.user?.avatarUrl ||
-                  '',
-              },
-              createdAt:
-                post.created_at || post.createdAt || new Date().toISOString(),
-              images: post.medias || post.mediaUrls || [],
-              caption: post.content || '',
-              likesCount: post.likesCount || post.interactions?.likes || 0,
-              commentsCount:
-                post.commentsCount || post.interactions?.comments || 0,
-              repostsCount: post.interactions?.reposts || 0,
-              isLiked: post.isLiked || post.interactions?.is_liked || false,
-              isSaved: post.isSaved || false,
-              isReposted: post.interactions?.is_reposted || false,
-              repostedBy:
-                post.reposted_by ||
-                (post.shared_post
-                  ? [{ id: post.user?.id, username: post.user?.username }]
-                  : undefined),
-              tagged_users: post.tagged_users || [],
-              hashtags: post.hashtags || [],
-              shared_post: post.shared_post
-                ? {
-                    id: post.shared_post.id,
-                    user: {
-                      id: post.shared_post.user?.id || '',
-                      username: post.shared_post.user?.username || 'User',
-                      avatarUrl:
-                        post.shared_post.user?.avatar ||
-                        post.shared_post.user?.profilePicture ||
-                        post.shared_post.user?.avatarUrl ||
-                        '',
-                    },
-                    createdAt:
-                      post.shared_post.created_at ||
-                      post.shared_post.createdAt ||
-                      new Date().toISOString(),
-                    images:
-                      post.shared_post.medias ||
-                      post.shared_post.mediaUrls ||
-                      [],
-                    caption: post.shared_post.content || '',
-                    tagged_users: post.shared_post.tagged_users || [],
-                    hashtags: post.shared_post.hashtags || [],
-                  }
-                : undefined,
-            }}
+            post={mapApiPostToPostCard(post)}
+            videoClickMode="reels"
+            videoReelsUserId={userId}
           />
         ))
       )}

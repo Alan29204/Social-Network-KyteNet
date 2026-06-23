@@ -31,6 +31,7 @@ import { LoginDto } from './dto/login.dto';
 import { AfterSignUpDto } from './dto/after-signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RoleType } from 'src/common/enums/role.enum';
 
 @ApiTags('Users')
@@ -113,7 +114,7 @@ export class UsersController {
       user_id,
     );
 
-    const stats = await this.usersService.getProfileStats(user_id);
+    const stats = await this.usersService.getProfileStats(user_id, user.id);
     const relationStatus = await (
       this.usersService as any
     ).relationsService.getRelation(user.id, user_id);
@@ -151,6 +152,14 @@ export class UsersController {
     file: Express.Multer.File,
   ) {
     return await this.usersService.updateUser(dto, user, file);
+  }
+
+  @Patch('/profile/password')
+  @ResponseMessage('Change password successfully')
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(@Body() dto: ChangePasswordDto, @User() user: IUser) {
+    return this.usersService.changePassword(user.id, dto);
   }
 
   @Patch('/profile/cover-photo')

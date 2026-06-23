@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CheckCircle, Eye, MessageSquare, ShieldAlert, User, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,9 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AdminDataTable } from '@/features/admin/components/admin-data-table';
 import { AdminPagination } from '@/features/admin/components/admin-pagination';
-import { useAdminReports, useResolveReport } from '@/features/admin/apis/admin-api';
+import {
+  useAdminReportDetail,
+  useAdminReports,
+  useResolveReport,
+} from '@/features/admin/apis/admin-api';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -30,6 +35,22 @@ const STATUS_TABS = [
   { value: 'resolved', label: 'Đã xử lý' },
   { value: 'rejected', label: 'Từ chối' },
 ];
+
+const reasonLabels: Record<string, string> = {
+  spam: 'Spam',
+  violence: 'Bạo lực',
+  adult_content: 'Nội dung người lớn',
+  harassment: 'Quấy rối',
+  fake_info: 'Thông tin giả',
+  other: 'Khác',
+};
+
+const actionLabels: Record<string, string> = {
+  no_action: 'Không áp dụng thêm',
+  warn_reported: 'Cảnh báo người bị tố cáo',
+  remove_post: 'Gỡ bài viết',
+  lock_user: 'Khóa tài khoản',
+};
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
@@ -67,20 +88,117 @@ const typeBadge = (type: string) => {
   );
 };
 
-const reasonLabels: Record<string, string> = {
-  spam: 'Spam',
-  violence: 'Bạo lực',
-  adult_content: 'Nội dung người lớn',
-  harassment: 'Quấy rối',
-  fake_info: 'Thông tin giả',
-  other: 'Khác',
+const unwrap = (value: any) => value?.data || value;
+
+const getActionsForReport = (report: any, status: string) => {
+  if (status === 'rejected') return ['no_action'];
+  const actions = ['no_action', 'warn_reported', 'lock_user'];
+  if (report?.type === 'post') actions.splice(2, 0, 'remove_post');
+  return actions;
 };
+
+function UserLine({ user }: { user: any }) {
+  if (!user) return <span className="text-muted-foreground">Không có dữ liệu</span>;
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <div className="w-8 h-8 rounded-full bg-muted overflow-hidden shrink-0">
+        {user.avatar ? (
+          <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+            {user.username?.charAt(0)?.toUpperCase() || '?'}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium truncate">{user.full_name || user.username || 'Người dùng'}</p>
+        {user.username && <p className="text-xs text-muted-foreground truncate">@{user.username}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ReportTargetDetail({ report }: { report: any }) {
+  if (report.type === 'post') {
+    const post = report.reported_post;
+    return (
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ShieldAlert className="w-4 h-4" />
+          Bài viết bị tố cáo
+        </div>
+        {!post ? (
+          <p className="text-sm text-muted-foreground">Bài viết không còn khả dụng.</p>
+        ) : (
+          <>
+            <UserLine user={post.user} />
+            {post.content && <p className="text-sm whitespace-pre-wrap">{post.content}</p>}
+            {post.medias?.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {post.medias.map((url: string, index: number) => (
+                  <div key={`${url}-${index}`} className="aspect-square rounded-md overflow-hidden bg-muted border border-border">
+                    {/\.(mp4|webm|ogg)(\?|$)/i.test(url) ? (
+                      <video src={url} controls className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {post.created_at ? format(new Date(post.created_at), 'dd/MM/yyyy HH:mm', { locale: vi }) : ''}
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (report.type === 'user') {
+    return (
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <User className="w-4 h-4" />
+          Tài khoản bị tố cáo
+        </div>
+        <UserLine user={report.reported_user} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <MessageSquare className="w-4 h-4" />
+        Tin nhắn bị tố cáo
+      </div>
+      {!report.reported_message ? (
+        <p className="text-sm text-muted-foreground">Tin nhắn không còn khả dụng.</p>
+      ) : (
+        <>
+          <UserLine user={report.reported_message.user} />
+          <p className="text-sm whitespace-pre-wrap">
+            {report.reported_message.message || 'Tin nhắn media/bài viết được chia sẻ'}
+          </p>
+          {report.reported_message.medias?.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {report.reported_message.medias.length} tệp media đính kèm
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function AdminReportsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [detailReportId, setDetailReportId] = useState<string | null>(null);
   const [resolveDialog, setResolveDialog] = useState<any>(null);
   const [resolveStatus, setResolveStatus] = useState('resolved');
+  const [adminAction, setAdminAction] = useState('warn_reported');
   const [adminNote, setAdminNote] = useState('');
   const { toast } = useToast();
   const limit = 15;
@@ -90,24 +208,54 @@ export default function AdminReportsPage() {
     page,
     limit,
   });
-  const reports = data?.data?.data || data?.data || [];
-  const meta = data?.data?.meta || data?.meta || { page: 1, total_pages: 1 };
-
+  const { data: detailData, isLoading: isLoadingDetail } = useAdminReportDetail(detailReportId || undefined);
+  const reports = unwrap(data)?.data || [];
+  const meta = unwrap(data)?.meta || { page: 1, total_pages: 1 };
+  const detailReport = unwrap(detailData);
   const resolveMutation = useResolveReport();
+
+  const openResolveDialog = (report: any, status: 'resolved' | 'rejected') => {
+    setResolveDialog(report);
+    setResolveStatus(status);
+    setAdminAction(status === 'rejected' ? 'no_action' : 'warn_reported');
+    setAdminNote('');
+  };
+
+  const handleStatusChange = (value: string) => {
+    setResolveStatus(value);
+    if (value === 'rejected') {
+      setAdminAction('no_action');
+    } else if (adminAction === 'no_action') {
+      setAdminAction('warn_reported');
+    }
+  };
 
   const handleResolve = () => {
     if (!resolveDialog || !adminNote.trim()) return;
+    const actions = getActionsForReport(resolveDialog, resolveStatus);
+    const nextAction = actions.includes(adminAction) ? adminAction : actions[0];
+
     resolveMutation.mutate(
-      { id: resolveDialog.id, status: resolveStatus, admin_note: adminNote },
+      {
+        id: resolveDialog.id,
+        status: resolveStatus,
+        admin_action: nextAction,
+        admin_note: adminNote.trim(),
+      },
       {
         onSuccess: () => {
           toast({ title: 'Thành công', description: 'Đã xử lý báo cáo' });
           setResolveDialog(null);
           setAdminNote('');
           setResolveStatus('resolved');
+          setAdminAction('warn_reported');
         },
-        onError: () => {
-          toast({ title: 'Lỗi', description: 'Xử lý báo cáo thất bại', variant: 'destructive' });
+        onError: (error: any) => {
+          toast({
+            title: 'Lỗi',
+            description: error?.response?.data?.message || 'Xử lý báo cáo thất bại',
+            variant: 'destructive',
+          });
         },
       },
     );
@@ -124,37 +272,20 @@ export default function AdminReportsPage() {
       {
         key: 'reason',
         header: 'Lý do',
-        render: (report: any) => (
-          <span className="text-sm">{reasonLabels[report.reason] || report.reason}</span>
-        ),
+        render: (report: any) => <span className="text-sm">{reasonLabels[report.reason] || report.reason}</span>,
       },
       {
         key: 'description',
         header: 'Mô tả',
-        className: 'max-w-[200px]',
+        className: 'max-w-[220px]',
         render: (report: any) => (
-          <p className="text-xs text-muted-foreground truncate max-w-[180px]">
-            {report.description || '—'}
-          </p>
+          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{report.description || '—'}</p>
         ),
       },
       {
         key: 'reporter',
         header: 'Người báo cáo',
-        render: (report: any) => (
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-muted overflow-hidden shrink-0">
-              {report.reporter?.avatar ? (
-                <img src={report.reporter.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
-              ) : (
-                <div className="w-6 h-6 flex items-center justify-center text-xs text-muted-foreground">
-                  {report.reporter?.username?.charAt(0)?.toUpperCase() || '?'}
-                </div>
-              )}
-            </div>
-            <span className="text-xs">{report.reporter?.username || '—'}</span>
-          </div>
-        ),
+        render: (report: any) => <UserLine user={report.reporter} />,
       },
       {
         key: 'status',
@@ -175,54 +306,50 @@ export default function AdminReportsPage() {
       {
         key: 'actions',
         header: '',
-        className: 'w-24',
-        render: (report: any) =>
-          report.status === 'pending' ? (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-green-600 hover:text-green-600 hover:bg-green-500/10"
-                title="Duyệt"
-                onClick={() => {
-                  setResolveDialog(report);
-                  setResolveStatus('resolved');
-                  setAdminNote('');
-                }}
-              >
-                <CheckCircle className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-500 hover:bg-gray-500/10"
-                title="Từ chối"
-                onClick={() => {
-                  setResolveDialog(report);
-                  setResolveStatus('rejected');
-                  setAdminNote('');
-                }}
-              >
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          ),
+        className: 'w-32',
+        render: (report: any) => (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Xem chi tiết" onClick={() => setDetailReportId(report.id)}>
+              <Eye className="w-4 h-4" />
+            </Button>
+            {report.status === 'pending' && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-green-600 hover:text-green-600 hover:bg-green-500/10"
+                  title="Duyệt"
+                  onClick={() => openResolveDialog(report, 'resolved')}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-gray-500 hover:bg-gray-500/10"
+                  title="Từ chối"
+                  onClick={() => openResolveDialog(report, 'rejected')}
+                >
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        ),
       },
     ],
     [],
   );
 
+  const availableActions = getActionsForReport(resolveDialog, resolveStatus);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Quản lý Báo cáo</h1>
         <p className="text-muted-foreground mt-1">Xử lý các báo cáo vi phạm từ cộng đồng</p>
       </div>
 
-      {/* Status Tabs */}
       <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
         {STATUS_TABS.map((tab) => (
           <button
@@ -242,47 +369,95 @@ export default function AdminReportsPage() {
         ))}
       </div>
 
-      {/* Table */}
       <AdminDataTable columns={columns} data={reports} isLoading={isLoading} emptyMessage="Không có báo cáo nào" />
-
-      {/* Pagination */}
       <AdminPagination page={meta.page || page} totalPages={meta.total_pages || 1} onPageChange={setPage} />
 
-      {/* Resolve Dialog */}
+      <Dialog open={!!detailReportId} onOpenChange={(open) => !open && setDetailReportId(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết báo cáo</DialogTitle>
+          </DialogHeader>
+          {isLoadingDetail ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          ) : detailReport ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border p-4 space-y-2">
+                  <p className="text-sm font-medium">Người báo cáo</p>
+                  <UserLine user={detailReport.reporter} />
+                </div>
+                <div className="rounded-lg border border-border p-4 space-y-2">
+                  <p className="text-sm font-medium">Thông tin báo cáo</p>
+                  <div className="flex flex-wrap gap-2">{typeBadge(detailReport.type)} {statusBadge(detailReport.status)}</div>
+                  <p className="text-sm">{reasonLabels[detailReport.reason] || detailReport.reason}</p>
+                  {detailReport.description && <p className="text-sm text-muted-foreground">{detailReport.description}</p>}
+                </div>
+              </div>
+              <ReportTargetDetail report={detailReport} />
+              {detailReport.admin_note && (
+                <div className="rounded-lg border border-border p-4 space-y-2">
+                  <p className="text-sm font-medium">Kết quả xử lý</p>
+                  <p className="text-sm">{actionLabels[detailReport.admin_action] || detailReport.admin_action}</p>
+                  <p className="text-sm text-muted-foreground">{detailReport.admin_note}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Không tải được chi tiết báo cáo.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!resolveDialog} onOpenChange={(open) => !open && setResolveDialog(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Xử lý báo cáo</DialogTitle>
           </DialogHeader>
           {resolveDialog && (
             <div className="space-y-4">
-              {/* Report info */}
-              <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+              <div className="p-3 rounded-lg bg-muted/50 space-y-2">
                 <div className="flex items-center gap-2">
                   {typeBadge(resolveDialog.type)}
-                  <span className="text-xs text-muted-foreground">•</span>
+                  <span className="text-xs text-muted-foreground">·</span>
                   <span className="text-xs">{reasonLabels[resolveDialog.reason] || resolveDialog.reason}</span>
                 </div>
-                {resolveDialog.description && (
-                  <p className="text-xs text-muted-foreground">{resolveDialog.description}</p>
-                )}
+                {resolveDialog.description && <p className="text-xs text-muted-foreground">{resolveDialog.description}</p>}
               </div>
 
-              {/* Status select */}
-              <div className="space-y-2">
-                <Label>Quyết định</Label>
-                <Select value={resolveStatus} onValueChange={setResolveStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="resolved">✅ Duyệt (Vi phạm)</SelectItem>
-                    <SelectItem value="rejected">❌ Từ chối (Không vi phạm)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Quyết định</Label>
+                  <Select value={resolveStatus} onValueChange={handleStatusChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="resolved">Duyệt vi phạm</SelectItem>
+                      <SelectItem value="rejected">Từ chối báo cáo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Hành động</Label>
+                  <Select value={adminAction} onValueChange={setAdminAction} disabled={resolveStatus === 'rejected'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableActions.map((action) => (
+                        <SelectItem key={action} value={action}>
+                          {actionLabels[action]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {/* Admin note */}
               <div className="space-y-2">
                 <Label>Ghi chú xử lý <span className="text-destructive">*</span></Label>
                 <Textarea
@@ -298,10 +473,7 @@ export default function AdminReportsPage() {
             <Button variant="outline" onClick={() => setResolveDialog(null)}>
               Hủy
             </Button>
-            <Button
-              onClick={handleResolve}
-              disabled={!adminNote.trim() || resolveMutation.isPending}
-            >
+            <Button onClick={handleResolve} disabled={!adminNote.trim() || resolveMutation.isPending}>
               {resolveMutation.isPending ? 'Đang xử lý...' : 'Xác nhận'}
             </Button>
           </DialogFooter>

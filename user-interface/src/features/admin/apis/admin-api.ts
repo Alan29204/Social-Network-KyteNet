@@ -11,7 +11,7 @@ const adminApi = {
     return res.data;
   },
 
-  listUsers: async (params: { page?: number; limit?: number; search?: string }) => {
+  listUsers: async (params: { page?: number; limit?: number; search?: string; created_from?: string }) => {
     const res = await AXIOS_INSTANCE.get('/admins/users', { params });
     return res.data;
   },
@@ -36,7 +36,7 @@ const adminApi = {
     return res.data;
   },
 
-  listPosts: async (params: { page?: number; limit?: number }) => {
+  listPosts: async (params: { page?: number; limit?: number; search?: string; created_from?: string }) => {
     const res = await AXIOS_INSTANCE.get('/admins/posts', { params });
     return res.data;
   },
@@ -51,9 +51,15 @@ const adminApi = {
     return res.data;
   },
 
-  resolveReport: async (data: { id: string; status: string; admin_note: string }) => {
+  getReportDetail: async (id: string) => {
+    const res = await AXIOS_INSTANCE.get(`/admins/reports/${id}`);
+    return res.data;
+  },
+
+  resolveReport: async (data: { id: string; status: string; admin_action: string; admin_note: string }) => {
     const res = await AXIOS_INSTANCE.patch(`/admins/reports/${data.id}/resolve`, {
       status: data.status,
+      admin_action: data.admin_action,
       admin_note: data.admin_note,
     });
     return res.data;
@@ -69,6 +75,7 @@ export const ADMIN_QUERY_KEYS = {
   users: (params: any) => ['admin', 'users', params] as const,
   posts: (params: any) => ['admin', 'posts', params] as const,
   reports: (params: any) => ['admin', 'reports', params] as const,
+  reportDetail: (id?: string) => ['admin', 'reports', 'detail', id] as const,
 };
 
 // ── Queries ──────────────────────────────────
@@ -78,13 +85,13 @@ export const useAdminStats = () =>
     queryFn: adminApi.getStats,
   });
 
-export const useAdminUsers = (params: { page?: number; limit?: number; search?: string }) =>
+export const useAdminUsers = (params: { page?: number; limit?: number; search?: string; created_from?: string }) =>
   useQuery({
     queryKey: ADMIN_QUERY_KEYS.users(params),
     queryFn: () => adminApi.listUsers(params),
   });
 
-export const useAdminPosts = (params: { page?: number; limit?: number }) =>
+export const useAdminPosts = (params: { page?: number; limit?: number; search?: string; created_from?: string }) =>
   useQuery({
     queryKey: ADMIN_QUERY_KEYS.posts(params),
     queryFn: () => adminApi.listPosts(params),
@@ -94,6 +101,13 @@ export const useAdminReports = (params: { status?: string; page?: number; limit?
   useQuery({
     queryKey: ADMIN_QUERY_KEYS.reports(params),
     queryFn: () => adminApi.listReports(params),
+  });
+
+export const useAdminReportDetail = (id?: string) =>
+  useQuery({
+    queryKey: ADMIN_QUERY_KEYS.reportDetail(id),
+    queryFn: () => adminApi.getReportDetail(id as string),
+    enabled: !!id,
   });
 
 // ── Mutations ────────────────────────────────
@@ -157,6 +171,8 @@ export const useResolveReport = () => {
     mutationFn: adminApi.resolveReport,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'posts'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
       qc.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.stats });
     },
   });

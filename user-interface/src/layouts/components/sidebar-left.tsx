@@ -381,11 +381,13 @@ export function SidebarLeft() {
               className="w-64 rounded-xl p-2 shadow-lg"
             >
               <DropdownMenuItem
-                disabled
-                className="p-3 rounded-lg text-[15px]"
+                asChild
+                className="p-3 cursor-pointer rounded-lg text-[15px]"
               >
-                <Settings className="mr-3 h-5 w-5" />
-                <span>Cài đặt</span>
+                <Link to="/profile/edit">
+                  <Settings className="mr-3 h-5 w-5" />
+                  <span>Cài đặt</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled

@@ -1,26 +1,27 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 import { Play, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { getMediaThumbnail } from './media-grid-utils';
 
 export function VideoPostsGrid({ userId }: { userId: string }) {
   const { ref, inView } = useInView();
-  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const navigate = useNavigate();
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
       queryKey: ['posts', 'video', userId],
       queryFn: ({ pageParam = 1 }) =>
         orvalClient<any>({
-          url: `/posts?user_id=${userId}&media_type=video&page=${pageParam}&limit=12`,
+          url: `/posts?user_id=${userId}&is_repost=false&media_type=video&page=${pageParam}&limit=12`,
           method: 'GET',
         }),
       getNextPageParam: (lastPage) => {
-        const meta = lastPage?.data;
-        if (meta && meta.page < Math.ceil(meta.total / meta.limit)) {
+        const meta = lastPage?.data?.meta;
+        if (meta && meta.page < meta.last_page) {
           return meta.page + 1;
         }
         return undefined;
@@ -33,6 +34,16 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, fetchNextPage]);
+
+  const posts = data?.pages.flatMap((page: any) => page.data?.data || []) || [];
+
+  const openProfileReels = (postId: string) => {
+    const params = new URLSearchParams({
+      start: postId,
+      user_id: userId,
+    });
+    navigate(`/reels?${params.toString()}`);
+  };
 
   if (status === 'pending') {
     return (
@@ -50,8 +61,6 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
     );
   }
 
-  const posts = data.pages.flatMap((page: any) => page.data?.data || []);
-
   if (posts.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -64,20 +73,12 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-1 md:gap-4 py-4">
         {posts.map((post: any) => {
-          const firstVideo =
-            post.medias?.find((m: string) =>
-              /\.(mp4|mov|webm)($|\?)/i.test(m),
-            ) || post.medias?.[0];
+          const firstVideo = getMediaThumbnail(post, 'video');
           return (
             <div
               key={post.id}
               className="aspect-[9/16] bg-black flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() =>
-                setSelectedPost({
-                  ...post,
-                  images: post.medias || post.mediaUrls || [],
-                })
-              }
+              onClick={() => openProfileReels(post.id)}
             >
               {firstVideo ? (
                 <>
@@ -96,14 +97,6 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
           );
         })}
       </div>
-
-      {selectedPost && (
-        <PostDetailModal
-          post={selectedPost}
-          open={!!selectedPost}
-          onOpenChange={(open) => !open && setSelectedPost(null)}
-        />
-      )}
       <div ref={ref} className="py-2 flex justify-center">
         {isFetchingNextPage && (
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

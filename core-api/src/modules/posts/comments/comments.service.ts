@@ -136,13 +136,16 @@ export class CommentsService {
         if (post && actor) {
           if (!dto.parent_id) {
             // It's a root comment on the post
-            await this.notificationService.notifyComment(
-              user.id,
-              actor.username,
-              post.user_id,
-              dto.post_id,
-              comment.id,
-            );
+            const postOwnerWasMentioned = comment.tagged_users?.includes(post.user_id);
+            if (!postOwnerWasMentioned) {
+              await this.notificationService.notifyComment(
+                user.id,
+                actor.username,
+                post.user_id,
+                dto.post_id,
+                comment.id,
+              );
+            }
           } else {
             // It's a reply to a parent comment
             if (parentComment && parentComment.user_id !== user.id) {
@@ -283,7 +286,8 @@ export class CommentsService {
               removedId,
               comment.post_id,
               'POST',
-              NotificationType.COMMENT,
+              NotificationType.MENTION,
+              `mention:comment:${comment.id}`,
             );
           } catch (e) {
             console.error('Error undoing tag notification:', e);

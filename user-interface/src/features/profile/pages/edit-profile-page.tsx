@@ -18,6 +18,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const profileSchema = z.object({
   username: z
@@ -47,11 +48,34 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+const passwordSchema = z
+  .object({
+    current_password: z.string().min(1, 'Vui lòng nhập mật khẩu hiện tại'),
+    new_password: z
+      .string()
+      .min(6, 'Mật khẩu mới phải có ít nhất 6 ký tự'),
+    confirm_password: z
+      .string()
+      .min(6, 'Mật khẩu xác nhận phải có ít nhất 6 ký tự'),
+  })
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: 'Mật khẩu xác nhận không khớp',
+    path: ['confirm_password'],
+  })
+  .refine((data) => data.current_password !== data.new_password, {
+    message: 'Mật khẩu mới phải khác mật khẩu hiện tại',
+    path: ['new_password'],
+  });
+
+type PasswordFormValues = z.infer<typeof passwordSchema>;
+
 export default function EditProfilePage() {
   const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
 
   const {
     data: userProfile,
@@ -84,6 +108,14 @@ export default function EditProfilePage() {
   });
 
   const bioValue = form.watch('bio') || '';
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      current_password: '',
+      new_password: '',
+      confirm_password: '',
+    },
+  });
 
   useEffect(() => {
     if (userProfile) {
@@ -129,17 +161,49 @@ export default function EditProfilePage() {
         queryKey: ['usersControllerGetProfile', user?.id],
       });
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
 
       updateUser({
         username: data.username,
+        full_name: data.full_name || undefined,
         bio: data.bio || undefined,
+        privacy: data.privacy || 'public',
       });
 
+      toast({ title: 'Đã cập nhật trang cá nhân' });
       navigate(`/profile/${user?.id}`);
     } catch (error) {
       console.error('Lỗi khi cập nhật:', error);
+      toast({
+        title: 'Không thể cập nhật trang cá nhân',
+        description:
+          (error as any)?.response?.data?.message || 'Vui lòng thử lại sau.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const onChangePassword = async (data: PasswordFormValues) => {
+    try {
+      setIsPasswordSubmitting(true);
+      await orvalClient({
+        url: '/users/profile/password',
+        method: 'PATCH',
+        data,
+      });
+      passwordForm.reset();
+      toast({ title: 'Đã đổi mật khẩu' });
+    } catch (error) {
+      toast({
+        title: 'Không thể đổi mật khẩu',
+        description:
+          (error as any)?.response?.data?.message || 'Vui lòng kiểm tra lại thông tin.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsPasswordSubmitting(false);
     }
   };
 
@@ -259,6 +323,67 @@ export default function EditProfilePage() {
             Hủy
           </Button>
         </div>
+      </form>
+
+      <form
+        onSubmit={passwordForm.handleSubmit(onChangePassword)}
+        className="space-y-6 mt-10 border-t pt-8"
+      >
+        <div>
+          <h2 className="text-xl font-semibold">Đổi mật khẩu</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Dùng mật khẩu hiện tại để xác nhận trước khi đặt mật khẩu mới.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="current_password">Mật khẩu hiện tại</Label>
+          <Input
+            id="current_password"
+            type="password"
+            autoComplete="current-password"
+            {...passwordForm.register('current_password')}
+          />
+          {passwordForm.formState.errors.current_password && (
+            <p className="text-sm text-destructive">
+              {passwordForm.formState.errors.current_password.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="new_password">Mật khẩu mới</Label>
+          <Input
+            id="new_password"
+            type="password"
+            autoComplete="new-password"
+            {...passwordForm.register('new_password')}
+          />
+          {passwordForm.formState.errors.new_password && (
+            <p className="text-sm text-destructive">
+              {passwordForm.formState.errors.new_password.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirm_password">Xác nhận mật khẩu mới</Label>
+          <Input
+            id="confirm_password"
+            type="password"
+            autoComplete="new-password"
+            {...passwordForm.register('confirm_password')}
+          />
+          {passwordForm.formState.errors.confirm_password && (
+            <p className="text-sm text-destructive">
+              {passwordForm.formState.errors.confirm_password.message}
+            </p>
+          )}
+        </div>
+
+        <Button type="submit" disabled={isPasswordSubmitting}>
+          {isPasswordSubmitting ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu'}
+        </Button>
       </form>
     </div>
   );

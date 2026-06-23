@@ -3,14 +3,11 @@ import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { Link } from 'react-router-dom';
 import { useRelationsControllerGetSuggestedUsers } from '@/services/apis/gen/queries';
 import { Loader2, UserPlus, Users } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { orvalClient } from '@/services/apis/axios-client';
-import { useState, useRef } from 'react';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
+import { useFollowAction } from '@/features/profile/hooks/use-follow-action';
 
 function SidebarSuggestionItem({ user }: { user: any }) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const followTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const followAction = useFollowAction(user);
   const mutualCount = user.mutual_count || 0;
   const mutualFriends = user.mutual_friends || [];
 
@@ -20,25 +17,6 @@ function SidebarSuggestionItem({ user }: { user: any }) {
   } else if (mutualCount > 1 && mutualFriends.length > 0) {
     infoText = `Được theo dõi bởi ${mutualFriends[0].username} và ${mutualCount - 1} người khác`;
   }
-
-  const toggleFollowMutation = useMutation({
-    mutationFn: (action: 'following' | 'none') =>
-      orvalClient({
-        url: '/relations/update',
-        method: 'POST',
-        data: { user_id: user.id, relation: action },
-      }),
-  });
-
-  const handleToggleFollow = () => {
-    const newStatus = !isFollowing;
-    setIsFollowing(newStatus);
-
-    if (followTimerRef.current) clearTimeout(followTimerRef.current);
-    followTimerRef.current = setTimeout(() => {
-      toggleFollowMutation.mutate(newStatus ? 'following' : 'none');
-    }, 500);
-  };
 
   return (
     <div className="flex items-center justify-between group">
@@ -78,14 +56,19 @@ function SidebarSuggestionItem({ user }: { user: any }) {
         </div>
       </Link>
       <button
-        onClick={handleToggleFollow}
+        onClick={followAction.toggleFollow}
+        disabled={followAction.isMutating || followAction.isBlocked}
         className={
-          isFollowing
-            ? 'text-xs font-semibold text-muted-foreground hover:text-muted-foreground/80 shrink-0 px-3 py-1 rounded-full border border-border hover:bg-secondary transition-all'
-            : 'text-xs font-semibold text-white shrink-0 px-4 py-1 rounded-full bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90 shadow-sm shadow-snet-purple/20 transition-all'
+          followAction.isFollowing || followAction.isPendingFollow
+            ? 'text-xs font-semibold text-muted-foreground hover:text-muted-foreground/80 shrink-0 px-3 py-1 rounded-full border border-border hover:bg-secondary transition-all disabled:opacity-60'
+            : 'text-xs font-semibold text-white shrink-0 px-4 py-1 rounded-full bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90 shadow-sm shadow-snet-purple/20 transition-all disabled:opacity-60'
         }
       >
-        {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+        {followAction.isPendingFollow
+          ? 'Đã gửi yêu cầu'
+          : followAction.isFollowing
+            ? 'Đang theo dõi'
+            : 'Theo dõi'}
       </button>
     </div>
   );
@@ -103,9 +86,8 @@ export function SidebarRight() {
 
   const { data: suggestedRes, isLoading } =
     useRelationsControllerGetSuggestedUsers({ limit: 5 });
-  const suggestions = Array.isArray(suggestedRes?.data)
-    ? suggestedRes.data
-    : [];
+  const rawSuggestions = (suggestedRes as any)?.data?.data || (suggestedRes as any)?.data || [];
+  const suggestions = Array.isArray(rawSuggestions) ? rawSuggestions : [];
 
   return (
     <aside className="hidden lg:flex flex-col w-full pt-0 px-4 h-full animate-fade-in">

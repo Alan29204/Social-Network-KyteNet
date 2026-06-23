@@ -12,10 +12,10 @@ export function AuthGuard() {
 }
 
 export function GuestGuard() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
 
   if (accessToken) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={user?.role === 'admin' ? '/admin' : '/'} replace />;
   }
 
   return <Outlet />;

@@ -45,24 +45,31 @@ export class AdminsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'created_from', required: false, type: String })
   listUsers(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
+    @Query('created_from') createdFrom?: string,
   ) {
-    return this.adminsService.listUsers(page || 1, limit || 20, search);
+    return this.adminsService.listUsers(
+      page || 1,
+      limit || 20,
+      search,
+      createdFrom,
+    );
   }
 
   @Patch('users/:id/ban')
   @ApiOperation({ summary: 'Admin: Ban a user' })
-  banUser(@Param('id', ParseUUIDPipe) id: string) {
-    return this.adminsService.banUser(id, true);
+  banUser(@Admin() admin: IAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.adminsService.banUser(admin, id, true);
   }
 
   @Patch('users/:id/unban')
   @ApiOperation({ summary: 'Admin: Unban a user' })
-  unbanUser(@Param('id', ParseUUIDPipe) id: string) {
-    return this.adminsService.banUser(id, false);
+  unbanUser(@Admin() admin: IAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.adminsService.banUser(admin, id, false);
   }
 
   @Delete('users/:id')
@@ -76,8 +83,20 @@ export class AdminsController {
   @ApiOperation({ summary: 'Admin: List all posts' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  listPosts(@Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.adminsService.listPosts(page || 1, limit || 20);
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'created_from', required: false, type: String })
+  listPosts(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+    @Query('created_from') createdFrom?: string,
+  ) {
+    return this.adminsService.listPosts(
+      page || 1,
+      limit || 20,
+      search,
+      createdFrom,
+    );
   }
 
   @Delete('posts/:id')
@@ -100,12 +119,25 @@ export class AdminsController {
     return this.adminsService.listReports(status, page || 1, limit || 20);
   }
 
+  @Get('reports/:id')
+  @ApiOperation({ summary: 'Admin: Get report detail' })
+  getReportDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminsService.getReportDetail(id);
+  }
+
   @Patch('reports/:id/resolve')
   @ApiOperation({ summary: 'Admin: Resolve or reject a report' })
   resolveReport(
+    @Admin() admin: IAdmin,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolveReportDto,
   ) {
-    return this.adminsService.resolveReport(id, dto.admin_note, dto.status);
+    return this.adminsService.resolveReport(
+      id,
+      admin,
+      dto.admin_note,
+      dto.status,
+      dto.admin_action,
+    );
   }
 }

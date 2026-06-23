@@ -98,6 +98,11 @@ export const invalidatePostSurfaces = (
           queryKey: ['profile-reposts', options.userId],
         })
       : queryClient.invalidateQueries({ queryKey: ['profile-reposts'] }),
+    options.userId
+      ? queryClient.invalidateQueries({
+          queryKey: ['profile', options.userId],
+        })
+      : queryClient.invalidateQueries({ queryKey: ['profile'] }),
     queryClient.invalidateQueries({
       queryKey: ['infinite', '/feed/following'],
     }),

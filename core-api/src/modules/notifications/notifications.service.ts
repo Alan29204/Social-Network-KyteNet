@@ -37,13 +37,22 @@ export class NotificationService {
   ) {
     if (actorId === postOwnerId) return;
 
+    const context = commentId ? 'comment_reaction' : 'post_reaction';
     await this.aggregateAndSave(
       'POST',
       postId,
       postOwnerId,
       NotificationType.REACTION,
       actorId,
-      { reaction: reactionType, commentId },
+      {
+        context,
+        reaction: reactionType,
+        postId,
+        commentId,
+        aggregationKey: commentId
+          ? `reaction:comment:${commentId}`
+          : `reaction:post:${postId}`,
+      },
     );
   }
 
@@ -62,7 +71,13 @@ export class NotificationService {
       postOwnerId,
       NotificationType.COMMENT,
       actorId,
-      { comment_type: 'post_comment', commentId },
+      {
+        context: 'post_comment',
+        comment_type: 'post_comment',
+        postId,
+        commentId,
+        aggregationKey: `comment:post:${postId}`,
+      },
     );
   }
 
@@ -81,7 +96,15 @@ export class NotificationService {
       parentCommentOwnerId,
       NotificationType.COMMENT,
       actorId,
-      { comment_type: 'reply_comment', commentId },
+      {
+        context: 'reply_comment',
+        comment_type: 'reply_comment',
+        postId,
+        commentId,
+        aggregationKey: commentId
+          ? `comment:reply:${commentId}`
+          : `comment:reply-post:${postId}`,
+      },
     );
   }
 
@@ -98,9 +121,17 @@ export class NotificationService {
       'POST',
       postId,
       taggedUserId,
-      NotificationType.COMMENT,
+      NotificationType.MENTION,
       actorId,
-      { comment_type: 'tag', commentId },
+      {
+        context: 'comment_mention',
+        comment_type: 'tag',
+        postId,
+        commentId,
+        aggregationKey: commentId
+          ? `mention:comment:${commentId}`
+          : `mention:post-comment:${postId}`,
+      },
     );
   }
 
@@ -118,6 +149,11 @@ export class NotificationService {
       taggedUserId,
       NotificationType.MENTION,
       actorId,
+      {
+        context: 'post_mention',
+        postId,
+        aggregationKey: `mention:post:${postId}`,
+      },
     );
   }
 
@@ -262,6 +298,17 @@ export class NotificationService {
   }
 
   async notifySystemWarning(userId: string, title: string, message: string) {
+    await this.notifySystemToUser(userId, title, message, {
+      context: 'system_warning',
+    });
+  }
+
+  async notifySystemToUser(
+    userId: string,
+    title: string,
+    message: string,
+    metadata?: Record<string, any>,
+  ) {
     const notification = new Notification();
     notification.id = uuidv4();
     notification.title = title;
@@ -269,6 +316,7 @@ export class NotificationService {
     notification.notification_type = NotificationType.SYSTEM;
     notification.target_type = 'SYSTEM_WARNING';
     notification.target_id = userId;
+    notification.metadata = metadata || null;
 
     await this.notificationRepo.save(notification);
 
@@ -287,7 +335,7 @@ export class NotificationService {
       notification_type: NotificationType.SYSTEM,
       created_at: notification.created_at,
       is_read: false,
-      metadata: null,
+      metadata: notification.metadata,
     };
     this.gateway.server.to(userId).emit('notification', payload);
   }
@@ -302,12 +350,13 @@ export class NotificationService {
     targetId: string,
     targetType: string,
     type: NotificationType,
+    aggregationKey?: string,
   ) {
     // Look for existing notification where this actor might be part of the metadata
     const yesterday = new Date();
     yesterday.setHours(yesterday.getHours() - 24);
 
-    const notification = await this.notificationRepo
+    const notificationQb = this.notificationRepo
       .createQueryBuilder('noti')
       .innerJoinAndSelect(
         'noti.notification_user',
@@ -319,8 +368,15 @@ export class NotificationService {
       .andWhere('noti.target_id = :targetId', { targetId })
       .andWhere('noti.notification_type = :type', { type })
       .andWhere('noti.created_at >= :yesterday', { yesterday })
-      .orderBy('noti.updated_at', 'DESC')
-      .getOne();
+      .orderBy('noti.updated_at', 'DESC');
+
+    if (aggregationKey) {
+      notificationQb.andWhere("noti.metadata ->> 'aggregationKey' = :aggregationKey", {
+        aggregationKey,
+      });
+    }
+
+    const notification = await notificationQb.getOne();
 
     if (!notification || !notification.metadata?.actors) return;
 
@@ -345,7 +401,11 @@ export class NotificationService {
       });
     } else {
       // If others still remain, mutate the notification
-      const { title, message } = this.buildNotificationText(type, actorsList);
+      const { title, message } = this.buildNotificationText(
+        type,
+        actorsList,
+        notification.metadata,
+      );
       notification.title = title;
       notification.message = message;
       notification.metadata.actors = actorsList;
@@ -425,7 +485,13 @@ export class NotificationService {
     const yesterday = new Date();
     yesterday.setHours(yesterday.getHours() - 24);
 
-    let notification = await this.notificationRepo
+    const aggregationKey =
+      metadataOverrides?.aggregationKey ||
+      metadataOverrides?.aggregation_key ||
+      metadataOverrides?.context ||
+      null;
+
+    const notificationQb = this.notificationRepo
       .createQueryBuilder('noti')
       .innerJoinAndSelect(
         'noti.notification_user',
@@ -437,8 +503,19 @@ export class NotificationService {
       .andWhere('noti.target_id = :targetId', { targetId })
       .andWhere('noti.notification_type = :type', { type })
       .andWhere('noti.created_at >= :yesterday', { yesterday })
-      .orderBy('noti.updated_at', 'DESC')
-      .getOne();
+      .orderBy('noti.updated_at', 'DESC');
+
+    if (aggregationKey) {
+      notificationQb.andWhere("noti.metadata ->> 'aggregationKey' = :aggregationKey", {
+        aggregationKey,
+      });
+    } else {
+      notificationQb.andWhere(
+        "(noti.metadata ->> 'aggregationKey' IS NULL OR noti.metadata IS NULL)",
+      );
+    }
+
+    let notification = await notificationQb.getOne();
 
     let isNew = false;
     let actorsList: any[] = [];
@@ -477,17 +554,23 @@ export class NotificationService {
     }
 
     // 4. Build Title and Message based on actorsList length
-    const { title, message } = this.buildNotificationText(type, actorsList);
-    notification.title = title;
-    notification.message = message;
-
-    // Save metadata
-    notification.metadata = {
+    const nextMetadata = {
       ...notification.metadata,
       ...metadataOverrides,
       actors: actorsList,
       thumbnail: thumbnail,
     };
+
+    const { title, message } = this.buildNotificationText(
+      type,
+      actorsList,
+      nextMetadata,
+    );
+    notification.title = title;
+    notification.message = message;
+
+    // Save metadata
+    notification.metadata = nextMetadata;
 
     // Save Notification
     await this.notificationRepo.save(notification);
@@ -524,6 +607,7 @@ export class NotificationService {
   private buildNotificationText(
     type: NotificationType,
     actors: any[],
+    metadata?: Record<string, any>,
   ): { title: string; message: string } {
     const actorNames = actors.map((a) => a.username);
     let actorString = '';
@@ -541,11 +625,18 @@ export class NotificationService {
 
     switch (type) {
       case NotificationType.REACTION:
-        title = `${actorString} đã bày tỏ cảm xúc về bài viết của bạn`;
+        title =
+          metadata?.context === 'comment_reaction'
+            ? `${actorString} đã bày tỏ cảm xúc về bình luận của bạn`
+            : `${actorString} đã bày tỏ cảm xúc về bài viết của bạn`;
         message = title;
         break;
       case NotificationType.COMMENT:
-        title = `${actorString} đã bình luận về bài viết của bạn`;
+        title =
+          metadata?.context === 'reply_comment' ||
+          metadata?.comment_type === 'reply_comment'
+            ? `${actorString} đã trả lời bình luận của bạn`
+            : `${actorString} đã bình luận về bài viết của bạn`;
         message = title;
         break;
       case NotificationType.FOLLOW:
@@ -557,7 +648,11 @@ export class NotificationService {
         message = title;
         break;
       case NotificationType.MENTION:
-        title = `${actorString} đã nhắc đến bạn trong một bài viết`;
+        title =
+          metadata?.context === 'comment_mention' ||
+          metadata?.comment_type === 'tag'
+            ? `${actorString} đã nhắc đến bạn trong một bình luận`
+            : `${actorString} đã nhắc đến bạn trong một bài viết`;
         message = title;
         break;
       default:

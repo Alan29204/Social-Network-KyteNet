@@ -40,7 +40,7 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
   // Confirmation dialog state
   const [confirmUser, setConfirmUser] = useState<any>(null);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status, error } =
     useInfiniteQuery({
       queryKey: ['followers', userId],
       queryFn: ({ pageParam = 1 }) =>
@@ -58,6 +58,18 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
       initialPageParam: 1,
       enabled: isOpen,
     });
+
+  const allFollowers =
+    data?.pages.flatMap((page: any) => page.data?.data || page.data || []) ||
+    [];
+  const filteredFollowers = allFollowers.filter(
+    (f: any) =>
+      !searchTerm ||
+      f.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+  const isForbidden = (error as any)?.response?.status === 403;
 
   useEffect(() => {
     if (inView && hasNextPage) {
@@ -113,18 +125,19 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
           {status === 'pending' ? (
             <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : status === 'error' ? (
-            <div className="text-center text-sm text-destructive py-4">Lỗi tải danh sách</div>
+            <div className={`text-center text-sm py-4 ${isForbidden ? 'text-muted-foreground' : 'text-destructive'}`}>
+              {isForbidden
+                ? 'Bạn không có quyền xem danh sách này'
+                : 'Lỗi tải danh sách'}
+            </div>
+          ) : filteredFollowers.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-8">
+              {searchTerm ? 'Không tìm thấy người dùng phù hợp' : 'Chưa có người theo dõi'}
+            </div>
           ) : (
             <>
-              {data.pages.map((page, i) => (
-                <div key={i} className="flex flex-col gap-4">
-                  {(page.data?.data || page.data || [])
-                    .filter((f: any) => 
-                      !searchTerm || 
-                      f.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      f.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((f: any) => (
+              <div className="flex flex-col gap-4">
+                {filteredFollowers.map((f: any) => (
                     <div key={f.id} className="flex items-center justify-between">
                       <div 
                         className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -165,7 +178,6 @@ export function FollowersModal({ userId, isOpen, onClose }: FollowersModalProps)
                     </div>
                   ))}
                 </div>
-              ))}
               <div ref={ref} className="py-2 flex justify-center">
                 {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
               </div>

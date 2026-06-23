@@ -3,7 +3,7 @@ import {
   Post,
   Body,
   Get,
-  BadRequestException,
+  ForbiddenException,
   Param,
   ParseUUIDPipe,
   Query,
@@ -11,7 +11,7 @@ import {
   Inject,
   Delete,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User, ResponseMessage } from 'src/common/decorators/customize';
 import { IUser } from 'src/modules/users/users.interface';
 import { RelationType } from 'src/common/enums/relation.enum';
@@ -19,6 +19,92 @@ import { RelationsService } from './relations.service';
 import { UpdateRelationDto } from './dto/update-relation.dto';
 import { UsersService } from 'src/modules/users/users.service';
 import { UserIdDto } from './dto/user-id.dto';
+
+const relationUserSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    username: { type: 'string' },
+    full_name: { type: 'string', nullable: true },
+    avatar: { type: 'string', nullable: true },
+    privacy: { type: 'string', enum: ['public', 'private', 'follower'] },
+    relationStatus: {
+      type: 'string',
+      enum: ['none', 'following', 'pending', 'block'],
+    },
+    isFollowing: { type: 'boolean' },
+  },
+};
+
+const relationUpdateResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        relationStatus: {
+          type: 'string',
+          enum: ['none', 'following', 'pending', 'block'],
+        },
+        isFollowing: { type: 'boolean' },
+        user: relationUserSchema,
+      },
+    },
+  },
+};
+
+const relationListResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        page: { type: 'number' },
+        limit: { type: 'number' },
+        total: { type: 'number' },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              user: relationUserSchema,
+              requested_at: { type: 'string', format: 'date-time' },
+              blocked_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const suggestedUsersResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'array',
+      items: {
+        ...relationUserSchema,
+        properties: {
+          ...relationUserSchema.properties,
+          mutual_count: { type: 'number' },
+          mutual_friends: {
+            type: 'array',
+            items: relationUserSchema,
+          },
+        },
+      },
+    },
+  },
+};
 
 @ApiTags('Relations')
 @Controller('relations')
@@ -70,7 +156,7 @@ export class RelationsController {
   ) {
     const privacy = await this.usersService.privacySeeProfile(user.id, user_id);
     if (!privacy) {
-      throw new BadRequestException('You are not allowed to see this list');
+      throw new ForbiddenException('You are not allowed to see this list');
     }
     return this.relationShipsService.getListRelation(
       user_id,
@@ -94,6 +180,11 @@ export class RelationsController {
   @Get('suggested')
   @ResponseMessage('Get suggested users successfully')
   @ApiOperation({ summary: 'Get suggested users based on mutual followers' })
+  @ApiResponse({
+    status: 200,
+    description: 'Get suggested users successfully',
+    schema: suggestedUsersResponseSchema,
+  })
   async getSuggestedUsers(
     @User() user: IUser,
     @Query('limit') limit: number = 5,
@@ -120,6 +211,11 @@ export class RelationsController {
   @ApiOperation({ summary: 'Get list of users you have blocked' })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Get blocked users successfully',
+    schema: relationListResponseSchema,
+  })
   async getBlockedUsers(
     @User() user: IUser,
     @Query('page') page: number = 1,
@@ -133,6 +229,11 @@ export class RelationsController {
   @ApiOperation({ summary: 'Get list of pending follow requests' })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Get pending follow requests successfully',
+    schema: relationListResponseSchema,
+  })
   async getPendingRequests(
     @User() user: IUser,
     @Query('page') page: number = 1,
@@ -173,6 +274,11 @@ export class RelationsController {
   @Post('update')
   @ResponseMessage('Update relation successfully')
   @ApiOperation({ summary: 'Update relation' })
+  @ApiResponse({
+    status: 201,
+    description: 'Update relation successfully',
+    schema: relationUpdateResponseSchema,
+  })
   updateRelation(@User() user: IUser, @Body() dto: UpdateRelationDto) {
     return this.relationShipsService.updateRelation(user, dto);
   }

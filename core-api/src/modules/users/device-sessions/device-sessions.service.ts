@@ -66,6 +66,17 @@ export class DeviceSessionsService {
     return await this.repository.findOne({ where: { id: deviceSecssionId } });
   }
 
+  async revokeAllForUser(userId: string) {
+    await this.repository.update(
+      { user_id: userId },
+      {
+        refresh_token: null,
+        secret_key: randomUUID(),
+      },
+    );
+    return { message: 'All sessions revoked' };
+  }
+
   async reAuth(_refresh_token: string, device_id: string) {
     const session = await this.repository.findOne({
       where: { device_id, refresh_token: _refresh_token },

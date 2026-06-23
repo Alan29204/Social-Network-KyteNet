@@ -6,11 +6,15 @@ import { User } from 'src/modules/users/entities/user.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { AdminGuard } from './admin.guard';
 import { ReportsModule } from '../reports/reports.module';
+import { DeviceSessionsModule } from '../users/device-sessions/device-sessions.module';
+import { NotificationModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Post]),
     ReportsModule,
+    DeviceSessionsModule,
+    NotificationModule,
   ],
   controllers: [AdminsController],
   providers: [AdminsService, AdminGuard],

@@ -5,22 +5,27 @@ import { useInView } from 'react-intersection-observer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
 import { Loader2 } from 'lucide-react';
+import {
+  getMediaThumbnail,
+  mapMediaPostToDetailPost,
+} from './media-grid-utils';
 
 export function MediaPostsGrid({ userId }: { userId: string }) {
   const { ref, inView } = useInView();
-  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [advanceAfterFetch, setAdvanceAfterFetch] = useState(false);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
       queryKey: ['posts', 'media', userId],
       queryFn: ({ pageParam = 1 }) =>
         orvalClient<any>({
-          url: `/posts?user_id=${userId}&media_type=image&page=${pageParam}&limit=12`,
+          url: `/posts?user_id=${userId}&is_repost=false&media_type=image&page=${pageParam}&limit=12`,
           method: 'GET',
         }),
       getNextPageParam: (lastPage) => {
-        const meta = lastPage?.data;
-        if (meta && meta.page < Math.ceil(meta.total / meta.limit)) {
+        const meta = lastPage?.data?.meta;
+        if (meta && meta.page < meta.last_page) {
           return meta.page + 1;
         }
         return undefined;
@@ -33,6 +38,23 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, fetchNextPage]);
+
+  const posts = data?.pages.flatMap((page: any) => page.data?.data || []) || [];
+  const selectedPost =
+    selectedIndex !== null && posts[selectedIndex]
+      ? mapMediaPostToDetailPost(posts[selectedIndex])
+      : null;
+
+  useEffect(() => {
+    if (
+      advanceAfterFetch &&
+      selectedIndex !== null &&
+      posts[selectedIndex + 1]
+    ) {
+      setSelectedIndex(selectedIndex + 1);
+      setAdvanceAfterFetch(false);
+    }
+  }, [advanceAfterFetch, posts, selectedIndex]);
 
   if (status === 'pending') {
     return (
@@ -48,7 +70,23 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
     return <div className="text-center py-8 text-destructive">Lỗi tải ảnh</div>;
   }
 
-  const posts = data.pages.flatMap((page: any) => page.data?.data || []);
+  const handlePrevious = () => {
+    setSelectedIndex((current) =>
+      current === null ? current : Math.max(0, current - 1),
+    );
+  };
+
+  const handleNext = async () => {
+    if (selectedIndex === null) return;
+    if (selectedIndex < posts.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+      return;
+    }
+    if (hasNextPage && !isFetchingNextPage) {
+      setAdvanceAfterFetch(true);
+      await fetchNextPage();
+    }
+  };
 
   if (posts.length === 0) {
     return (
@@ -61,21 +99,13 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-1 md:gap-4 py-4">
-        {posts.map((post: any) => {
-          const firstImage =
-            post.medias?.find((m: string) =>
-              /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(m),
-            ) || post.medias?.[0];
+        {posts.map((post: any, index: number) => {
+          const firstImage = getMediaThumbnail(post, 'image');
           return (
             <div
               key={post.id}
               className="aspect-square bg-muted flex items-center justify-center rounded-sm overflow-hidden relative group cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() =>
-                setSelectedPost({
-                  ...post,
-                  images: post.medias || post.mediaUrls || [],
-                })
-              }
+              onClick={() => setSelectedIndex(index)}
             >
               {firstImage ? (
                 <img
@@ -92,11 +122,20 @@ export function MediaPostsGrid({ userId }: { userId: string }) {
       </div>
 
       {selectedPost && (
-        <PostDetailModal
-          post={selectedPost}
-          open={!!selectedPost}
-          onOpenChange={(open) => !open && setSelectedPost(null)}
-        />
+        <>
+          <PostDetailModal
+            post={selectedPost}
+            open={!!selectedPost}
+            onOpenChange={(open) => !open && setSelectedIndex(null)}
+            canNavigatePrevious={selectedIndex !== 0}
+            canNavigateNext={
+              (selectedIndex ?? 0) < posts.length - 1 || !!hasNextPage
+            }
+            isNavigatingNext={advanceAfterFetch || isFetchingNextPage}
+            onNavigatePrevious={handlePrevious}
+            onNavigateNext={handleNext}
+          />
+        </>
       )}
       <div ref={ref} className="py-2 flex justify-center">
         {isFetchingNextPage && (

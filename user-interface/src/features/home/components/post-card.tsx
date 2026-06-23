@@ -31,14 +31,10 @@ import {
   FollowRelationStatus,
   useFollowStore,
 } from '@/features/profile/stores/follow-store';
+import { useFollowAction } from '@/features/profile/hooks/use-follow-action';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
-import {
-  invalidatePostSurfaces,
-  updateAuthorRelationInPostSurfaces,
-} from '@/features/posts/utils/post-cache';
-import { getChatRoomsControllerGetListChatRoomQueryKey } from '@/services/apis/gen/queries';
 
 interface PostCardProps {
   post: {
@@ -73,6 +69,8 @@ interface PostCardProps {
     created_at?: string;
   };
   showFollowButton?: boolean;
+  videoClickMode?: 'detail' | 'reels';
+  videoReelsUserId?: string;
 }
 
 /** Video trong feed: tự phát khi cuộn vào viewport, dừng khi rời đi. Click mở chế độ Reels. */
@@ -117,7 +115,12 @@ function FeedVideo({
   );
 }
 
-export function PostCard({ post, showFollowButton = false }: PostCardProps) {
+export function PostCard({
+  post,
+  showFollowButton = false,
+  videoClickMode = 'reels',
+  videoReelsUserId,
+}: PostCardProps) {
   const { user: currentUser } = useAuthStore();
   const navigate = useNavigate();
   const displayPost = post.shared_post || post;
@@ -135,7 +138,6 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
   const [localReposted, setLocalReposted] = useState(post.isReposted);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount);
   const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const followTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [localLiked, setLocalLiked] = useState(post.isLiked);
@@ -240,7 +242,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
     }
   };
 
-  const { optimisticFollows, setOptimisticFollow } = useFollowStore();
+  const { optimisticFollows } = useFollowStore();
   const initialRelationStatus: FollowRelationStatus =
     displayPost.user.relationStatus ||
     displayPost.user.relation_status ||
@@ -249,65 +251,31 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
       : 'none');
   const relationStatus =
     optimisticFollows[displayPost.user.id] || initialRelationStatus;
-  const isFollowing = relationStatus === 'following';
-  const isPendingFollow = relationStatus === 'pending';
-
-  const toggleFollowMutation = useMutation({
-    mutationFn: (action: 'following' | 'none') =>
-      orvalClient({
-        url: '/relations/update',
-        method: 'POST',
-        data: { user_id: displayPost.user.id, relation: action },
-      }),
-    onSuccess: (response: any, action) => {
-      const confirmedStatus =
-        response?.data?.relationStatus ||
-        response?.relationStatus ||
-        (action === 'following'
-          ? displayPost.user.privacy === 'private'
-            ? 'pending'
-            : 'following'
-          : 'none');
-      setOptimisticFollow(displayPost.user.id, confirmedStatus);
-      updateAuthorRelationInPostSurfaces(
-        queryClient,
-        displayPost.user.id,
-        confirmedStatus,
-      );
-      queryClient.invalidateQueries({
-        queryKey: ['profile', displayPost.user.id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: getChatRoomsControllerGetListChatRoomQueryKey(),
-      });
-      queryClient.invalidateQueries({ queryKey: ['following'] });
-      invalidatePostSurfaces(queryClient);
-    },
+  const followAction = useFollowAction({
+    ...displayPost.user,
+    relationStatus,
   });
+  const isFollowing = followAction.isFollowing;
+  const isPendingFollow = followAction.isPendingFollow;
 
   const handleFollow = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    followAction.toggleFollow();
+  };
 
-    const action = relationStatus === 'none' ? 'following' : 'none';
-    const nextStatus: FollowRelationStatus =
-      action === 'following'
-        ? displayPost.user.privacy === 'private'
-          ? 'pending'
-          : 'following'
-        : 'none';
+  const handleOpenVideo = (id: string) => {
+    if (videoClickMode === 'detail') {
+      setIsDetailOpen(true);
+      return;
+    }
 
-    setOptimisticFollow(displayPost.user.id, nextStatus);
-    updateAuthorRelationInPostSurfaces(
-      queryClient,
-      displayPost.user.id,
-      nextStatus,
-    );
+    const params = new URLSearchParams({ start: id });
+    if (videoReelsUserId) {
+      params.set('user_id', videoReelsUserId);
+    }
 
-    if (followTimerRef.current) clearTimeout(followTimerRef.current);
-    followTimerRef.current = setTimeout(() => {
-      toggleFollowMutation.mutate(action);
-    }, 500);
+    navigate(`/reels?${params.toString()}`);
   };
 
   const renderRepostedBy = () => {
@@ -370,11 +338,12 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                 {showFollowButton && !isMyPost && (
                   <button
                     onClick={handleFollow}
+                    disabled={followAction.isMutating}
                     className={`text-xs font-semibold transition-all px-2 py-0.5 rounded-full ${
                       isFollowing || isPendingFollow
                         ? 'text-muted-foreground bg-secondary hover:bg-secondary/80'
                         : 'text-white bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90'
-                    }`}
+                    } disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     {isPendingFollow
                       ? 'Đã gửi yêu cầu'
@@ -437,7 +406,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                           <FeedVideo
                             url={url}
                             postId={displayPost.id}
-                            onOpenReels={(id) => navigate(`/reels?start=${id}`)}
+                            onOpenReels={handleOpenVideo}
                           />
                         ) : (
                           <img
@@ -464,7 +433,7 @@ export function PostCard({ post, showFollowButton = false }: PostCardProps) {
                   <FeedVideo
                     url={url}
                     postId={displayPost.id}
-                    onOpenReels={(id) => navigate(`/reels?start=${id}`)}
+                    onOpenReels={handleOpenVideo}
                   />
                 ) : (
                   <div className="overflow-hidden">

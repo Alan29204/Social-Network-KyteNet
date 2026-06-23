@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { ReportStatus } from '../../reports/entities/report.entity';
+import { ReportAction, ReportStatus } from '../../reports/entities/report.entity';
 
 export class ResolveReportDto {
   @IsEnum([ReportStatus.RESOLVED, ReportStatus.REJECTED])
@@ -10,6 +10,15 @@ export class ResolveReportDto {
     description: 'Trạng thái giải quyết báo cáo',
   })
   status: ReportStatus;
+
+  @IsEnum(ReportAction)
+  @IsNotEmpty()
+  @ApiProperty({
+    enum: ReportAction,
+    example: ReportAction.WARN_REPORTED,
+    description: 'Hành động xử lý nội dung/tài khoản sau khi duyệt báo cáo',
+  })
+  admin_action: ReportAction;
 
   @IsString()
   @IsNotEmpty()

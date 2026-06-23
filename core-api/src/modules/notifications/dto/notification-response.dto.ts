@@ -23,6 +23,18 @@ export class NotificationMetadataDto {
   reaction?: string;
 
   @ApiProperty({ nullable: true })
+  context?: string;
+
+  @ApiProperty({ nullable: true })
+  postId?: string;
+
+  @ApiProperty({ nullable: true })
+  commentId?: string;
+
+  @ApiProperty({ nullable: true })
+  aggregationKey?: string;
+
+  @ApiProperty({ nullable: true })
   comment_type?: string;
 
   @ApiProperty({ nullable: true })
