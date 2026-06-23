@@ -2,8 +2,6 @@ from database.chromadb import ChromaDb
 from database.base import get_db
 from sqlalchemy import text
 from fastapi import HTTPException
-from schemas.posts import PostsBase
-from services.ai import AIService
 from schemas.paginated_query import PaginatedQuery
 from services.searchable_text import build_searchable_text
 from typing import List, Optional
@@ -12,7 +10,6 @@ from typing import List, Optional
 class PostService:
     def __init__(self):
         self.chromadb = ChromaDb()
-        self.model_ai = AIService()
 
     async def find_post_by_id(self, posts_id: str):
       async for db in get_db():
@@ -38,35 +35,6 @@ class PostService:
               status_code=500,
               detail=f"Database error: {str(e)}"
             )
-
-    # Check policy for post
-    async def check_policy_for_posts(self, posts_id: str):
-      posts: PostsBase = await self.find_post_by_id(posts_id)
-      # Get medias
-      medias = posts["medias"]
-      # Check medias empty
-      if not medias:
-        return {"decision": "allow", "message": "Post is'n media", "details": []}
-
-      details = []
-      overall_decision = "allow"
-      overall_reason = []
-
-      # Loop medias and detect image
-      for media in medias:
-        detect = await self.model_ai.classify_image(media)
-        details.append(detect)
-        
-        if detect.get('decision') == 'block':
-            overall_decision = 'block'
-            if detect.get('reason'):
-                overall_reason.append(detect.get('reason'))
-
-      return {
-          "decision": overall_decision,
-          "reason": " | ".join(overall_reason) if overall_reason else "No violations found",
-          "details": details
-      }
 
     async def embed_post(self, post_id: str, content: Optional[str] = None, hashtags: Optional[List[str]] = None):
         """Embed post content and store in ChromaDB."""

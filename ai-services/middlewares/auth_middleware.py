@@ -12,7 +12,6 @@ public_routes = {"/docs", "/re-docs", "/openapi.json", "/token"}
 
 # API backend NestJS gọi (so khớp theo prefix vì có path động)
 system_route_prefixes = (
-    "/posts/check-policy-for-post",
     "/posts/embed",            # POST /posts/embed, DELETE /posts/embed/{id}
     "/posts/semantic-search",
     "/posts/recommend",

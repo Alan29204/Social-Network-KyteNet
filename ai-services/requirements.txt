@@ -10,8 +10,4 @@ asyncpg
 opencv-python
 pydantic-settings
 python-dotenv
-aiohttp
 pillow
-nudenet>=3.4.2
-onnxruntime
-huggingface_hub

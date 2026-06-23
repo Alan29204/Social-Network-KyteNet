@@ -2,24 +2,19 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { FeedService } from 'src/feed/feed.service';
 import { ConfigService } from '@nestjs/config';
-import { PostsService } from 'src/modules/posts/posts.service';
-import { NotificationService } from 'src/modules/notifications/notifications.service';
 import axios from 'axios';
 import { buildPostSearchableText } from 'src/common/utils/searchableText';
 
 /**
  * Processes post creation jobs:
- * 1. Checks AI Moderation policies
- * 2. Fans out the post to all followers' feed caches (if allowed)
- * 3. Sends post content to ai-services FastAPI for semantic embedding in ChromaDB (if allowed)
+ * 1. Fans out the post to all followers' feed caches
+ * 2. Sends post content to ai-services FastAPI for semantic embedding in ChromaDB
  */
 @Processor('create-posts')
 export class MediasPostsProcessor extends WorkerHost {
   constructor(
     private readonly feedService: FeedService,
     private readonly configService: ConfigService,
-    private readonly postsService: PostsService,
-    private readonly notificationService: NotificationService,
   ) {
     super();
   }
@@ -49,48 +44,11 @@ export class MediasPostsProcessor extends WorkerHost {
       );
       const aiHeaders = { key_auth: aiKey };
 
-      // 1. AI Moderation Check
-      try {
-        console.log(`[Moderation] Checking policy for post ${postId}`);
-        const response = await axios.post(
-          `${aiBaseUrl}/posts/check-policy-for-post`,
-          { id: postId },
-          { headers: aiHeaders },
-        );
-
-        const moderationResult = response.data;
-
-        if (moderationResult?.decision === 'block') {
-          console.log(
-            `[Moderation] Post ${postId} blocked! Reason: ${moderationResult.reason}`,
-          );
-
-          // Remove the post completely
-          // Mocking an IUser object since PostsService.remove requires it for authorization
-          await this.postsService.remove(postId, { id: authorId } as any);
-
-          // Send notification to author
-          await this.notificationService.notifySystemWarning(
-            authorId,
-            'Bài viết đã bị gỡ bỏ',
-            'Bài viết của bạn đã bị hệ thống tự động gỡ bỏ do vi phạm tiêu chuẩn cộng đồng (chứa hình ảnh nhạy cảm hoặc bạo lực).',
-          );
-
-          return { success: false, reason: 'blocked_by_ai' };
-        }
-      } catch (moderationErr) {
-        console.warn(
-          `[Moderation Warning] AI Server is down or failed, skipping moderation for post ${postId}:`,
-          (moderationErr as Error)?.message,
-        );
-        // Continue processing to allow post creation even if AI fails (fault tolerance)
-      }
-
-      // 2. Fan out the post to followers' feed caches
+      // 1. Fan out the post to followers' feed caches
       await this.feedService.fanoutPost(postId, authorId, createdAt);
       console.log(`[FeedFanout] Completed fanout for post ${postId}`);
 
-      // 3. Send to AI service for embedding when content or hashtags exist
+      // 2. Send to AI service for embedding when content or hashtags exist
       if (searchableText.trim()) {
         try {
           await axios.post(

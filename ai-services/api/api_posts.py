@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Query
 from services.post import PostService
-from schemas.id_request import IDRequest
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
@@ -22,11 +21,6 @@ class RecommendRequest(BaseModel):
 
 class ReindexRequest(BaseModel):
     reset: bool = True
-
-
-@router.post("/check-policy-for-post")
-async def check_policy_for_post(dto: IDRequest):
-    return await postService.check_policy_for_posts(dto.id)
 
 
 @router.post("/embed")
