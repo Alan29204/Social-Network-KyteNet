@@ -5,7 +5,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from 'src/infra/database/database.module';
 import { AuthModule } from './modules/users/auth/auth.module';
 import { RedisModule } from './infra/redis/redis.module';
-import { DeviceSessionsModule } from './modules/users/device-sessions/device-sessions.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { NotificationModule } from './modules/notifications/notifications.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -79,7 +78,6 @@ import { StoriesModule } from './modules/stories/stories.module';
     AuthModule,
     RedisModule,
     RelationsModule,
-    DeviceSessionsModule,
     PostsModule,
     NotificationModule,
     BullMQModule,

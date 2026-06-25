@@ -18,7 +18,6 @@ import { Post } from '../posts/entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { ChatMessage } from '../chats/entities/chat-message.entity';
 import { NotificationService } from '../notifications/notifications.service';
-import { DeviceSessionsService } from '../users/device-sessions/device-sessions.service';
 import { RoleType } from 'src/common/enums/role.enum';
 
 @Injectable()
@@ -33,7 +32,6 @@ export class ReportsService {
     @InjectRepository(ChatMessage)
     private readonly _chatMessageRepository: Repository<ChatMessage>,
     private readonly notificationService: NotificationService,
-    private readonly deviceSessionsService: DeviceSessionsService,
   ) {}
 
   async createReport(dto: CreateReportDto, user: IUser) {
@@ -226,7 +224,6 @@ export class ReportsService {
 
       targetUser.role = RoleType.BANNED;
       await this.userRepository.save(targetUser);
-      await this.deviceSessionsService.revokeAllForUser(reportedUserId);
     }
   }
 

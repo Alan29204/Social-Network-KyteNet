@@ -65,7 +65,7 @@ export class UsersController {
       loginDto.email,
       loginDto.password,
     );
-    return await this.usersService.login(user, loginDto);
+    return await this.usersService.login(user);
   }
 
   @Get('search-messages')
@@ -217,7 +217,3 @@ export class UsersController {
   }
 }
 
-export interface LoginMetaData {
-  deviceId: string;
-  ipAddress: string;
-}

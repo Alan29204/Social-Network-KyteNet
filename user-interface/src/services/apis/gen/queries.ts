@@ -38,7 +38,6 @@ export type LoginDto = {
   email: string;
   /** @minLength 6 */
   password: string;
-  deviceId: string;
 };
 
 export type SearchUserMessageItemDto = {
@@ -414,6 +413,16 @@ export type RemoveMemberDto = {
   target_user_id: string;
 };
 
+export type RelationRelationType = typeof RelationRelationType[keyof typeof RelationRelationType];
+
+
+export const RelationRelationType = {
+  following: 'following',
+  block: 'block',
+  none: 'none',
+  pending: 'pending',
+} as const;
+
 /**
  * Viewer relation status to this user in feed/post responses
  */
@@ -479,28 +488,6 @@ export const UserRole = {
   admin: 'admin',
   banned: 'banned',
 } as const;
-
-export type RelationRelationType = typeof RelationRelationType[keyof typeof RelationRelationType];
-
-
-export const RelationRelationType = {
-  following: 'following',
-  block: 'block',
-  none: 'none',
-  pending: 'pending',
-} as const;
-
-export type Relation = {
-  id: string;
-  request_side_id: string;
-  accept_side_id: string;
-  request_side: User;
-  accept_side: User;
-  relation_type: RelationRelationType;
-  is_restricted: boolean;
-  is_mutual: boolean;
-  created_at: string;
-};
 
 export type NotificationNotificationType = typeof NotificationNotificationType[keyof typeof NotificationNotificationType];
 
@@ -821,7 +808,6 @@ export type User = {
   role: UserRole;
   created_at: string;
   updated_at: string;
-  device_sessions: DeviceSession[];
   sent_relations: Relation[];
   received_relations: Relation[];
   notification_users: NotificationUser[];
@@ -835,17 +821,16 @@ export type User = {
   waiting_members: WaitingMembers[];
 };
 
-export type DeviceSession = {
+export type Relation = {
   id: string;
-  device_id: string;
-  ip_address: string;
-  secret_key: string;
-  refresh_token: string;
-  expired_at: string;
+  request_side_id: string;
+  accept_side_id: string;
+  request_side: User;
+  accept_side: User;
+  relation_type: RelationRelationType;
+  is_restricted: boolean;
+  is_mutual: boolean;
   created_at: string;
-  updated_at: string;
-  user_id: string;
-  user: User;
 };
 
 /**
@@ -4446,201 +4431,6 @@ export const useRelationsControllerUpdateRelation = <TError = unknown,
       > => {
       return useMutation(getRelationsControllerUpdateRelationMutationOptions(options), queryClient);
     }
-
-export type deviceSessionsControllerHendleLogoutResponse201 = {
-  data: void
-  status: 201
-}
-
-export type deviceSessionsControllerHendleLogoutResponseSuccess = (deviceSessionsControllerHendleLogoutResponse201) & {
-  headers: Headers;
-};
-;
-
-export type deviceSessionsControllerHendleLogoutResponse = (deviceSessionsControllerHendleLogoutResponseSuccess)
-
-export const getDeviceSessionsControllerHendleLogoutUrl = () => {
-
-
-
-
-  return `/device-sessions/logout`
-}
-
-/**
- * @summary Đăng xuất tài khoản
- */
-export const deviceSessionsControllerHendleLogout = async ( options?: RequestInit): Promise<deviceSessionsControllerHendleLogoutResponse> => {
-
-  return orvalClient<deviceSessionsControllerHendleLogoutResponse>(getDeviceSessionsControllerHendleLogoutUrl(),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-export const getDeviceSessionsControllerHendleLogoutMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>, TError,void, TContext> => {
-
-const mutationKey = ['deviceSessionsControllerHendleLogout'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>, void> = () => {
-
-
-          return  deviceSessionsControllerHendleLogout(requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeviceSessionsControllerHendleLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>>
-
-    export type DeviceSessionsControllerHendleLogoutMutationError = unknown
-
-    /**
- * @summary Đăng xuất tài khoản
- */
-export const useDeviceSessionsControllerHendleLogout = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>, TError,void, TContext>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof deviceSessionsControllerHendleLogout>>,
-        TError,
-        void,
-        TContext
-      > => {
-      return useMutation(getDeviceSessionsControllerHendleLogoutMutationOptions(options), queryClient);
-    }
-
-export type deviceSessionsControllerReAuthResponse200 = {
-  data: void
-  status: 200
-}
-
-export type deviceSessionsControllerReAuthResponseSuccess = (deviceSessionsControllerReAuthResponse200) & {
-  headers: Headers;
-};
-;
-
-export type deviceSessionsControllerReAuthResponse = (deviceSessionsControllerReAuthResponseSuccess)
-
-export const getDeviceSessionsControllerReAuthUrl = () => {
-
-
-
-
-  return `/device-sessions/refresh-token`
-}
-
-/**
- * @summary Cấp lại access token
- */
-export const deviceSessionsControllerReAuth = async ( options?: RequestInit): Promise<deviceSessionsControllerReAuthResponse> => {
-
-  return orvalClient<deviceSessionsControllerReAuthResponse>(getDeviceSessionsControllerReAuthUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getDeviceSessionsControllerReAuthQueryKey = () => {
-    return [
-    `/device-sessions/refresh-token`
-    ] as const;
-    }
-
-
-export const getDeviceSessionsControllerReAuthQueryOptions = <TData = Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getDeviceSessionsControllerReAuthQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>> = ({ signal }) => deviceSessionsControllerReAuth({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type DeviceSessionsControllerReAuthQueryResult = NonNullable<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>>
-export type DeviceSessionsControllerReAuthQueryError = unknown
-
-
-export function useDeviceSessionsControllerReAuth<TData = Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>,
-          TError,
-          Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDeviceSessionsControllerReAuth<TData = Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>,
-          TError,
-          Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDeviceSessionsControllerReAuth<TData = Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/**
- * @summary Cấp lại access token
- */
-
-export function useDeviceSessionsControllerReAuth<TData = Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof deviceSessionsControllerReAuth>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getDeviceSessionsControllerReAuthQueryOptions(options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
 
 export type notificationControllerGetUserNotificationsResponse200 = {
   data: NotificationListResponseDto

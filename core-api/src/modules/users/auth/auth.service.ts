@@ -1,40 +1,19 @@
 import { JwtService } from '@nestjs/jwt';
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeviceSessionsService } from 'src/modules/users/device-sessions/device-sessions.service';
 import { IPayload } from './payload.interface';
-import { UsersService } from 'src/modules/users/users.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/modules/users/entities/user.entity';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
-    @Inject(forwardRef(() => DeviceSessionsService))
-    private readonly deviceSessionsService: DeviceSessionsService,
-    @Inject(forwardRef(() => UsersService))
-    private readonly usersService: UsersService,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
   ) {}
 
   async verify(token: string) {
     try {
-      // Decode token
-      const decoded = this.jwtService.decode(token);
-
-      // Get secret key from device session
-      const secret = await this.deviceSessionsService.getSecret(
-        decoded.id,
-        decoded.deviceSecssionId,
-      );
-
-      // Return payload if valid token
       return this.jwtService.verify(token, {
-        secret: secret,
+        secret: this.getAccessSecret(),
       });
     } catch (error) {
       throw new Error(`Failed to verify token: ${error.message}`);
@@ -53,12 +32,19 @@ export class AuthService {
     }
   }
 
-  generateAccessToken(payload: IPayload, secretKey: string) {
+  generateAccessToken(payload: IPayload) {
     const accessToken = this.jwtService.sign(payload, {
-      secret: secretKey,
+      secret: this.getAccessSecret(),
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRE'),
     });
 
     return accessToken;
+  }
+
+  private getAccessSecret() {
+    return (
+      this.configService.get<string>('JWT_ACCESS_SECRET') ||
+      'snet-dev-access-secret'
+    );
   }
 }

@@ -1,4 +1,3 @@
-import { DeviceSessionsService } from './device-sessions/device-sessions.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -27,6 +26,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { RoleType } from 'src/common/enums/role.enum';
+import { AuthService } from './auth/auth.service';
 
 @Injectable()
 export class UsersService {
@@ -34,7 +34,7 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private redisService: RedisService,
-    private diviceSessionsService: DeviceSessionsService,
+    private readonly authService: AuthService,
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
@@ -176,17 +176,14 @@ export class UsersService {
     }
   }
 
-  async login(user: User, dto: any) {
-    const session = await this.diviceSessionsService.handleLogin(
-      user.id,
-      {
-        deviceId: dto.deviceId,
-        ipAddress: '127.0.0.1',
-      },
-      user.role,
-    );
+  async login(user: User) {
+    const accessToken = this.authService.generateAccessToken({
+      id: user.id,
+      role: user.role,
+    });
+
     return {
-      ...session,
+      accessToken,
       user: {
         id: user.id,
         email: user.email,

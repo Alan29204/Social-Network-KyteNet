@@ -13,8 +13,4 @@ export class LoginDto {
   @ApiProperty({ example: '123456' })
   password: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({ example: 'unique-device-id' })
-  deviceId: string;
 }

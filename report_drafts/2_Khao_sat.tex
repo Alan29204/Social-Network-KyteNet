@@ -1,0 +1,473 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương 1 đã trình bày bối cảnh hình thành đề tài, mục tiêu, phạm vi và định hướng giải pháp tổng quát của hệ thống. Để có cơ sở xác định chức năng và thiết kế hệ thống, chương này trình bày quá trình khảo sát hiện trạng, phân tích nhu cầu người dùng và xác định các yêu cầu đối với phần mềm. Nội dung chương bao gồm khảo sát các hệ thống mạng xã hội phổ biến, tổng quan chức năng, biểu đồ use case ở mức tổng quát và phân rã, đặc tả một số use case quan trọng, đồng thời nêu các yêu cầu phi chức năng cần đáp ứng.
+
+\section{Khảo sát hiện trạng}
+\label{section:2.1}
+Để khảo sát chi tiết về hiện trạng và yêu cầu của phần mềm, tôi đã tiếp cận từ ba nguồn chính: (i) trải nghiệm thực tế của bản thân và bạn bè, người thân trong việc sử dụng mạng xã hội hằng ngày, bao gồm nhu cầu đăng nội dung, tương tác, theo dõi, nhắn tin và tìm kiếm thông tin; (ii) các nền tảng mạng xã hội phổ biến hiện nay như Facebook, Instagram, TikTok và Zalo; (iii) yêu cầu thực tế từ người dùng đối với một hệ thống mạng xã hội web có thể vận hành đầy đủ các luồng nghiệp vụ cốt lõi.
+
+\subsection{Khảo sát nhu cầu của người dùng}
+\label{subsection:2.1.1}
+Tôi đã tiến hành khảo sát thực tế đối với những người dùng xung quanh -- chủ yếu là sinh viên đại học và người đi làm trong độ tuổi 18--30, thông qua trao đổi trực tiếp và tin nhắn. Quá trình khảo sát tập trung vào thói quen sử dụng mạng xã hội, những tính năng người dùng đánh giá cao và những điểm chưa hài lòng khi dùng các nền tảng hiện có.
+
+Kết quả khảo sát cho thấy phần lớn người dùng có nhu cầu duy trì một hồ sơ cá nhân trên môi trường trực tuyến. Hồ sơ này không chỉ dùng để lưu thông tin cơ bản như tên hiển thị, ảnh đại diện, ảnh bìa và mô tả bản thân, mà còn là nơi thể hiện hoạt động của người dùng thông qua các bài viết, hình ảnh và video đã đăng. Người dùng kỳ vọng việc chỉnh sửa thông tin cá nhân phải đơn giản, nhanh và không cần qua nhiều bước xác nhận.
+
+Nhu cầu chia sẻ nội dung là một trong những nhu cầu trung tâm được nhấn mạnh nhất. Người dùng muốn đăng bài viết kết hợp văn bản với hình ảnh hoặc video, gắn hashtag để phân loại chủ đề và có thể gắn thẻ bạn bè trong bài. Bên cạnh đó, họ cũng mong muốn linh hoạt kiểm soát phạm vi hiển thị của từng bài: công khai, chỉ người theo dõi hoặc riêng tư. Nhiều người phản hồi rằng tính năng đăng story -- nội dung tự ẩn sau 24 giờ -- là hữu ích khi muốn chia sẻ nhanh mà không muốn nội dung hiện mãi trên hồ sơ.
+
+Sau khi nội dung được đăng tải, người dùng cần các cơ chế tương tác đa dạng như bày tỏ cảm xúc (thích, yêu thích, haha, buồn, tức giận...), bình luận, trả lời bình luận và chia sẻ lại bài viết. Ngoài ra, chức năng lưu bài viết vào danh sách cũng được đánh giá cao vì giúp người dùng dễ tìm lại nội dung hữu ích sau này. Những thao tác này tạo nên vòng phản hồi tự nhiên giữa người đăng và người xem, đồng thời là nguồn tín hiệu để hệ thống đề xuất nội dung phù hợp.
+
+Ngoài tương tác công khai, người dùng cũng có nhu cầu giao tiếp riêng tư. Chức năng nhắn tin được kỳ vọng hỗ trợ trò chuyện cá nhân và nhóm, gửi ảnh, video, trả lời tin nhắn, thu hồi tin nhắn và bày tỏ cảm xúc với từng tin nhắn. Điểm đặc biệt được nhấn mạnh là tính \textit{thời gian thực}: người dùng không muốn phải tải lại trang để nhận tin nhắn mới, đây là yêu cầu kỹ thuật quan trọng đối với trải nghiệm nhắn tin hiện đại.
+
+Khi số lượng người dùng và bài viết tăng lên, nhu cầu tìm kiếm và khám phá nội dung trở nên quan trọng. Người dùng cần tìm người khác theo tên hoặc tên tài khoản, tìm bài viết theo nội dung hoặc hashtag và nhận gợi ý nội dung phù hợp với sở thích. Một số người dùng cho biết họ thường tìm kiếm theo ý định thay vì từ khóa chính xác -- ví dụ gõ ``ảnh phong cảnh Đà Lạt đẹp'' thay vì chỉ gõ ``Đà Lạt'' -- điều này cho thấy tìm kiếm theo ngữ nghĩa có giá trị thực tế.
+
+Một nhóm nhu cầu quan trọng khác liên quan đến an toàn và kiểm soát môi trường sử dụng. Người dùng muốn có khả năng chặn tài khoản gây phiền nhiễu, xóa người theo dõi không mong muốn và kiểm soát ai có thể xem hồ sơ của mình. Chức năng báo cáo nội dung hoặc tài khoản vi phạm cũng được nhiều người đề cập, đặc biệt khi gặp nội dung phản cảm hoặc tài khoản giả mạo. Những yếu tố này không chỉ bảo vệ quyền riêng tư mà còn góp phần tạo dựng môi trường mạng xã hội lành mạnh.
+
+Từ kết quả khảo sát, có thể rút ra kết luận rằng người dùng hiện nay không chỉ mong đợi một nền tảng có đầy đủ chức năng, mà còn yêu cầu trải nghiệm mượt mà, giao diện thân thiện, thời gian phản hồi nhanh và khả năng kiểm soát quyền riêng tư linh hoạt. Những yếu tố này đóng vai trò then chốt trong việc giữ chân người dùng và tạo dựng niềm tin với hệ thống mạng xã hội.
+
+\subsection{Khảo sát một số hệ thống mạng xã hội phổ biến}
+\label{subsection:2.1.2}
+Để có cái nhìn tổng quan và thực tế hơn về các nền tảng mạng xã hội đang phổ biến, tôi đã trực tiếp sử dụng và quan sát các hệ thống lớn là Facebook, Instagram, TikTok và Zalo, đồng thời ghi nhận phản hồi từ người dùng có kinh nghiệm sử dụng các nền tảng này. Dưới đây là phân tích chi tiết về từng nền tảng.
+
+\subsubsection*{a. Facebook}
+Facebook là một trong những nền tảng mạng xã hội có hệ sinh thái chức năng rộng nhất hiện nay, với hơn 3 tỷ người dùng hoạt động hàng tháng trên toàn cầu. Nền tảng hỗ trợ hồ sơ cá nhân, bảng tin, bài viết đa phương tiện, bình luận, cảm xúc đa dạng, story, nhóm, trang, thông báo và nhắn tin thông qua Messenger. Giao diện được thiết kế hỗ trợ đa nền tảng (web, Android, iOS) và tối ưu hóa cho cả thiết bị máy tính lẫn điện thoại.
+
+\noindent\textbf{Ưu điểm:}
+\begin{itemize}
+    \item Hệ thống chức năng toàn diện, bao phủ toàn bộ vòng đời tương tác xã hội từ đăng bài, tương tác, nhắn tin đến tổ chức nhóm và sự kiện.
+    \item Cơ chế cảm xúc đa dạng (Like, Love, Haha, Wow, Sad, Angry) giúp người dùng biểu đạt phản hồi phong phú hơn so với chỉ ``thích''.
+    \item Tính năng kiểm soát quyền riêng tư chi tiết: có thể thiết lập riêng cho từng bài viết, cho phép công khai, chỉ bạn bè, bạn bè của bạn bè hoặc chỉ mình tôi.
+    \item Chức năng Story và Reels giúp chia sẻ nội dung dạng video ngắn ngay trên nền tảng.
+    \item Thông báo theo thời gian thực và hệ thống Messenger tích hợp với đầy đủ tính năng nhắn tin nhóm, gọi video và chia sẻ media.
+    \item Hệ thống quản lý quan hệ xã hội linh hoạt: hỗ trợ cả mô hình kết bạn hai chiều lẫn theo dõi một chiều, cho phép người dùng lựa chọn mức độ kết nối phù hợp.
+\end{itemize}
+
+\noindent\textbf{Nhược điểm:}
+\begin{itemize}
+    \item Phạm vi chức năng quá rộng khiến giao diện đôi khi bị quá tải, nhất là trên mobile với nhiều tab, shortcut và đề xuất quảng cáo xuất hiện liên tục.
+    \item Cài đặt quyền riêng tư phân tán ở nhiều nơi, người dùng mới khó tìm và cấu hình đúng theo ý muốn.
+    \item Thuật toán bảng tin ưu tiên nội dung tương tác cao, khiến người dùng dễ bỏ lỡ bài viết từ bạn bè hoặc tài khoản ít tương tác.
+    \item Quảng cáo được chèn dày đặc vào bảng tin và các chức năng chính, ảnh hưởng tiêu cực đến trải nghiệm người dùng.
+\end{itemize}
+
+\subsubsection*{b. Instagram}
+Instagram là nền tảng tập trung vào nội dung trực quan, đặc biệt là ảnh và video ngắn, với hơn 2 tỷ người dùng hoạt động hàng tháng. Nền tảng nổi bật với feed ảnh, story 24 giờ, Reels (video ngắn dạng dọc), IGTV và tính năng mua sắm tích hợp. Giao diện Instagram được thiết kế tối giản, nhất quán và đặc biệt mượt mà trên thiết bị di động.
+
+\noindent\textbf{Ưu điểm:}
+\begin{itemize}
+    \item Giao diện trực quan, nhất quán và thẩm mỹ, đặc biệt phù hợp với người dùng có nhu cầu chia sẻ nội dung hình ảnh và video chất lượng cao.
+    \item Hệ thống hashtag mạnh giúp người dùng dễ dàng khám phá nội dung theo chủ đề mà không cần kết nối với tác giả.
+    \item Trang Explore đề xuất nội dung cá nhân hóa dựa trên hành vi tương tác, giúp người dùng khám phá tài khoản và bài viết phù hợp.
+    \item Story và Reels tạo ra luồng nội dung đa dạng, kết hợp giữa nội dung tạm thời và nội dung lâu dài trên cùng một nền tảng.
+    \item Tính năng lưu bài viết vào bộ sưu tập (Collections) giúp người dùng tổ chức nội dung yêu thích một cách có hệ thống.
+\end{itemize}
+
+\noindent\textbf{Nhược điểm:}
+\begin{itemize}
+    \item Không tối ưu cho bài viết văn bản dài; caption bị rút gọn sau vài dòng và không hỗ trợ định dạng văn bản phong phú.
+    \item Chức năng nhắn tin (DM) còn hạn chế so với các nền tảng chuyên về chat, thiếu tính năng nhắn tin nhóm đầy đủ và ổn định.
+    \item Tỷ lệ hiển thị nội dung tự nhiên (organic reach) ngày càng giảm do ưu tiên nội dung trả phí và Reels.
+    \item Phần lớn trải nghiệm được tối ưu cho mobile; phiên bản web có tính năng bị giới hạn hơn đáng kể so với ứng dụng di động.
+\end{itemize}
+
+\subsubsection*{c. TikTok}
+TikTok là nền tảng video ngắn với cơ chế đề xuất nội dung cá nhân hóa mạnh mẽ, hiện có hơn 1 tỷ người dùng hoạt động hàng tháng. Điểm đặc trưng là trang ``For You'' -- bảng tin chứa video được thuật toán lựa chọn dựa trên hành vi xem, tương tác và lịch sử sử dụng của từng người dùng, không phụ thuộc vào mạng lưới theo dõi.
+
+\noindent\textbf{Ưu điểm:}
+\begin{itemize}
+    \item Thuật toán đề xuất nội dung rất mạnh, giúp ngay cả tài khoản mới hoặc ít người theo dõi cũng có thể tiếp cận lượng lớn người xem nếu nội dung phù hợp.
+    \item Giao diện tối giản, tập trung hoàn toàn vào video đang xem, giảm thiểu phân tâm và tối ưu hóa thời gian người dùng dành cho nền tảng.
+    \item Hệ thống âm thanh và hiệu ứng tích hợp giúp người dùng sáng tạo nội dung video nhanh chóng ngay trên ứng dụng mà không cần phần mềm ngoài.
+    \item Tính năng ``duet'' và ``stitch'' cho phép tạo nội dung phản hồi trực tiếp từ video của người khác, thúc đẩy sự lan truyền nội dung tự nhiên.
+\end{itemize}
+
+\noindent\textbf{Nhược điểm:}
+\begin{itemize}
+    \item Nền tảng thiên về tiêu thụ video thụ động, chưa bao quát các chức năng mạng xã hội truyền thống như bài viết văn bản, quản lý hồ sơ chi tiết hay tổ chức nhóm cộng đồng.
+    \item Quan hệ xã hội (following/follower) đóng vai trò thứ yếu so với thuật toán, người dùng khó duy trì kết nối có chủ đích với bạn bè quen biết.
+    \item Chức năng nhắn tin trực tiếp còn hạn chế, không phù hợp với nhu cầu giao tiếp nhóm thường xuyên.
+    \item Kiểm soát quyền riêng tư và tùy chỉnh đối tượng xem nội dung còn đơn giản, ít linh hoạt hơn so với Facebook hay Instagram.
+\end{itemize}
+
+\subsubsection*{d. Zalo}
+Zalo là nền tảng nhắn tin và mạng xã hội phổ biến tại Việt Nam, phát triển bởi VNG Corporation, với khoảng 75 triệu người dùng trong nước. Zalo kết hợp chức năng nhắn tin tức thời (chat cá nhân, nhóm, gọi điện video) với tính năng mạng xã hội (nhật ký -- tương tự bảng tin, story). Nền tảng có lợi thế lớn nhờ tích hợp sẵn với danh bạ điện thoại và được đông đảo người Việt Nam sử dụng hằng ngày.
+
+\noindent\textbf{Ưu điểm:}
+\begin{itemize}
+    \item Chức năng nhắn tin mạnh và ổn định: hỗ trợ chat nhóm lớn, gửi file, ảnh, video, gọi điện và gọi video chất lượng tốt ngay cả ở điều kiện mạng không ổn định.
+    \item Tích hợp với danh bạ điện thoại giúp người dùng Việt Nam dễ dàng kết nối với bạn bè và người thân mà không cần tìm kiếm tài khoản.
+    \item Giao diện gần gũi, phù hợp với người dùng Việt Nam ở mọi độ tuổi, kể cả người lớn tuổi ít quen với công nghệ.
+    \item Tính năng nhật ký (Zalo Feed) cho phép chia sẻ ảnh, video và cập nhật trạng thái với bạn bè trong danh bạ.
+    \item Hỗ trợ tính năng dành cho doanh nghiệp như Zalo Official Account, phù hợp cho marketing và chăm sóc khách hàng tại thị trường Việt Nam.
+\end{itemize}
+
+\noindent\textbf{Nhược điểm:}
+\begin{itemize}
+    \item Không tập trung mạnh vào bảng tin nội dung công khai; bài viết trên nhật ký chủ yếu hiển thị cho bạn bè trong danh bạ, giới hạn khả năng khám phá nội dung từ người lạ.
+    \item Thiếu cơ chế tìm kiếm bài viết theo nội dung hoặc hashtag; người dùng không thể tìm kiếm chủ đề như trên Facebook hay Instagram.
+    \item Không có hệ thống đề xuất nội dung cá nhân hóa dựa trên hành vi tương tác.
+    \item Mô hình kết nối dựa trên số điện thoại hạn chế khả năng theo dõi người dùng công khai không quen biết, làm giảm tính năng khám phá cộng đồng.
+    \item Giao diện ứng dụng web còn hạn chế tính năng so với ứng dụng di động.
+\end{itemize}
+
+\subsection{Xác định chức năng và phạm vi bài toán}
+\label{subsection:2.1.3}
+Từ các phân tích và khảo sát trên, có thể nhận thấy rằng mỗi nền tảng hiện có đều có thế mạnh riêng nhưng cũng tồn tại những hạn chế nhất định: Facebook toàn diện nhưng phức tạp và nặng nề về quảng cáo; Instagram đẹp nhưng thiếu chiều sâu giao tiếp; TikTok đề xuất tốt nhưng bỏ qua quan hệ xã hội có chủ đích; Zalo nhắn tin tốt nhưng giới hạn khả năng khám phá nội dung. Trên cơ sở đó, có thể xác định được nhu cầu phát triển một nền tảng mạng xã hội đáp ứng được các đặc điểm sau:
+
+\begin{itemize}
+    \item Giao diện người dùng thân thiện, nhất quán và dễ thao tác, hỗ trợ đầy đủ các nghiệp vụ cốt lõi của mạng xã hội mà không gây rối mắt do quá nhiều quảng cáo hay tính năng thứ yếu.
+
+    \item Hệ thống quản lý hồ sơ cá nhân và quan hệ xã hội linh hoạt, cho phép người dùng kiểm soát quyền riêng tư ở mức tài khoản lẫn từng bài viết, đồng thời hỗ trợ cơ chế theo dõi có phê duyệt để bảo vệ không gian cá nhân.
+
+    \item Chức năng chia sẻ nội dung đa phương tiện (văn bản, ảnh, video, hashtag, gắn thẻ người dùng) kết hợp với các cơ chế tương tác phong phú như cảm xúc, bình luận, chia sẻ lại và lưu bài viết theo bộ sưu tập.
+
+    \item Bảng tin cá nhân hóa kết hợp giữa nội dung từ người dùng đang theo dõi và nội dung được đề xuất dựa trên hành vi tương tác, giúp người dùng khám phá nội dung phù hợp mà không cần chủ động tìm kiếm.
+
+    \item Chức năng nhắn tin thời gian thực hỗ trợ cả trò chuyện cá nhân lẫn nhóm, với đầy đủ tính năng cơ bản như gửi tin nhắn, trả lời, thu hồi tin nhắn và cập nhật tức thì không cần tải lại trang.
+
+    \item Hệ thống tìm kiếm hỗ trợ tìm theo từ khóa (người dùng, bài viết, hashtag) và tìm kiếm theo ngữ nghĩa, đáp ứng nhu cầu tìm kiếm theo ý định thay vì chỉ khớp từ khóa chính xác.
+
+    \item Cơ chế báo cáo vi phạm và quản trị nội dung đủ để duy trì môi trường sử dụng an toàn, lành mạnh, với giao diện quản trị cho phép xử lý báo cáo, quản lý tài khoản và theo dõi thống kê hệ thống.
+
+    \item Hệ thống cần đảm bảo khả năng mở rộng trong tương lai, dễ dàng cập nhật và bảo trì, với mã nguồn được tổ chức theo module nghiệp vụ rõ ràng và các thành phần phụ trợ (lưu trữ media, hàng đợi xử lý, tìm kiếm ngữ nghĩa) được tách biệt để giảm phụ thuộc giữa các phần của hệ thống.
+\end{itemize}
+
+\section{Tổng quan chức năng}
+\label{section:2.2}
+Hệ thống bao gồm năm nhóm chức năng dành cho người dùng và hai nhóm dành riêng cho quản trị viên: quản lý tài khoản và hồ sơ (bao gồm thông báo), quản lý quan hệ xã hội, quản lý bài viết và tương tác (bao gồm báo cáo vi phạm), bảng tin và tìm kiếm, nhắn tin, quản lý và giám sát hệ thống, và xử lý báo cáo vi phạm. Các chức năng này được xác định từ kết quả khảo sát và sẽ được đặc tả chi tiết trong các mục tiếp theo.
+
+\subsection{Biểu đồ use case tổng quát}
+\label{subsection:2.2.1}
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ tổng quát gồm hai tác nhân Người dùng và Quản trị viên. Người dùng tương tác với năm use case: Quản lý tài khoản và hồ sơ, Quản lý quan hệ xã hội, Quản lý bài viết và tương tác, Bảng tin và tìm kiếm, Nhắn tin. Quản trị viên tương tác với hai use case: Quản lý và giám sát hệ thống, Xử lý báo cáo vi phạm.}}
+\caption{Biểu đồ use case tổng quát của hệ thống}
+\label{fig:use-case-overview}
+\end{figure}
+
+    \subsubsection*{a. Các tác nhân tham gia}
+
+    \textbf{Người dùng (User):} là tác nhân chính của hệ thống, bao gồm tất cả những ai đã đăng ký và đăng nhập thành công. Người dùng có thể quản lý hồ sơ cá nhân, đăng và tương tác với bài viết, quản lý quan hệ theo dõi, nhắn tin cá nhân và nhóm, tìm kiếm nội dung, nhận thông báo và báo cáo nội dung vi phạm.
+
+    \textbf{Quản trị viên (Admin):} là người chịu trách nhiệm vận hành và giám sát toàn bộ hệ thống. Quản trị viên có quyền truy cập trang quản trị để xem thống kê hoạt động, quản lý tài khoản người dùng, xử lý báo cáo vi phạm, quản lý bài viết và gửi thông báo hệ thống.
+
+    \subsubsection*{b. Mô tả các use case chính}
+
+    \textbf{Use case Quản lý tài khoản và hồ sơ:} Cho phép người dùng đăng ký, đăng nhập, đặt lại mật khẩu, cập nhật thông tin hồ sơ cá nhân (tên, ảnh đại diện, ảnh bìa, mô tả), đổi mật khẩu, xóa tài khoản và xem danh sách thông báo. Đây là nhóm chức năng nền tảng, bảo đảm mỗi người dùng có một định danh riêng và kiểm soát được thông tin cá nhân của mình.
+
+    \textbf{Use case Quản lý quan hệ xã hội:} Cho phép người dùng theo dõi hoặc hủy theo dõi tài khoản khác, xử lý yêu cầu theo dõi (với tài khoản riêng tư), xóa người theo dõi, chặn hoặc bỏ chặn tài khoản và xem gợi ý kết nối. Quan hệ xã hội ảnh hưởng trực tiếp đến quyền xem hồ sơ, quyền xem bài viết và dữ liệu bảng tin.
+
+    \textbf{Use case Quản lý bài viết và tương tác:} Cho phép người dùng tạo, chỉnh sửa và xóa bài viết đa phương tiện, bày tỏ cảm xúc, bình luận, chia sẻ lại, lưu bài viết vào bộ sưu tập và báo cáo nội dung hoặc tài khoản vi phạm. Đây là nhóm chức năng trung tâm tạo ra nội dung và dữ liệu tương tác của toàn hệ thống.
+
+    \textbf{Use case Bảng tin và tìm kiếm:} Cung cấp cho người dùng bảng tin hiển thị bài viết từ các tài khoản đang theo dõi, bảng tin gợi ý nội dung cá nhân hóa dựa trên hành vi tương tác, và chức năng tìm kiếm hỗ trợ tìm theo từ khóa (người dùng, bài viết, hashtag) lẫn tìm kiếm theo ngữ nghĩa.
+
+    \textbf{Use case Nhắn tin:} Cho phép người dùng trao đổi tin nhắn cá nhân và nhóm theo thời gian thực, gửi ảnh và video, trả lời, chỉnh sửa và thu hồi tin nhắn, bày tỏ cảm xúc với tin nhắn, ghim tin nhắn quan trọng và quản lý thành viên phòng chat nhóm.
+
+    \textbf{Use case Quản lý và giám sát hệ thống:} Dành riêng cho quản trị viên, bao gồm xem thống kê hoạt động tổng quan, quản lý tài khoản người dùng (khóa, mở khóa, xóa, cấp quyền quản trị) và gửi thông báo hệ thống đến toàn bộ người dùng.
+
+    \textbf{Use case Xử lý báo cáo vi phạm:} Dành riêng cho quản trị viên, bao gồm xem danh sách báo cáo, xem chi tiết từng báo cáo, đánh giá đối tượng bị báo cáo và thực hiện hành động xử lý phù hợp (từ chối báo cáo, xóa bài viết hoặc khóa tài khoản vi phạm).
+
+\subsection{Biểu đồ use case phân rã Quản lý tài khoản và hồ sơ}
+\label{subsection:2.2.2}
+Nhóm use case quản lý tài khoản và hồ sơ được phân rã thành: Đăng ký, Đăng nhập, Đăng xuất, Quên mật khẩu, Đặt lại mật khẩu, Đổi mật khẩu, Xem hồ sơ, Cập nhật hồ sơ, Cập nhật ảnh đại diện, Cập nhật ảnh bìa, Xóa tài khoản, Xem thông báo và Đánh dấu thông báo đã đọc. Tất cả các use case này thuộc tác nhân Người dùng.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Quản lý tài khoản và hồ sơ với tác nhân Người dùng, thể hiện các use case: Đăng ký, Đăng nhập, Đăng xuất, Quên mật khẩu, Đặt lại mật khẩu, Đổi mật khẩu, Xem hồ sơ, Cập nhật hồ sơ, Cập nhật ảnh đại diện, Cập nhật ảnh bìa, Xóa tài khoản, Xem thông báo và Đánh dấu thông báo đã đọc.}}
+\caption{Biểu đồ use case phân rã Quản lý tài khoản và hồ sơ}
+\label{fig:use-case-account-profile}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Quản lý quan hệ xã hội}
+\label{subsection:2.2.3}
+Nhóm use case quản lý quan hệ xã hội được phân rã thành: Theo dõi, Hủy theo dõi, Xem danh sách người theo dõi, Xem danh sách đang theo dõi, Xử lý yêu cầu theo dõi, Xóa người theo dõi, Chặn người dùng, Bỏ chặn người dùng và Xem gợi ý người dùng. Tất cả các use case này thuộc tác nhân Người dùng.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Quản lý quan hệ xã hội với tác nhân Người dùng, thể hiện các use case: Theo dõi, Hủy theo dõi, Xử lý yêu cầu theo dõi, Xem danh sách người theo dõi, Xóa người theo dõi, Chặn người dùng, Bỏ chặn người dùng và Xem gợi ý người dùng.}}
+\caption{Biểu đồ use case phân rã Quản lý quan hệ xã hội}
+\label{fig:use-case-relations}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Quản lý bài viết và tương tác}
+\label{subsection:2.2.4}
+Nhóm use case quản lý bài viết và tương tác được phân rã thành: Tạo bài viết, Cập nhật bài viết, Xóa bài viết, Chia sẻ lại bài viết, Bày tỏ cảm xúc, Bình luận, Cập nhật bình luận, Xóa bình luận, Lưu bài viết, Quản lý danh sách lưu và Báo cáo vi phạm. Báo cáo vi phạm được đặt trong nhóm này vì người dùng thực hiện thao tác báo cáo trực tiếp trên bài viết hoặc tài khoản trong quá trình tương tác.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Quản lý bài viết và tương tác với tác nhân Người dùng, thể hiện các use case: Tạo bài viết, Cập nhật bài viết, Xóa bài viết, Chia sẻ lại bài viết, Bày tỏ cảm xúc, Bình luận, Cập nhật bình luận, Xóa bình luận, Lưu bài viết, Quản lý danh sách lưu và Báo cáo vi phạm.}}
+\caption{Biểu đồ use case phân rã Quản lý bài viết và tương tác}
+\label{fig:use-case-posts}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Bảng tin và tìm kiếm}
+\label{subsection:2.2.5}
+Nhóm use case bảng tin và tìm kiếm được phân rã thành: Xem bảng tin theo dõi, Xem bảng tin gợi ý cá nhân hóa, Tìm kiếm người dùng, Tìm kiếm bài viết, Tìm kiếm hashtag và Tìm kiếm ngữ nghĩa. Hai luồng bảng tin phục vụ nhu cầu khác nhau: bảng tin theo dõi hiển thị nội dung từ người dùng đang theo dõi, bảng tin gợi ý đề xuất nội dung dựa trên lịch sử tương tác của người dùng.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Bảng tin và tìm kiếm với tác nhân Người dùng, thể hiện các use case: Xem bảng tin theo dõi, Xem bảng tin gợi ý cá nhân hóa, Tìm kiếm người dùng, Tìm kiếm bài viết, Tìm kiếm hashtag và Tìm kiếm ngữ nghĩa.}}
+\caption{Biểu đồ use case phân rã Bảng tin và tìm kiếm}
+\label{fig:use-case-feed-search}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Nhắn tin}
+\label{subsection:2.2.6}
+Nhóm use case nhắn tin được phân rã thành: Tạo phòng chat cá nhân, Tạo phòng chat nhóm, Xem lịch sử tin nhắn, Gửi tin nhắn, Gửi media, Trả lời tin nhắn, Sửa tin nhắn, Thu hồi tin nhắn, Bày tỏ cảm xúc với tin nhắn, Ghim tin nhắn, Đánh dấu đã đọc và Quản lý thành viên phòng chat. Toàn bộ các use case này yêu cầu cập nhật thời gian thực để bảo đảm trải nghiệm giao tiếp liên tục.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Nhắn tin với tác nhân Người dùng, thể hiện các use case: Tạo phòng chat cá nhân, Tạo phòng chat nhóm, Xem lịch sử tin nhắn, Gửi tin nhắn, Gửi media, Trả lời tin nhắn, Sửa tin nhắn, Thu hồi tin nhắn, Bày tỏ cảm xúc với tin nhắn, Ghim tin nhắn, Đánh dấu đã đọc và Quản lý thành viên phòng chat.}}
+\caption{Biểu đồ use case phân rã Nhắn tin}
+\label{fig:use-case-chat}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Quản lý và giám sát hệ thống}
+\label{subsection:2.2.7}
+Nhóm use case quản lý và giám sát hệ thống được phân rã thành: Xem thống kê tổng quan, Xem danh sách người dùng, Khóa/mở khóa tài khoản, Xóa tài khoản, Cấp quyền quản trị, Quản lý bài viết và Gửi thông báo hệ thống. Tất cả các use case này chỉ thuộc tác nhân Quản trị viên.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Quản lý và giám sát hệ thống với tác nhân Quản trị viên, thể hiện các use case: Xem thống kê tổng quan, Xem danh sách người dùng, Khóa/mở khóa tài khoản, Xóa tài khoản, Cấp quyền quản trị, Quản lý bài viết và Gửi thông báo hệ thống.}}
+\caption{Biểu đồ use case phân rã Quản lý và giám sát hệ thống}
+\label{fig:use-case-admin-manage}
+\end{figure}
+
+\subsection{Biểu đồ use case phân rã Xử lý báo cáo vi phạm}
+\label{subsection:2.2.8}
+Nhóm use case xử lý báo cáo vi phạm được phân rã thành: Xem danh sách báo cáo, Xem chi tiết báo cáo, Từ chối báo cáo, Xóa bài viết vi phạm và Khóa tài khoản vi phạm. Tất cả các use case này chỉ thuộc tác nhân Quản trị viên.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\textwidth}{\centering Biểu đồ phân rã Xử lý báo cáo vi phạm với tác nhân Quản trị viên, thể hiện các use case: Xem danh sách báo cáo, Xem chi tiết báo cáo, Từ chối báo cáo, Xóa bài viết vi phạm và Khóa tài khoản vi phạm.}}
+\caption{Biểu đồ use case phân rã Xử lý báo cáo vi phạm}
+\label{fig:use-case-admin-report}
+\end{figure}
+
+\subsection{Quy trình nghiệp vụ}
+\label{subsection:2.2.8}
+
+\subsubsection*{a. Quy trình đăng bài và phân phối nội dung}
+Người dùng mở chức năng tạo bài viết, nhập nội dung, đính kèm ảnh hoặc video, thêm hashtag, gắn thẻ người dùng khác và chọn quyền riêng tư (công khai, chỉ người theo dõi hoặc riêng tư). Hệ thống kiểm tra dữ liệu đầu vào, lưu media vào dịch vụ lưu trữ, lưu bài viết và cập nhật chỉ mục tìm kiếm. Bài viết sau đó xuất hiện trên hồ sơ tác giả và được phân phối đến bảng tin của những người dùng có quyền xem dựa trên quan hệ theo dõi và thuật toán gợi ý.
+
+\subsubsection*{b. Quy trình nhắn tin thời gian thực}
+Người dùng mở danh sách tin nhắn và chọn hoặc tạo một phòng chat. Nếu hội thoại cá nhân với người nhận chưa tồn tại, hệ thống tự động khởi tạo phòng chat mới. Khi người dùng gửi tin nhắn, hệ thống kiểm tra quyền thành viên, lưu tin nhắn, lưu media nếu có và phát sự kiện qua kết nối thời gian thực đến tất cả thành viên đang trực tuyến trong phòng. Giao diện của người nhận cập nhật tin nhắn mới ngay lập tức mà không cần tải lại trang, đồng thời số lượng tin chưa đọc được cập nhật tương ứng.
+
+\subsubsection*{c. Quy trình báo cáo và xử lý vi phạm}
+Người dùng phát hiện nội dung hoặc tài khoản vi phạm, chọn chức năng báo cáo, chỉ định loại đối tượng và lý do vi phạm. Hệ thống lưu báo cáo ở trạng thái chờ xử lý. Quản trị viên truy cập trang quản trị, xem danh sách báo cáo theo thứ tự thời gian, mở chi tiết từng báo cáo để xem xét đối tượng bị báo cáo và quyết định hành động: từ chối báo cáo nếu không hợp lệ, hoặc thực hiện hành động quản trị (xóa bài viết, khóa tài khoản) nếu vi phạm được xác nhận. Hệ thống ghi lại thông tin xử lý và cập nhật trạng thái báo cáo.
+
+\section{Đặc tả chức năng}
+\label{section:2.3}
+Phần này lựa chọn bảy use case quan trọng để đặc tả chi tiết. Các use case được chọn bao quát các nhóm nghiệp vụ chính của hệ thống, gồm xác thực tài khoản, tạo bài viết, tương tác với bài viết, quản lý quan hệ xã hội, nhắn tin thời gian thực, tìm kiếm và gợi ý nội dung, báo cáo và xử lý vi phạm.
+
+\subsection{Đặc tả use case Đăng ký và đăng nhập}
+\label{subsection:2.3.1}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Đăng ký và đăng nhập}
+\label{table:uc-auth}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Đăng ký và đăng nhập \\
+\hline
+Tác nhân & Khách chưa đăng nhập \\
+\hline
+Mục tiêu & Cho phép người dùng tạo tài khoản mới hoặc đăng nhập vào hệ thống để sử dụng các chức năng của nền tảng. \\
+\hline
+Tiền điều kiện & Người dùng chưa đăng nhập. Với đăng nhập, người dùng đã có tài khoản hợp lệ trong hệ thống. \\
+\hline
+Luồng chính & Người dùng mở trang đăng ký hoặc đăng nhập. Với đăng ký, người dùng nhập email, tên tài khoản và mật khẩu. Hệ thống kiểm tra dữ liệu, kiểm tra trùng lặp và tạo tài khoản. Với đăng nhập, người dùng nhập email và mật khẩu. Hệ thống xác thực thông tin, tạo phiên đăng nhập và trả về thông tin tài khoản hiện tại. Người dùng được chuyển đến trang chính sau khi đăng nhập thành công. \\
+\hline
+Luồng phát sinh & Nếu email hoặc tên tài khoản đã tồn tại, hệ thống thông báo lỗi. Nếu mật khẩu không đúng, hệ thống từ chối đăng nhập. Nếu người dùng quên mật khẩu, người dùng có thể yêu cầu đặt lại mật khẩu bằng mã xác nhận. \\
+\hline
+Hậu điều kiện & Tài khoản mới được tạo hoặc người dùng có phiên đăng nhập hợp lệ để sử dụng hệ thống. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Tạo bài viết}
+\label{subsection:2.3.2}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Tạo bài viết}
+\label{table:uc-create-post}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Tạo bài viết \\
+\hline
+Tác nhân & Người dùng \\
+\hline
+Mục tiêu & Cho phép người dùng chia sẻ nội dung văn bản hoặc đa phương tiện lên nền tảng. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập. Tệp media nếu có phải có định dạng và dung lượng hợp lệ. \\
+\hline
+Luồng chính & Người dùng mở chức năng tạo bài viết, nhập nội dung, chọn ảnh hoặc video, thêm hashtag, gắn thẻ người dùng khác và chọn quyền riêng tư. Hệ thống kiểm tra dữ liệu đầu vào, lưu media, tạo bản ghi bài viết trong cơ sở dữ liệu và trả về bài viết mới. Bài viết được hiển thị trên hồ sơ của tác giả và có thể xuất hiện trên bảng tin của người dùng có quyền xem. \\
+\hline
+Luồng phát sinh & Nếu nội dung rỗng và không có media, hệ thống yêu cầu bổ sung nội dung. Nếu media sai định dạng hoặc vượt quá dung lượng cho phép, hệ thống từ chối tệp tải lên. Nếu người dùng được gắn thẻ không tồn tại, hệ thống thông báo lỗi hoặc bỏ qua thẻ không hợp lệ. \\
+\hline
+Hậu điều kiện & Bài viết được lưu thành công, media được lưu trữ và dữ liệu bài viết có thể được sử dụng cho bảng tin, tìm kiếm và tương tác. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Tương tác với bài viết}
+\label{subsection:2.3.3}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Tương tác với bài viết}
+\label{table:uc-post-interaction}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Tương tác với bài viết \\
+\hline
+Tác nhân & Người dùng \\
+\hline
+Mục tiêu & Cho phép người dùng bày tỏ cảm xúc, bình luận, chia sẻ lại hoặc lưu bài viết. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập và có quyền xem bài viết theo thiết lập riêng tư của tác giả. \\
+\hline
+Luồng chính & Người dùng xem bài viết trên bảng tin, trang hồ sơ hoặc trang chi tiết. Người dùng chọn loại cảm xúc, nhập bình luận, trả lời bình luận, chia sẻ lại bài viết hoặc lưu bài viết vào danh sách lưu. Hệ thống kiểm tra quyền truy cập, cập nhật dữ liệu tương tác và hiển thị số liệu mới trên giao diện. \\
+\hline
+Luồng phát sinh & Nếu người dùng đã bày tỏ cảm xúc trước đó, thao tác mới có thể cập nhật hoặc hủy cảm xúc. Nếu bài viết đã bị xóa hoặc người dùng không còn quyền xem, hệ thống từ chối thao tác. Nếu danh sách lưu không tồn tại, hệ thống yêu cầu chọn danh sách hợp lệ. \\
+\hline
+Hậu điều kiện & Dữ liệu cảm xúc, bình luận, chia sẻ hoặc lưu bài viết được cập nhật. Các thông tin thống kê của bài viết phản ánh trạng thái mới. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Theo dõi và quản lý quan hệ}
+\label{subsection:2.3.4}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Theo dõi và quản lý quan hệ}
+\label{table:uc-relations}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Theo dõi và quản lý quan hệ \\
+\hline
+Tác nhân & Người dùng \\
+\hline
+Mục tiêu & Cho phép người dùng thiết lập và kiểm soát quan hệ xã hội với các tài khoản khác. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập. Tài khoản mục tiêu tồn tại và không bị chặn hai chiều. \\
+\hline
+Luồng chính & Người dùng truy cập hồ sơ của tài khoản khác và chọn theo dõi. Nếu tài khoản mục tiêu công khai, hệ thống tạo quan hệ theo dõi. Nếu tài khoản mục tiêu riêng tư, hệ thống tạo yêu cầu theo dõi chờ duyệt. Chủ tài khoản có thể chấp nhận hoặc từ chối yêu cầu. Người dùng có thể hủy theo dõi, xóa người theo dõi, chặn hoặc bỏ chặn tài khoản khác. \\
+\hline
+Luồng phát sinh & Nếu người dùng theo dõi chính mình, hệ thống từ chối thao tác. Nếu hai tài khoản đang có quan hệ chặn, hệ thống không cho phép tạo quan hệ theo dõi. Nếu yêu cầu theo dõi đã tồn tại, hệ thống không tạo yêu cầu trùng lặp. \\
+\hline
+Hậu điều kiện & Trạng thái quan hệ giữa hai tài khoản được cập nhật. Quyền xem hồ sơ, quyền xem bài viết và dữ liệu bảng tin thay đổi theo trạng thái quan hệ mới. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Nhắn tin thời gian thực}
+\label{subsection:2.3.5}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Nhắn tin thời gian thực}
+\label{table:uc-chat}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Nhắn tin thời gian thực \\
+\hline
+Tác nhân & Người dùng \\
+\hline
+Mục tiêu & Cho phép người dùng trao đổi tin nhắn cá nhân hoặc nhóm và nhận cập nhật tức thời. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập. Người dùng là thành viên của phòng chat hoặc có quyền tạo hội thoại với người nhận. \\
+\hline
+Luồng chính & Người dùng mở danh sách tin nhắn và chọn một phòng chat. Nếu hội thoại cá nhân chưa tồn tại, hệ thống tạo phòng chat mới. Người dùng nhập nội dung, đính kèm media nếu có và gửi tin nhắn. Hệ thống kiểm tra quyền thành viên, lưu tin nhắn, lưu media và phát sự kiện thời gian thực đến các thành viên trong phòng. Giao diện của các thành viên nhận được tin nhắn mới mà không cần tải lại trang. \\
+\hline
+Luồng phát sinh & Nếu người dùng không còn là thành viên phòng chat, hệ thống từ chối gửi tin nhắn. Nếu media không hợp lệ, hệ thống từ chối tệp tải lên. Nếu người dùng sửa, xóa hoặc thả cảm xúc vào tin nhắn, hệ thống cập nhật dữ liệu và phát sự kiện tương ứng đến các thành viên. \\
+\hline
+Hậu điều kiện & Tin nhắn được lưu trong cơ sở dữ liệu, trạng thái phòng chat được cập nhật và các thành viên nhận được sự kiện mới. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Tìm kiếm và gợi ý nội dung}
+\label{subsection:2.3.6}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Tìm kiếm và gợi ý nội dung}
+\label{table:uc-search-recommend}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Tìm kiếm và gợi ý nội dung \\
+\hline
+Tác nhân & Người dùng \\
+\hline
+Mục tiêu & Cho phép người dùng tìm kiếm người dùng, bài viết, hashtag và xem nội dung được gợi ý. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập. Hệ thống có dữ liệu người dùng, bài viết hoặc dữ liệu embedding phục vụ tìm kiếm ngữ nghĩa. \\
+\hline
+Luồng chính & Người dùng nhập từ khóa tìm kiếm hoặc truy cập bảng tin. Hệ thống trả về kết quả người dùng, bài viết hoặc hashtag phù hợp. Với tìm kiếm ngữ nghĩa, hệ thống gửi truy vấn đến dịch vụ AI, nhận danh sách bài viết có nội dung tương đồng, kiểm tra quyền xem và hiển thị cho người dùng. Với bảng tin gợi ý, hệ thống sử dụng lịch sử tương tác để đề xuất bài viết phù hợp. \\
+\hline
+Luồng phát sinh & Nếu không có kết quả phù hợp, hệ thống hiển thị trạng thái rỗng. Nếu dịch vụ AI không khả dụng hoặc không trả về gợi ý, hệ thống sử dụng cơ chế tìm kiếm từ khóa hoặc bảng tin mặc định. Nếu bài viết không thỏa mãn quyền riêng tư, hệ thống loại bỏ bài viết khỏi kết quả. \\
+\hline
+Hậu điều kiện & Người dùng nhận được danh sách nội dung phù hợp để xem và tương tác. Dữ liệu chính của hệ thống không thay đổi nếu người dùng chưa thực hiện tương tác tiếp theo. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Đặc tả use case Báo cáo và xử lý vi phạm}
+\label{subsection:2.3.7}
+\begin{table}[H]
+\centering
+\caption{Đặc tả use case Báo cáo và xử lý vi phạm}
+\label{table:uc-report-admin}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\
+\hline
+Tên use case & Báo cáo và xử lý vi phạm \\
+\hline
+Tác nhân & Người dùng, quản trị viên \\
+\hline
+Mục tiêu & Cho phép người dùng báo cáo nội dung hoặc tài khoản vi phạm và cho phép quản trị viên xử lý báo cáo. \\
+\hline
+Tiền điều kiện & Người dùng đã đăng nhập. Đối tượng bị báo cáo tồn tại trong hệ thống. Quản trị viên có quyền truy cập trang quản trị. \\
+\hline
+Luồng chính & Người dùng chọn chức năng báo cáo, chọn loại đối tượng, lý do và nhập mô tả bổ sung nếu cần. Hệ thống lưu báo cáo ở trạng thái chờ xử lý. Quản trị viên xem danh sách báo cáo, mở chi tiết báo cáo, đánh giá đối tượng bị báo cáo và cập nhật trạng thái xử lý. Nếu báo cáo hợp lệ, quản trị viên có thể thực hiện hành động như xóa bài viết hoặc khóa tài khoản. \\
+\hline
+Luồng phát sinh & Nếu đối tượng bị báo cáo đã bị xóa, hệ thống vẫn giữ báo cáo nhưng hiển thị trạng thái đối tượng không còn tồn tại. Nếu báo cáo không hợp lệ, quản trị viên từ chối báo cáo và ghi chú lý do. Nếu báo cáo hợp lệ, hệ thống lưu hành động quản trị và thời điểm xử lý. \\
+\hline
+Hậu điều kiện & Báo cáo được lưu hoặc cập nhật trạng thái. Dữ liệu bài viết hoặc tài khoản có thể thay đổi theo hành động xử lý của quản trị viên. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Yêu cầu phi chức năng}
+\label{section:2.4}
+Về hiệu năng, hệ thống cần phản hồi trong thời gian hợp lý đối với các thao tác thường xuyên như xem bảng tin, xem hồ sơ, tìm kiếm, bày tỏ cảm xúc, bình luận và gửi tin nhắn. Các danh sách có khả năng tăng nhanh như bài viết, thông báo, phòng chat, tin nhắn và báo cáo cần hỗ trợ phân trang hoặc con trỏ để tránh tải lượng dữ liệu quá lớn trong một lần yêu cầu.
+
+Về tính thời gian thực, hệ thống cần đồng bộ các sự kiện quan trọng trong phòng chat như tin nhắn mới, sửa tin nhắn, xóa tin nhắn, cập nhật cảm xúc và đánh dấu đã đọc mà không yêu cầu người dùng tải lại trang. Các sự kiện thời gian thực chỉ được gửi đến những người dùng có quyền nhận, đặc biệt là thành viên hợp lệ của phòng chat.
+
+Về bảo mật, hệ thống cần xác thực người dùng trước khi cho phép truy cập các chức năng riêng tư. Mật khẩu cần được bảo vệ bằng cơ chế băm. Các API cần kiểm tra quyền người dùng đối với các thao tác cập nhật, xóa hoặc xem dữ liệu. Các chức năng quản trị chỉ được truy cập bởi tài khoản có vai trò quản trị viên.
+
+Về quyền riêng tư, hệ thống cần tôn trọng thiết lập quyền riêng tư của tài khoản và bài viết. Bài viết công khai có thể hiển thị cho nhiều người dùng, bài viết dành cho người theo dõi chỉ hiển thị với các tài khoản phù hợp, còn bài viết riêng tư chỉ hiển thị cho tác giả. Khi một người dùng chặn người dùng khác, hệ thống cần hạn chế truy cập hồ sơ, nội dung và quan hệ giữa hai bên.
+
+Về khả năng sử dụng, giao diện cần rõ ràng, nhất quán và thuận tiện cho các thao tác chính. Các màn hình quan trọng như trang chủ, hồ sơ, tạo bài viết, tìm kiếm, tin nhắn, bài viết đã lưu và trang quản trị cần có bố cục dễ hiểu. Các thao tác nhạy cảm như xóa bài viết, chặn người dùng, xóa người dùng hoặc xử lý báo cáo cần có phản hồi rõ ràng để tránh nhầm lẫn.
+
+Về khả năng mở rộng và bảo trì, mã nguồn backend cần được tổ chức theo các module nghiệp vụ, còn frontend cần được chia theo các nhóm chức năng. Các thành phần phụ trợ như lưu trữ media, hàng đợi công việc nền, realtime và tìm kiếm ngữ nghĩa cần được tách riêng để giảm phụ thuộc giữa các phần của hệ thống. Cách tổ chức này giúp việc bổ sung chức năng mới hoặc thay đổi một thành phần ít ảnh hưởng đến các thành phần còn lại.
+
+Về quản lý dữ liệu, hệ thống cần lưu trữ nhất quán các thực thể chính như người dùng, bài viết, bình luận, cảm xúc, quan hệ, phòng chat, tin nhắn, thông báo, danh sách lưu và báo cáo. Dữ liệu media không nên lưu trực tiếp trong cơ sở dữ liệu quan hệ, mà nên lưu thông qua dịch vụ lưu trữ tệp và chỉ lưu đường dẫn hoặc định danh trong cơ sở dữ liệu. Cách tiếp cận này giúp cơ sở dữ liệu chính gọn hơn và phù hợp với đặc thù dữ liệu đa phương tiện.
+
+Về độ tin cậy, hệ thống cần xử lý được các trường hợp lỗi phổ biến như dữ liệu đầu vào không hợp lệ, tệp tải lên sai định dạng, người dùng không có quyền truy cập, bài viết đã bị xóa, phòng chat không tồn tại hoặc dịch vụ AI tạm thời không phản hồi. Trong các trường hợp này, hệ thống cần trả về thông báo phù hợp và không làm hỏng trạng thái dữ liệu chính.
+
+Trong chương này, báo cáo đã khảo sát nhu cầu người dùng và các nền tảng mạng xã hội phổ biến, từ đó xác định các nhóm chức năng cần có của hệ thống. Chương cũng đã trình bày các tác nhân, tổng quan use case, phân rã các nhóm use case chính, đặc tả một số use case quan trọng và nêu các yêu cầu phi chức năng. Những nội dung này là cơ sở để lựa chọn công nghệ, thiết kế kiến trúc và triển khai hệ thống trong các chương tiếp theo.
+
+\end{document}

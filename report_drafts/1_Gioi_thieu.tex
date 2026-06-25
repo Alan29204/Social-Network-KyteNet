@@ -1,0 +1,64 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Đặt vấn đề}
+\label{section:1.1}
+Trong bối cảnh chuyển đổi số diễn ra mạnh mẽ, Internet đã trở thành môi trường quan trọng để con người trao đổi thông tin, duy trì quan hệ xã hội và tiếp cận tri thức. Theo báo cáo \textit{Digital 2025: Vietnam} của DataReportal, được thực hiện trong chuỗi báo cáo Digital với sự tham gia của We Are Social và Meltwater, Việt Nam có khoảng 79,8 triệu người dùng Internet vào đầu năm 2025, tương đương 78,8\% dân số. Báo cáo này cũng ghi nhận khoảng 76,2 triệu định danh người dùng mạng xã hội tại Việt Nam, tương đương 75,2\% dân số\footnote{DataReportal, \textit{Digital 2025: Vietnam}, \url{https://datareportal.com/reports/digital-2025-vietnam}.}. Những số liệu này cho thấy Internet và mạng xã hội đã trở thành một phần thiết yếu trong đời sống số, ảnh hưởng sâu rộng đến cách con người giao tiếp, tiếp nhận thông tin và tham gia các hoạt động trực tuyến.
+
+Nếu như trước đây các hoạt động giao tiếp chủ yếu diễn ra trực tiếp hoặc thông qua các kênh truyền thống, thì hiện nay phần lớn hoạt động kết nối đã được mở rộng lên không gian trực tuyến. Mạng xã hội vì vậy không chỉ là công cụ giải trí, mà còn là một hạ tầng giao tiếp số phục vụ học tập, làm việc, chia sẻ thông tin, xây dựng cộng đồng và thể hiện bản sắc cá nhân.
+
+Sự phổ biến của điện thoại thông minh, kết nối Internet tốc độ cao và các dịch vụ nền tảng đã làm thay đổi cách người dùng tạo lập và tiêu thụ nội dung. Người dùng có nhu cầu đăng tải bài viết, hình ảnh, video, story, tương tác với nội dung của người khác, nhắn tin thời gian thực và nhận thông báo tức thời. Đồng thời, họ cũng mong muốn hệ thống có thể gợi ý nội dung phù hợp, hỗ trợ tìm kiếm nhanh chóng và cho phép kiểm soát phạm vi hiển thị thông tin cá nhân. Những nhu cầu này khiến một hệ thống mạng xã hội hiện đại phải xử lý đồng thời nhiều nhóm nghiệp vụ phức tạp.
+
+Tuy nhiên, việc xây dựng một mạng xã hội không chỉ dừng lại ở chức năng đăng bài và bình luận. Hệ thống cần quản lý tài khoản, phiên đăng nhập, hồ sơ cá nhân, quan hệ theo dõi, quyền riêng tư, bảng tin, nội dung đa phương tiện, thông báo, nhắn tin, tìm kiếm, báo cáo vi phạm và công cụ quản trị. Các chức năng này có mối quan hệ chặt chẽ với nhau. Ví dụ, quyền riêng tư của tài khoản ảnh hưởng đến việc xem hồ sơ; quan hệ theo dõi ảnh hưởng đến bảng tin; báo cáo vi phạm ảnh hưởng đến quản trị nội dung; còn nhắn tin yêu cầu cơ chế cập nhật thời gian thực và kiểm soát quyền thành viên trong phòng chat.
+
+Các nền tảng mạng xã hội lớn hiện nay như Facebook, Instagram, TikTok, X hay Zalo đã đáp ứng tốt nhiều nhu cầu của người dùng. Tuy vậy, mỗi nền tảng thường tập trung vào một hướng phát triển riêng, chẳng hạn Facebook thiên về hệ sinh thái chức năng rộng, Instagram và TikTok thiên về nội dung hình ảnh và video, Zalo thiên về giao tiếp cá nhân. Bên cạnh đó, các nền tảng quy mô lớn có kiến trúc và thuật toán phức tạp, không dễ quan sát đầy đủ từ bên ngoài. Vì vậy, việc tự xây dựng một hệ thống mạng xã hội với phạm vi chức năng được xác định rõ ràng là một bài toán phù hợp để nghiên cứu, thiết kế và triển khai trong khuôn khổ đồ án tốt nghiệp.
+
+Từ thực tế trên, tôi lựa chọn thực hiện đề tài ``Xây dựng mạng xã hội SNet''. Đề tài hướng tới việc xây dựng một ứng dụng web mạng xã hội có khả năng đáp ứng các nhu cầu cốt lõi của người dùng như tạo hồ sơ, chia sẻ nội dung, tương tác, theo dõi, nhắn tin, tìm kiếm và nhận thông báo. Đồng thời, hệ thống cũng cần có cơ chế quản trị nhằm xử lý người dùng, bài viết và báo cáo vi phạm. Đây là bài toán có ý nghĩa thực tiễn vì tổng hợp nhiều kiến thức quan trọng trong phát triển phần mềm hiện đại, từ thiết kế giao diện, xây dựng API, thiết kế cơ sở dữ liệu, xử lý thời gian thực đến tích hợp dịch vụ hỗ trợ tìm kiếm và gợi ý nội dung.
+
+\section{Mục tiêu và phạm vi đề tài}
+\label{section:1.2}
+Qua khảo sát các hệ thống mạng xã hội phổ biến, có thể thấy người dùng đã quen với một số nhóm chức năng cơ bản. Người dùng cần có tài khoản cá nhân để đăng nhập và quản lý thông tin. Họ cần bảng tin để theo dõi nội dung mới, trang hồ sơ để thể hiện bản thân, chức năng đăng bài để chia sẻ nội dung, chức năng bình luận và bày tỏ cảm xúc để tương tác, chức năng theo dõi để hình thành mạng lưới quan hệ, chức năng nhắn tin để trao đổi riêng tư và chức năng tìm kiếm để truy xuất thông tin. Đối với phía quản trị, hệ thống cần có công cụ theo dõi số liệu tổng quan, quản lý tài khoản, quản lý bài viết và xử lý báo cáo vi phạm.
+
+Mặc dù các nền tảng hiện có rất phong phú, việc xây dựng một hệ thống mạng xã hội trong phạm vi đồ án tốt nghiệp vẫn có giá trị riêng. Đề tài không hướng tới cạnh tranh với các nền tảng lớn, mà tập trung phân tích và hiện thực các thành phần cốt lõi của một mạng xã hội theo hướng có thể vận hành được, có kiến trúc rõ ràng và có khả năng mở rộng. Trọng tâm của đề tài là làm rõ cách các chức năng chính phối hợp với nhau trong một hệ thống hoàn chỉnh, thay vì chỉ xây dựng các màn hình giao diện đơn lẻ.
+
+Mục tiêu tổng quát của đề tài là xây dựng hệ thống SNet dưới dạng ứng dụng web, cho phép người dùng tham gia vào một môi trường mạng xã hội trực tuyến với các chức năng cơ bản và một số chức năng nâng cao. Hệ thống cần hỗ trợ người dùng đăng ký, đăng nhập, cập nhật hồ sơ, đổi mật khẩu, quản lý ảnh đại diện và ảnh bìa. Người dùng có thể tạo bài viết văn bản hoặc đa phương tiện, gắn hashtag, gắn thẻ người dùng khác, thiết lập quyền riêng tư, chỉnh sửa, xóa hoặc chia sẻ lại bài viết.
+
+Bên cạnh đó, hệ thống cần hỗ trợ các hoạt động tương tác xã hội như bày tỏ cảm xúc, bình luận, trả lời bình luận, lưu bài viết, xem danh sách bài đã lưu, tạo story, xem story và theo dõi người dùng khác. Đối với quan hệ xã hội, SNet cần cho phép theo dõi, hủy theo dõi, xử lý yêu cầu theo dõi đối với tài khoản riêng tư, xóa người theo dõi, chặn và bỏ chặn người dùng. Những chức năng này là cơ sở để hình thành bảng tin và kiểm soát quyền truy cập nội dung.
+
+Một mục tiêu quan trọng khác là xây dựng chức năng giao tiếp thời gian thực. Hệ thống cần hỗ trợ phòng chat cá nhân và phòng chat nhóm, gửi tin nhắn văn bản, gửi tệp đa phương tiện, trả lời tin nhắn, chỉnh sửa, thu hồi tin nhắn, thả cảm xúc, đánh dấu đã đọc và cập nhật giao diện khi có sự kiện mới. Ngoài ra, hệ thống cần có chức năng thông báo để người dùng nắm được các hoạt động liên quan đến mình.
+
+Đề tài cũng đặt mục tiêu xây dựng nhóm chức năng khám phá nội dung. Người dùng có thể xem bảng tin theo người đang theo dõi, bảng tin dành cho mình, tìm kiếm người dùng, bài viết và hashtag. Ngoài tìm kiếm từ khóa, hệ thống được định hướng tích hợp tìm kiếm ngữ nghĩa và gợi ý bài viết dựa trên dữ liệu tương tác, nhằm nâng cao khả năng khám phá nội dung phù hợp.
+
+Về phía quản trị, hệ thống cần cung cấp trang quản trị cho tài khoản có quyền quản trị viên. Quản trị viên có thể xem thống kê tổng quan, quản lý danh sách người dùng, khóa hoặc mở khóa tài khoản, quản lý bài viết, xóa bài viết vi phạm, xem danh sách báo cáo và xử lý báo cáo. Nhóm chức năng này giúp hệ thống có khả năng vận hành an toàn hơn sau khi triển khai.
+
+Phạm vi của đề tài được giới hạn ở ứng dụng web, chưa phát triển ứng dụng di động native cho Android hoặc iOS. Hệ thống tập trung vào các chức năng cốt lõi và các luồng nghiệp vụ tiêu biểu của mạng xã hội, chưa hướng tới khả năng phục vụ lượng người dùng rất lớn như các nền tảng thương mại. Các chức năng gợi ý và tìm kiếm ngữ nghĩa được xây dựng ở mức tích hợp dịch vụ và cơ sở dữ liệu vector, chưa đặt mục tiêu huấn luyện mô hình trí tuệ nhân tạo riêng. Các chức năng như livestream, gọi thoại, gọi video, quảng cáo và hệ thống thanh toán không nằm trong phạm vi chính của đồ án.
+
+\section{Định hướng giải pháp}
+\label{section:1.3}
+Để xây dựng hệ thống SNet, tôi lựa chọn định hướng phát triển theo kiến trúc client--server kết hợp các dịch vụ phụ trợ. Phần giao diện người dùng được xây dựng bằng ReactJS và TypeScript, giúp tổ chức giao diện theo các thành phần tái sử dụng và phù hợp với các màn hình có nhiều tương tác như bảng tin, hồ sơ cá nhân, tin nhắn và trang quản trị. Vite được sử dụng làm công cụ phát triển frontend nhằm hỗ trợ quá trình xây dựng giao diện nhanh và thuận tiện.
+
+Phần backend chính được xây dựng bằng NestJS trên nền tảng Node.js. NestJS phù hợp với đề tài vì hỗ trợ tổ chức mã nguồn theo module, tách biệt controller, service, entity và DTO, từ đó giúp hệ thống dễ bảo trì khi số lượng nghiệp vụ tăng lên. Các module chính của backend gồm người dùng, xác thực, quan hệ xã hội, bài viết, bình luận, cảm xúc, lưu bài viết, story, bảng tin, tìm kiếm, thông báo, tin nhắn, báo cáo và quản trị.
+
+Hệ quản trị cơ sở dữ liệu PostgreSQL được sử dụng để lưu trữ dữ liệu quan hệ chính như người dùng, bài viết, bình luận, quan hệ theo dõi, phòng chat, tin nhắn, thông báo và báo cáo. Redis và BullMQ được sử dụng để hỗ trợ xử lý công việc nền và các tác vụ bất đồng bộ. Đối với chức năng nhắn tin thời gian thực, hệ thống sử dụng Socket.IO để truyền sự kiện giữa backend và trình duyệt, giúp các thay đổi trong phòng chat được cập nhật ngay tới người dùng liên quan.
+
+Với dữ liệu đa phương tiện, hệ thống sử dụng dịch vụ lưu trữ tệp riêng thay vì lưu trực tiếp tệp ảnh hoặc video trong cơ sở dữ liệu quan hệ. Cách tiếp cận này phù hợp với đặc thù mạng xã hội, nơi số lượng media có thể tăng nhanh theo thời gian. Cơ sở dữ liệu chỉ lưu đường dẫn hoặc định danh media, còn việc lưu trữ và truy xuất tệp được giao cho dịch vụ chuyên biệt.
+
+Đối với tìm kiếm ngữ nghĩa và gợi ý bài viết, hệ thống tích hợp thêm dịch vụ AI xây dựng bằng FastAPI. Dịch vụ này tạo embedding cho nội dung bài viết và lưu trong ChromaDB. Khi người dùng tìm kiếm ngữ nghĩa hoặc yêu cầu bảng tin gợi ý, hệ thống có thể khai thác dữ liệu vector để tìm các bài viết có nội dung gần với truy vấn hoặc gần với lịch sử tương tác của người dùng. Nếu dịch vụ gợi ý không trả về kết quả phù hợp, hệ thống vẫn có thể sử dụng cơ chế bảng tin mặc định để bảo đảm trải nghiệm sử dụng liên tục.
+
+Kết quả hướng tới của đồ án là một hệ thống mạng xã hội web có thể vận hành với các chức năng quan trọng được kết nối thành luồng hoàn chỉnh. Đóng góp chính của đề tài là hiện thực một kiến trúc mạng xã hội gồm frontend, backend, cơ sở dữ liệu, lưu trữ media, realtime messaging, quản trị nội dung và dịch vụ hỗ trợ tìm kiếm, gợi ý. Hệ thống không chỉ thể hiện các thao tác quản lý dữ liệu thông thường, mà còn giải quyết các vấn đề đặc thù của mạng xã hội như quyền riêng tư, quan hệ theo dõi, bảng tin, tương tác nội dung, nhắn tin thời gian thực và xử lý báo cáo vi phạm.
+
+\section{Bố cục đồ án}
+\label{section:1.4}
+Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ chức như sau.
+
+Chương 2 trình bày khảo sát hiện trạng và phân tích yêu cầu đối với hệ thống mạng xã hội SNet. Chương này khảo sát nhu cầu người dùng, phân tích một số nền tảng mạng xã hội phổ biến, rút ra các chức năng cần thiết, xác định các tác nhân tham gia hệ thống, mô tả use case tổng quát, phân rã các nhóm use case chính, đặc tả một số use case quan trọng và trình bày các yêu cầu phi chức năng.
+
+Chương 3 trình bày nền tảng lý thuyết và các công nghệ sử dụng trong quá trình xây dựng hệ thống. Nội dung chương bao gồm các công nghệ phía frontend, backend, cơ sở dữ liệu, xử lý thời gian thực, hàng đợi công việc nền, lưu trữ media và tìm kiếm ngữ nghĩa. Chương này cũng làm rõ vai trò của từng công nghệ trong kiến trúc tổng thể của SNet.
+
+Chương 4 trình bày quá trình phân tích thiết kế, triển khai và đánh giá hệ thống. Chương này mô tả kiến trúc tổng thể, thiết kế cơ sở dữ liệu, thiết kế API, thiết kế giao diện, cách triển khai các module chức năng và kết quả kiểm thử các luồng nghiệp vụ chính. Các nội dung trong chương này cho thấy hệ thống được hiện thực như thế nào từ các yêu cầu đã xác định.
+
+Chương 5 trình bày các giải pháp và đóng góp nổi bật của đồ án. Chương này tập trung phân tích sâu hơn những vấn đề có ý nghĩa trong hệ thống như xử lý quyền riêng tư, xây dựng bảng tin, nhắn tin thời gian thực, tích hợp tìm kiếm ngữ nghĩa, gợi ý nội dung và cơ chế quản trị báo cáo vi phạm.
+
+Chương 6 là phần kết luận và hướng phát triển. Chương này tổng kết những kết quả đạt được, đánh giá các hạn chế còn tồn tại của hệ thống và đề xuất các hướng cải tiến trong tương lai nhằm hoàn thiện SNet, nâng cao trải nghiệm người dùng và mở rộng khả năng vận hành của hệ thống.
+
+\end{document}

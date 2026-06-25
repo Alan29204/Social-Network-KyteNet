@@ -5,7 +5,6 @@ import { WaitingMembers } from 'src/modules/chats/entities/waiting-members.entit
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
 import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
-import { DeviceSession } from 'src/modules/users/device-sessions/entities/device-session.entity';
 import { GenderType } from 'src/common/enums/gender.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 import { RoleType } from 'src/common/enums/role.enum';
@@ -106,9 +105,6 @@ export class User {
 
   @UpdateDateColumn({ nullable: true })
   updated_at: Date;
-
-  @OneToMany(() => DeviceSession, (deviceSession) => deviceSession.user)
-  device_sessions: DeviceSession[];
 
   @OneToMany(() => Relation, (relation) => relation.request_side)
   sent_relations: Relation[];

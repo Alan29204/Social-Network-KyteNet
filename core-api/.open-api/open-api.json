@@ -1033,36 +1033,6 @@
         ]
       }
     },
-    "/device-sessions/logout": {
-      "post": {
-        "operationId": "DeviceSessionsController_hendleLogout",
-        "summary": "Đăng xuất tài khoản",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "DeviceSessions"
-        ]
-      }
-    },
-    "/device-sessions/refresh-token": {
-      "get": {
-        "operationId": "DeviceSessionsController_reAuth",
-        "summary": "Cấp lại access token",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "DeviceSessions"
-        ]
-      }
-    },
     "/notifications": {
       "get": {
         "operationId": "NotificationController_getUserNotifications",
@@ -3918,16 +3888,11 @@
             "type": "string",
             "minLength": 6,
             "example": "123456"
-          },
-          "deviceId": {
-            "type": "string",
-            "example": "unique-device-id"
           }
         },
         "required": [
           "email",
-          "password",
-          "deviceId"
+          "password"
         ]
       },
       "SearchUserMessageItemDto": {
@@ -4641,56 +4606,6 @@
         "required": [
           "chat_room_id",
           "target_user_id"
-        ]
-      },
-      "DeviceSession": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "device_id": {
-            "type": "string"
-          },
-          "ip_address": {
-            "type": "string"
-          },
-          "secret_key": {
-            "type": "string"
-          },
-          "refresh_token": {
-            "type": "string"
-          },
-          "expired_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "device_id",
-          "ip_address",
-          "secret_key",
-          "refresh_token",
-          "expired_at",
-          "created_at",
-          "updated_at",
-          "user_id",
-          "user"
         ]
       },
       "Relation": {
@@ -5568,12 +5483,6 @@
             "format": "date-time",
             "type": "string"
           },
-          "device_sessions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DeviceSession"
-            }
-          },
           "sent_relations": {
             "type": "array",
             "items": {
@@ -5664,7 +5573,6 @@
           "role",
           "created_at",
           "updated_at",
-          "device_sessions",
           "sent_relations",
           "received_relations",
           "notification_users",

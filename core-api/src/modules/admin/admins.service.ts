@@ -13,7 +13,6 @@ import { AddAdminDto } from './dto/add-admin.dto';
 import { RoleType } from 'src/common/enums/role.enum';
 import { ReportsService } from '../reports/reports.service';
 import { ReportAction, ReportStatus } from '../reports/entities/report.entity';
-import { DeviceSessionsService } from '../users/device-sessions/device-sessions.service';
 import { NotificationService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -24,7 +23,6 @@ export class AdminsService {
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     private readonly reportsService: ReportsService,
-    private readonly deviceSessionsService: DeviceSessionsService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -114,7 +112,6 @@ export class AdminsService {
         'Tài khoản của bạn đã bị khóa bởi quản trị viên vì vi phạm tiêu chuẩn cộng đồng.',
         { context: 'admin_account_lock' },
       );
-      await this.deviceSessionsService.revokeAllForUser(userId);
     }
 
     return {
