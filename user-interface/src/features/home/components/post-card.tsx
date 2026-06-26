@@ -24,6 +24,7 @@ import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { SharePostModal } from '@/features/posts/components/share-post-modal';
 import { SaveToListModal } from '@/features/saved/components/save-to-list-modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
@@ -132,6 +133,7 @@ export function PostCard({
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [unsaveConfirmOpen, setUnsaveConfirmOpen] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
 
   // Local state for debounced optimistic repost
@@ -225,6 +227,7 @@ export function PostCard({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['save-lists'] });
     },
   });
 
@@ -233,13 +236,18 @@ export function PostCard({
       // Chưa lưu -> mở modal chọn bộ sưu tập
       setSaveModalOpen(true);
     } else {
-      // Đã lưu -> bỏ lưu
-      setLocalSaved(false);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        unsaveMutation.mutate();
-      }, 300);
+      // Đã lưu -> hỏi xác nhận trước khi bỏ lưu
+      setUnsaveConfirmOpen(true);
     }
+  };
+
+  const confirmUnsave = () => {
+    setUnsaveConfirmOpen(false);
+    setLocalSaved(false);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      unsaveMutation.mutate();
+    }, 300);
   };
 
   const { optimisticFollows } = useFollowStore();
@@ -628,6 +636,16 @@ export function PostCard({
           onSaved={() => setLocalSaved(true)}
         />
       )}
+
+      <ConfirmDialog
+        open={unsaveConfirmOpen}
+        onOpenChange={setUnsaveConfirmOpen}
+        title="Bỏ lưu bài viết này?"
+        description="Bài viết sẽ được gỡ khỏi tất cả bộ sưu tập đã lưu của bạn."
+        confirmText="Bỏ lưu"
+        destructive
+        onConfirm={confirmUnsave}
+      />
 
       <PostLikesModal
         postId={displayPost.id}

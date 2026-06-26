@@ -29,6 +29,7 @@ import {
   normalizePostHashtags,
 } from 'src/common/utils/searchableText';
 import { PostVisibilityService } from './post-visibility.service';
+import { SavePostsService } from './bookmarks/save-posts/save-posts.service';
 
 @Injectable()
 export class PostsService {
@@ -46,6 +47,7 @@ export class PostsService {
     @Inject(forwardRef(() => NotificationService))
     private readonly notificationService: NotificationService,
     private readonly postVisibilityService: PostVisibilityService,
+    private readonly savePostsService: SavePostsService,
   ) {}
 
   /** Base URL + headers cho các call nội bộ tới ai-services. */
@@ -238,6 +240,12 @@ export class PostsService {
         postData.interactions.is_reposted = !!(await this.repository.findOne({
           where: { user_id: currentUser.id, shared_post_id: id },
         }));
+
+        const savedSet = await this.savePostsService.getSavedPostIdsAllLists(
+          currentUser.id,
+          [id],
+        );
+        postData.interactions.is_saved = savedSet.has(id) || false;
 
         postData.comments = (postData.comments || []).map((comment: any) => ({
           ...comment,
@@ -601,6 +609,14 @@ export class PostsService {
         }
       }
 
+      // Đánh dấu bài đã lưu (trong bất kỳ bộ sưu tập nào) để FE giữ trạng thái nút Lưu.
+      const savedSet = currentUser?.id
+        ? await this.savePostsService.getSavedPostIdsAllLists(
+            currentUser.id,
+            actualPostIds,
+          )
+        : new Set<string>();
+
       const data = posts.map((post) => {
         // Absolute Override: bỏ qua reaction/comment bị ẩn do chặn
         const visibleReactions = (post.reactions || []).filter(
@@ -622,6 +638,7 @@ export class PostsService {
               ) || false,
             is_reposted:
               userRepostsMap[post.shared_post_id || post.id] || false,
+            is_saved: savedSet.has(post.shared_post_id || post.id) || false,
           },
         };
       });

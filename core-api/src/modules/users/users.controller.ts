@@ -29,6 +29,7 @@ import { SearchUserMessageResponseDto } from './dto/search-user-message.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
 import { AfterSignUpDto } from './dto/after-signup.dto';
+import { SendRegisterOtpDto } from './dto/send-register-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -97,9 +98,7 @@ export class UsersController {
   ) {
     // Absolute Override: nếu bị chặn (2 chiều) -> coi như không tồn tại (404)
     if (user.id !== user_id) {
-      const blocked = await (
-        this.usersService as any
-      ).relationsService.areBlocked(user.id, user_id);
+      const blocked = await this.usersService.areBlocked(user.id, user_id);
       if (blocked) {
         throw new NotFoundException('User profile is not available');
       }
@@ -115,9 +114,10 @@ export class UsersController {
     );
 
     const stats = await this.usersService.getProfileStats(user_id, user.id);
-    const relationStatus = await (
-      this.usersService as any
-    ).relationsService.getRelation(user.id, user_id);
+    const relationStatus = await this.usersService.getRelationStatus(
+      user.id,
+      user_id,
+    );
     const isFollowing = relationStatus === 'following';
 
     if (!privacySeeProfile) {
@@ -179,11 +179,19 @@ export class UsersController {
     );
   }
 
+  @Post('/register/send-otp')
+  @Public()
+  @ResponseMessage('OTP sent successfully')
+  @ApiOperation({ summary: 'Gửi mã OTP xác thực email khi đăng ký' })
+  sendRegisterOtp(@Body() dto: SendRegisterOtpDto) {
+    return this.usersService.sendRegisterOtp(dto.email);
+  }
+
   @Post('/signup')
   @Public()
   @ResponseMessage('Create user successfully')
   @ApiOperation({
-    summary: 'Sign up (no OTP required)',
+    summary: 'Sign up (yêu cầu OTP đã xác thực email)',
   })
   afterSignUp(@Body() dto: AfterSignUpDto) {
     return this.usersService.afterSignUp(dto);

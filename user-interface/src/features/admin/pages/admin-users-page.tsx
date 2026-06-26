@@ -50,10 +50,18 @@ const roleBadge = (role: string) => {
   );
 };
 
+const ROLE_FILTERS: { value: string; label: string }[] = [
+  { value: '', label: 'Tất cả' },
+  { value: 'user', label: 'Đang hoạt động' },
+  { value: 'banned', label: 'Bị khóa' },
+  { value: 'admin', label: 'Admin' },
+];
+
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const [dialogState, setDialogState] = useState<{
     type: 'ban' | 'unban' | 'delete' | 'promote' | null;
     user: any;
@@ -62,7 +70,12 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
   const limit = 15;
 
-  const { data, isLoading } = useAdminUsers({ page, limit, search: search || undefined });
+  const { data, isLoading } = useAdminUsers({
+    page,
+    limit,
+    search: search || undefined,
+    role: roleFilter || undefined,
+  });
   const users = data?.data?.data || data?.data || [];
   const meta = data?.data?.meta || data?.meta || { page: 1, total_pages: 1 };
 
@@ -233,15 +246,36 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Tìm theo username hoặc email..."
-          className="pl-9"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
+      {/* Search + lọc trạng thái */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo username hoặc email..."
+            className="pl-9"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 self-start">
+          {ROLE_FILTERS.map((f) => (
+            <button
+              key={f.value || 'all'}
+              onClick={() => {
+                setRoleFilter(f.value);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                roleFilter === f.value
+                  ? 'bg-snet-purple text-white'
+                  : 'text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}

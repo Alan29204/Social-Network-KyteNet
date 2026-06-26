@@ -248,10 +248,35 @@
         ]
       }
     },
+    "/users/register/send-otp": {
+      "post": {
+        "operationId": "UsersController_sendRegisterOtp",
+        "summary": "Gửi mã OTP xác thực email khi đăng ký",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRegisterOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/users/signup": {
       "post": {
         "operationId": "UsersController_afterSignUp",
-        "summary": "Sign up (no OTP required)",
+        "summary": "Sign up (yêu cầu OTP đã xác thực email)",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3158,6 +3183,20 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo trạng thái: user | admin | banned",
+            "schema": {
+              "enum": [
+                "user",
+                "admin",
+                "banned"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4082,6 +4121,19 @@
           "confirm_password"
         ]
       },
+      "SendRegisterOtpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@gmail.com",
+            "description": "Email cần xác thực"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
       "AfterSignUpDto": {
         "type": "object",
         "properties": {
@@ -4146,6 +4198,13 @@
             "type": "string",
             "example": "Cau Giay, Ha Noi",
             "description": "address"
+          },
+          "otp": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6,
+            "example": "123456",
+            "description": "Mã OTP 6 số đã gửi tới email khi đăng ký"
           }
         },
         "required": [
@@ -4158,7 +4217,8 @@
           "website",
           "birthday",
           "gender",
-          "address"
+          "address",
+          "otp"
         ]
       },
       "ForgotPasswordDto": {

@@ -1,9 +1,7 @@
 import jwt 
 from schemas.user_interface import IUser
-from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
-from services.device_session import DeviceSessionService
-import os
+from fastapi import HTTPException, status
+from core.settings import settings
 
 class AuthService:
     # Decode token
@@ -22,13 +20,11 @@ class AuthService:
     # Verify token
     async def verify_token(self, token: str) -> IUser:
         try:
-            payload = self.decode_token(token)
-
-            secret_key: str = await DeviceSessionService.get_secret_key(
-                device_session_id=payload['deviceSecssionId'], 
-                user_id=payload['id'])
-
-            result = jwt.decode(token, secret_key, algorithms=[os.getenv('JWT_ALGORITHM')])
+            result = jwt.decode(
+                token,
+                settings.JWT_ACCESS_SECRET,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
 
             return result
 

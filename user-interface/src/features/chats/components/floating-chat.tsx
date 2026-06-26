@@ -25,8 +25,12 @@ export function FloatingChat() {
     0,
   );
 
-  // Không hiển thị ở trang tin nhắn hoặc trang chỉnh sửa hồ sơ
-  if (location.pathname.startsWith('/messages') || location.pathname === '/profile/edit') {
+  // Không hiển thị ở trang tin nhắn, chỉnh sửa hồ sơ, hoặc reels (trải nghiệm toàn màn hình)
+  if (
+    location.pathname.startsWith('/messages') ||
+    location.pathname === '/profile/edit' ||
+    location.pathname.startsWith('/reels')
+  ) {
     return null;
   }
 

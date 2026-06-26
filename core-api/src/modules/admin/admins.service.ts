@@ -45,8 +45,14 @@ export class AdminsService {
     }
   }
 
-  /** List all users with pagination and optional search */
-  async listUsers(page = 1, limit = 20, search?: string, createdFrom?: string) {
+  /** List all users with pagination and optional search/role filter */
+  async listUsers(
+    page = 1,
+    limit = 20,
+    search?: string,
+    createdFrom?: string,
+    role?: RoleType,
+  ) {
     page = Math.max(1, Number(page) || 1);
     limit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (page - 1) * limit;
@@ -82,6 +88,10 @@ export class AdminsService {
           createdFrom: fromDate,
         });
       }
+    }
+
+    if (role && Object.values(RoleType).includes(role)) {
+      query.andWhere('user.role = :role', { role });
     }
 
     const [users, total] = await query.getManyAndCount();

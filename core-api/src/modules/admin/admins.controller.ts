@@ -18,6 +18,7 @@ import { IAdmin } from './admin.interface';
 import { AddAdminDto } from './dto/add-admin.dto';
 import { ReportStatus } from '../reports/entities/report.entity';
 import { ResolveReportDto } from './dto/resolve-report.dto';
+import { RoleType } from 'src/common/enums/role.enum';
 
 @Controller('admins')
 @ApiTags('Admins')
@@ -46,17 +47,25 @@ export class AdminsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'created_from', required: false, type: String })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: RoleType,
+    description: 'Lọc theo trạng thái: user | admin | banned',
+  })
   listUsers(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('created_from') createdFrom?: string,
+    @Query('role') role?: RoleType,
   ) {
     return this.adminsService.listUsers(
       page || 1,
       limit || 20,
       search,
       createdFrom,
+      role,
     );
   }
 

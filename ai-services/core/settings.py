@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
   # JWT
   JWT_ALGORITHM: str
-  UPLOAD_DIR: str
+  JWT_ACCESS_SECRET: str
 
   # ChromaDB
   CHROMA_DB_HOST: str

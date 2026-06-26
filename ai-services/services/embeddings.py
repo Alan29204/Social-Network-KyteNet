@@ -1,5 +1,4 @@
 from sentence_transformers import SentenceTransformer
-from PIL import Image
 from core.settings import settings
 
 class Embeddings:
@@ -14,7 +13,3 @@ class Embeddings:
     # Embedding text
     def get_embedding_text(self, text: str) -> list:
         return self.model.encode(text).tolist()
-
-    # Embedding image
-    def get_embedding_image(self, image: Image.Image) -> list:
-        return self.model.encode(image).tolist()

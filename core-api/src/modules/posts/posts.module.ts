@@ -11,6 +11,7 @@ import { RelationsModule } from 'src/modules/users/relations/relations.module';
 import { forwardRef } from '@nestjs/common';
 import { NotificationModule } from 'src/modules/notifications/notifications.module';
 import { PostVisibilityService } from './post-visibility.service';
+import { SavePostsModule } from './bookmarks/save-posts/save-posts.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PostVisibilityService } from './post-visibility.service';
     FeedModule,
     forwardRef(() => RelationsModule),
     forwardRef(() => NotificationModule),
+    SavePostsModule,
     BullModule.registerQueue({ name: 'create-posts' }),
   ],
   controllers: [PostsController],

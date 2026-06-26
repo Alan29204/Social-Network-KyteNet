@@ -78,4 +78,14 @@ export class AfterSignUpDto {
   @IsString()
   @IsOptional()
   address: string;
+
+  @ApiProperty({
+    example: '123456',
+    description: 'Mã OTP 6 số đã gửi tới email khi đăng ký',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(6)
+  otp: string;
 }

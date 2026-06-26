@@ -1,13 +1,12 @@
 fastapi
 uvicorn
 chromadb
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
 sentence-transformers
-numpy
 pydantic
 pyjwt
 sqlalchemy
 asyncpg
-opencv-python
 pydantic-settings
 python-dotenv
-pillow

@@ -6,6 +6,7 @@ import { AuthGuard, GuestGuard } from '@/layouts/auth-guard';
 import HomePage from '@/features/home/pages/home-page';
 import LoginPage from '@/features/auth/pages/login-page';
 import RegisterPage from '@/features/auth/pages/register-page';
+import ForgotPasswordPage from '@/features/auth/pages/forgot-password-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 import BlockedAccountsPage from '@/features/profile/pages/blocked-accounts-page';
@@ -35,6 +36,10 @@ function App() {
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/forgot-password"
+                element={<ForgotPasswordPage />}
+              />
             </Route>
           </Route>
 

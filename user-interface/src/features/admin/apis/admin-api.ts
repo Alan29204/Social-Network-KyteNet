@@ -11,7 +11,7 @@ const adminApi = {
     return res.data;
   },
 
-  listUsers: async (params: { page?: number; limit?: number; search?: string; created_from?: string }) => {
+  listUsers: async (params: { page?: number; limit?: number; search?: string; created_from?: string; role?: string }) => {
     const res = await AXIOS_INSTANCE.get('/admins/users', { params });
     return res.data;
   },
@@ -85,7 +85,7 @@ export const useAdminStats = () =>
     queryFn: adminApi.getStats,
   });
 
-export const useAdminUsers = (params: { page?: number; limit?: number; search?: string; created_from?: string }) =>
+export const useAdminUsers = (params: { page?: number; limit?: number; search?: string; created_from?: string; role?: string }) =>
   useQuery({
     queryKey: ADMIN_QUERY_KEYS.users(params),
     queryFn: () => adminApi.listUsers(params),

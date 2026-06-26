@@ -27,6 +27,7 @@ import { Queue } from 'bullmq';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { RoleType } from 'src/common/enums/role.enum';
 import { AuthService } from './auth/auth.service';
+import { MailService } from 'src/infra/mail/mail.service';
 
 @Injectable()
 export class UsersService {
@@ -41,6 +42,7 @@ export class UsersService {
     private readonly mediaService: MediaService,
     @InjectQueue('avatar-updates')
     private avatarUpdatesQueue: Queue,
+    private readonly mailService: MailService,
   ) {}
 
   private sanitizeUser<T extends Partial<User>>(user: T) {
@@ -125,8 +127,23 @@ export class UsersService {
     if (relation === RelationType.FOLLOWING) {
       return true;
     }
-    
+
     return false;
+  }
+
+  /**
+   * Kiểm tra quan hệ chặn 2 chiều giữa 2 user (uỷ quyền cho RelationsService).
+   * Dùng làm "khoá ghi đè tuyệt đối" cho profile/search/chat...
+   */
+  async areBlocked(userId: string, otherId: string): Promise<boolean> {
+    return this.relationsService.areBlocked(userId, otherId);
+  }
+
+  /**
+   * Lấy trạng thái quan hệ của viewer với user (following/pending/blocked/none).
+   */
+  async getRelationStatus(userId: string, otherId: string) {
+    return this.relationsService.getRelation(userId, otherId);
   }
 
   /**
@@ -149,7 +166,45 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Gửi mã OTP xác thực email cho luồng đăng ký.
+   * Lưu OTP vào Redis (TTL 10 phút) và gửi email qua MailService.
+   */
+  async sendRegisterOtp(email: string) {
+    const existing = await this.usersRepository.findOne({ where: { email } });
+    if (existing) {
+      throw new BadRequestException('Email đã được sử dụng');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await this.redisService.set(`register_otp:${email}`, otp);
+    await this.redisService.getClient().expire(`register_otp:${email}`, 600); // 10 phút
+
+    const sent = await this.mailService.sendOtp(email, otp, 'register');
+
+    return {
+      message: 'Đã gửi mã OTP tới email của bạn',
+      // Chỉ lộ OTP khi chưa cấu hình SMTP hoặc môi trường dev (để demo/test).
+      ...((!sent || this.configService.get('NODE_ENV') !== 'production') && {
+        dev_otp: otp,
+      }),
+    };
+  }
+
   async afterSignUp(dto: AfterSignUpDto) {
+    // Xác thực OTP đã gửi tới email trước khi tạo tài khoản.
+    const storedOtp = await this.redisService.get(`register_otp:${dto.email}`);
+    if (!storedOtp || storedOtp !== dto.otp) {
+      throw new BadRequestException('Mã OTP không đúng hoặc đã hết hạn');
+    }
+
+    const existing = await this.usersRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new BadRequestException('Email đã được sử dụng');
+    }
+
     try {
       const hashPassword = await this.getHashPassword(dto.password);
 
@@ -168,6 +223,7 @@ export class UsersService {
       };
 
       await this.usersRepository.save(newUser);
+      await this.redisService.del(`register_otp:${dto.email}`);
 
       return { message: 'sign up successfully' };
     } catch (err) {
@@ -511,13 +567,13 @@ export class UsersService {
     await this.redisService.set(`password_reset:${email}`, resetCode);
     await this.redisService.getClient().expire(`password_reset:${email}`, 900); // 15 min
 
-    // TODO: Send email with reset code in production
-    console.log(`[DEV] Password reset code for ${email}: ${resetCode}`);
+    // Gửi mã OTP qua email (nếu SMTP đã cấu hình)
+    const sent = await this.mailService.sendOtp(email, resetCode, 'reset');
 
     return {
       message: 'If this email exists, a reset link has been sent',
-      // Only return code in development mode
-      ...(this.configService.get('NODE_ENV') !== 'production' && {
+      // Lộ mã khi chưa cấu hình SMTP hoặc môi trường dev (để demo/test).
+      ...((!sent || this.configService.get('NODE_ENV') !== 'production') && {
         dev_reset_code: resetCode,
       }),
     };

@@ -1,17 +1,22 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { SaveList } from './entities/save-list.entity';
+import { SavePost } from 'src/modules/posts/bookmarks/save-posts/entities/save-post.entity';
 import { CreateSaveListDto } from './dto/create-save-list.dto';
 import { UpdateSaveListDto } from './dto/update-save-list.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { v4 as uuidv4 } from 'uuid';
+
+const DEFAULT_LIST_NAME = 'Đã lưu';
 
 @Injectable()
 export class SaveListsService {
   constructor(
     @InjectRepository(SaveList)
     private readonly saveListRepository: Repository<SaveList>,
+    @InjectRepository(SavePost)
+    private readonly savePostRepository: Repository<SavePost>,
   ) {}
 
   async create(user: IUser, createSaveListDto: CreateSaveListDto) {
@@ -30,12 +35,33 @@ export class SaveListsService {
 
   async findAllByUser(user: IUser, page: number = 1, limit: number = 10) {
     try {
-      const [data, total] = await this.saveListRepository.findAndCount({
-        where: { user_id: user.id },
+      // Loại bộ sưu tập mặc định "Đã lưu" — card "Tất cả đã lưu" ở FE đã đại diện cho nó.
+      const [lists, total] = await this.saveListRepository.findAndCount({
+        where: { user_id: user.id, name: Not(DEFAULT_LIST_NAME) },
         order: { name: 'ASC' },
         skip: (page - 1) * limit,
         take: limit,
       });
+
+      // Đính kèm ảnh bìa (media bài mới nhất) + số lượng cho từng bộ sưu tập.
+      const data = await Promise.all(
+        lists.map(async (list) => {
+          const [latest, count] = await Promise.all([
+            this.savePostRepository.findOne({
+              where: { save_list_id: list.id },
+              relations: ['post'],
+              order: { id: 'DESC' },
+            }),
+            this.savePostRepository.count({
+              where: { save_list_id: list.id },
+            }),
+          ]);
+          const medias = latest?.post?.medias || [];
+          const cover =
+            Array.isArray(medias) && medias.length > 0 ? medias[0] : null;
+          return { ...list, cover, count };
+        }),
+      );
 
       return {
         data,

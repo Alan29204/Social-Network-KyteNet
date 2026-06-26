@@ -31,6 +31,7 @@ import { MediaModule } from './infra/media/media.module';
 import { SearchModule } from './search/search.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { StoriesModule } from './modules/stories/stories.module';
+import { MailModule } from './infra/mail/mail.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { StoriesModule } from './modules/stories/stories.module';
     SearchModule,
     ReportsModule,
     StoriesModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [
