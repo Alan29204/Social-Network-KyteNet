@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { Bookmark, FolderPlus, MoreVertical, Pencil, Trash2, Loader2 } from 'lucide-react';
@@ -104,7 +104,7 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
         }}
       />
     ) : (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-snet-purple/20 to-snet-pink/20">
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-kyte-blue/20 to-kyte-coral/20">
         <Bookmark className="w-10 h-10 text-muted-foreground/40" />
       </div>
     );

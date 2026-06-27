@@ -1,4 +1,4 @@
-import { useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
+﻿import { useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Maximize, X } from 'lucide-react';
@@ -143,7 +143,7 @@ export function FloatingChatList() {
                     )}
                   </div>
                   {isUnread && (
-                    <div className="w-2.5 h-2.5 bg-snet-purple rounded-full shrink-0" />
+                    <div className="w-2.5 h-2.5 bg-kyte-blue rounded-full shrink-0" />
                   )}
                 </button>
               );

@@ -56,10 +56,9 @@ const config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        snet: {
-          purple: 'hsl(var(--snet-purple))',
-          pink: 'hsl(var(--snet-pink))',
-          blue: 'hsl(var(--snet-blue))',
+        kyte: {
+          blue: 'hsl(var(--kyte-blue))',
+          coral: 'hsl(var(--kyte-coral))',
         },
       },
       borderRadius: {

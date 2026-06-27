@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+﻿import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -513,7 +513,7 @@ export function PostDetailModal({
                   className="text-sm bg-secondary rounded-md px-2 py-1 outline-none min-w-[160px]"
                 />
                 <button
-                  className="text-xs font-semibold text-snet-purple"
+                  className="text-xs font-semibold text-kyte-blue"
                   onClick={() =>
                     editing.content.trim() &&
                     editCommentMutation.mutate({

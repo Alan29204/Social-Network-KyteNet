@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import { Search, MoreHorizontal, ShieldCheck, Ban, Trash2, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -268,7 +268,7 @@ export default function AdminUsersPage() {
               }}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 roleFilter === f.value
-                  ? 'bg-snet-purple text-white'
+                  ? 'bg-kyte-blue text-white'
                   : 'text-muted-foreground hover:bg-secondary'
               }`}
             >

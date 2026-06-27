@@ -33,14 +33,14 @@ export function StoryBar() {
               className="relative"
             >
               <div
-                className={`w-16 h-16 rounded-full p-[2px] ${
+                className={`w-[92px] h-[92px] rounded-full p-[3px] ${
                   myGroup
-                    ? 'bg-gradient-to-br from-snet-purple to-snet-pink'
+                    ? 'bg-gradient-to-br from-kyte-blue to-kyte-coral'
                     : 'bg-border'
                 }`}
               >
                 <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
-                  <Avatar className="w-[58px] h-[58px]">
+                  <Avatar className="w-[86px] h-[86px]">
                     <AvatarImage src={getAvatarUrl(currentUser?.avatar)} />
                     <AvatarFallback className="bg-muted" />
                   </Avatar>
@@ -52,10 +52,10 @@ export function StoryBar() {
                   e.stopPropagation();
                   setCreateOpen(true);
                 }}
-                className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-snet-purple text-white flex items-center justify-center border-2 border-background"
+                className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-kyte-blue text-white flex items-center justify-center border-[2.5px] border-background"
                 aria-label="Tạo story"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </button>
             </button>
             <span className="text-[10px] text-muted-foreground">
@@ -70,8 +70,8 @@ export function StoryBar() {
                 key={i}
                 className="flex flex-col items-center gap-1 shrink-0"
               >
-                <div className="w-16 h-16 rounded-full bg-secondary animate-pulse" />
-                <div className="w-10 h-2 rounded bg-secondary animate-pulse" />
+                <div className="w-[92px] h-[92px] rounded-full bg-secondary animate-pulse" />
+                <div className="w-14 h-2 rounded bg-secondary animate-pulse" />
               </div>
             ))}
 
@@ -87,21 +87,21 @@ export function StoryBar() {
                 >
                   <button onClick={() => setViewerIndex(realIndex)}>
                     <div
-                      className={`w-16 h-16 rounded-full p-[2px] ${
+                      className={`w-[92px] h-[92px] rounded-full p-[3px] ${
                         group.has_unseen
-                          ? 'bg-gradient-to-br from-snet-purple to-snet-pink'
+                          ? 'bg-gradient-to-br from-kyte-blue to-kyte-coral'
                           : 'bg-border'
                       }`}
                     >
                       <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
-                        <Avatar className="w-[58px] h-[58px]">
+                        <Avatar className="w-[86px] h-[86px]">
                           <AvatarImage src={getAvatarUrl(group.user.avatar)} />
                           <AvatarFallback className="bg-muted" />
                         </Avatar>
                       </div>
                     </div>
                   </button>
-                  <span className="text-[10px] text-muted-foreground max-w-[64px] truncate">
+                  <span className="text-[10px] text-muted-foreground max-w-[92px] truncate px-1">
                     {getDisplayName(group.user)}
                   </span>
                 </div>

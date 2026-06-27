@@ -38,7 +38,7 @@ export function AdminLayout() {
               <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">SNet Admin</h1>
+              <h1 className="text-lg font-bold tracking-tight">KyteNet Admin</h1>
               <p className="text-xs text-muted-foreground">Quản trị hệ thống</p>
             </div>
           </div>

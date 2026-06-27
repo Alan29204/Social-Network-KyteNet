@@ -33,7 +33,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Tổng quan hệ thống SNet</p>
+        <p className="text-muted-foreground mt-1">Tổng quan hệ thống KyteNet</p>
       </div>
 
       {isLoading ? (

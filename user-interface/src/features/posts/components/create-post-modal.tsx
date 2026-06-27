@@ -232,7 +232,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
       onOpenChange(val);
     }}>
       <DialogContent 
-        className={`sm:max-w-[500px] p-0 overflow-hidden gap-0 bg-card ${postStatus === 'loading' || postStatus === 'success' ? '[&>button]:hidden' : ''}`}
+        className={`sm:max-w-[625px] p-0 overflow-hidden gap-0 bg-card ${postStatus === 'loading' || postStatus === 'success' ? '[&>button]:hidden' : ''}`}
         onInteractOutside={(e) => {
           if (postStatus === 'loading' || postStatus === 'success') e.preventDefault();
         }}
@@ -261,14 +261,14 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         </DialogHeader>
 
         {postStatus === 'loading' && (
-          <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+          <div className="flex flex-col items-center justify-center h-[375px] gap-4">
             <Loader2 className="w-12 h-12 animate-spin text-primary" />
             <p className="text-lg font-semibold animate-pulse">Đang đăng bài...</p>
           </div>
         )}
 
         {postStatus === 'success' && (
-          <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+          <div className="flex flex-col items-center justify-center h-[375px] gap-4">
             <div className="relative">
               <CheckCircle2 className="w-16 h-16 text-green-500 animate-checkmark stroke-[1.5]" />
             </div>
@@ -277,7 +277,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         )}
 
         {postStatus === 'error' && (
-          <div className="flex flex-col items-center justify-center h-[300px] gap-4 px-6 text-center">
+          <div className="flex flex-col items-center justify-center h-[375px] gap-4 px-6 text-center">
             <AlertTriangle className="w-16 h-16 text-destructive" />
             <p className="text-lg font-semibold text-destructive">{errorMessage}</p>
             <Button variant="outline" onClick={() => setPostStatus('idle')}>Quay lại</Button>
@@ -285,7 +285,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         )}
 
         {postStatus === 'idle' && (
-          <div className="flex flex-col h-full max-h-[70vh] overflow-y-auto">
+          <div className="flex flex-col h-full max-h-[85vh] overflow-y-auto">
           {/* User Info & Privacy */}
           <div className="flex items-center gap-3 p-4">
             <Avatar className="w-10 h-10">
@@ -326,7 +326,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="Bạn đang nghĩ gì?"
-                className="mentions-input min-h-[100px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
+                className="mentions-input min-h-[150px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
                 style={{
                   control: { fontSize: '1rem', fontWeight: 'normal', outline: 'none', border: 'none' },
                   highlighter: { padding: 0, border: 'none' },

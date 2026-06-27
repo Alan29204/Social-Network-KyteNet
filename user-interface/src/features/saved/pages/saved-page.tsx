@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
 import { Bookmark, Loader2 } from 'lucide-react';
@@ -49,18 +49,18 @@ export default function SavedPage() {
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 sm:px-0 mb-4">
-          <Bookmark className="w-6 h-6 text-snet-purple" />
+          <Bookmark className="w-6 h-6 text-kyte-blue" />
           <h1 className="text-xl font-bold">{listName}</h1>
         </div>
 
         {status === 'pending' ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-snet-purple" />
+            <Loader2 className="w-8 h-8 animate-spin text-kyte-blue" />
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center mb-4">
-              <Bookmark className="w-10 h-10 text-snet-purple" />
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-kyte-blue/10 to-kyte-coral/10 flex items-center justify-center mb-4">
+              <Bookmark className="w-10 h-10 text-kyte-blue" />
             </div>
             <h3 className="text-lg font-semibold mb-2">
               Chưa có bài viết đã lưu
@@ -102,7 +102,7 @@ export default function SavedPage() {
 
             <div ref={ref} className="py-8 flex justify-center">
               {isFetchingNextPage && (
-                <Loader2 className="w-5 h-5 animate-spin text-snet-purple" />
+                <Loader2 className="w-5 h-5 animate-spin text-kyte-blue" />
               )}
             </div>
           </div>

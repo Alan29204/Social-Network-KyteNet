@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -265,7 +265,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="w-6 h-6 animate-spin text-snet-purple" />
+            <Loader2 className="w-6 h-6 animate-spin text-kyte-blue" />
           </div>
         ) : rootComments.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">
@@ -366,7 +366,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
                 displayTransform={(_id, display) => display}
                 appendSpaceOnAdd={true}
                 style={{
-                  color: 'hsl(var(--snet-purple))',
+                  color: 'hsl(var(--kyte-blue))',
                   position: 'relative',
                   zIndex: 1,
                 }}
@@ -387,7 +387,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           <button
             onClick={handleSend}
             disabled={!text.trim() || commentMutation.isPending}
-            className="p-2 rounded-full text-snet-purple disabled:opacity-40"
+            className="p-2 rounded-full text-kyte-blue disabled:opacity-40"
             aria-label="Gửi"
           >
             {commentMutation.isPending ? (

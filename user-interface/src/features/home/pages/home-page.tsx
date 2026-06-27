@@ -1,4 +1,4 @@
-import { SidebarRight } from '@/layouts/components/sidebar-right';
+﻿import { SidebarRight } from '@/layouts/components/sidebar-right';
 import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
 import {
@@ -93,7 +93,7 @@ export default function HomePage() {
             onClick={() => setActiveTab('following')}
             className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
               activeTab === 'following'
-                ? 'bg-gradient-to-r from-snet-purple to-snet-pink text-white shadow-lg shadow-snet-purple/20'
+                ? 'bg-gradient-to-r from-kyte-blue to-kyte-coral text-white shadow-lg shadow-kyte-blue/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
             }`}
           >
@@ -106,7 +106,7 @@ export default function HomePage() {
             onClick={() => setActiveTab('recommended')}
             className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
               activeTab === 'recommended'
-                ? 'bg-gradient-to-r from-snet-pink to-snet-purple text-white shadow-lg shadow-snet-pink/20'
+                ? 'bg-gradient-to-r from-kyte-coral to-kyte-blue text-white shadow-lg shadow-kyte-coral/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
             }`}
           >
@@ -118,7 +118,7 @@ export default function HomePage() {
             onClick={() => setActiveTab('explore')}
             className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
               activeTab === 'explore'
-                ? 'bg-gradient-to-r from-snet-purple to-snet-blue text-white shadow-lg shadow-snet-purple/20'
+                ? 'bg-gradient-to-r from-kyte-blue to-kyte-blue text-white shadow-lg shadow-kyte-blue/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
             }`}
           >
@@ -138,7 +138,7 @@ export default function HomePage() {
                   key={i}
                   className="w-full rounded-2xl bg-card border border-border overflow-hidden"
                 >
-                  <div className="h-0.5 w-full bg-gradient-to-r from-snet-purple via-snet-pink to-snet-blue opacity-30" />
+                  <div className="h-0.5 w-full bg-gradient-to-r from-kyte-blue via-kyte-coral to-kyte-blue opacity-30" />
                   <div className="p-4 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full shimmer" />
                     <div className="flex flex-col gap-2">
@@ -177,13 +177,13 @@ export default function HomePage() {
             </div>
           ) : posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-4 animate-fade-in">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center mb-4 animate-float">
-                <Compass className="w-10 h-10 text-snet-purple" />
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-kyte-blue/10 to-kyte-coral/10 flex items-center justify-center mb-4 animate-float">
+                <Compass className="w-10 h-10 text-kyte-blue" />
               </div>
               <h3 className="text-lg font-semibold mb-2 font-heading">
                 {activeTab === 'recommended'
                   ? 'Chưa có gợi ý cho bạn'
-                  : 'Chào mừng bạn đến với SNet!'}
+                  : 'Chào mừng bạn đến với KyteNet!'}
               </h3>
               <p className="text-sm text-muted-foreground text-center max-w-xs">
                 {activeTab === 'recommended'
@@ -196,7 +196,7 @@ export default function HomePage() {
               {/* Banner gợi ý AI */}
               {activeTab === 'recommended' &&
                 recommendedSource === 'personalized' && (
-                  <div className="mx-4 sm:mx-0 mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-snet-purple/10 to-snet-pink/10 px-4 py-2.5">
+                  <div className="mx-4 sm:mx-0 mb-3 flex items-center gap-2 rounded-xl bg-gradient-to-r from-kyte-blue/10 to-kyte-coral/10 px-4 py-2.5">
                     <span className="text-xs text-muted-foreground">
                       Gợi ý dựa trên sở thích và lịch sử tương tác của bạn.
                     </span>
@@ -222,7 +222,7 @@ export default function HomePage() {
                 >
                   {isFetchingNextPage && (
                     <div className="flex items-center gap-3">
-                      <Loader2 className="w-5 h-5 animate-spin text-snet-purple" />
+                      <Loader2 className="w-5 h-5 animate-spin text-kyte-blue" />
                       <span className="text-sm text-muted-foreground">
                         Đang tải thêm...
                       </span>
@@ -230,8 +230,8 @@ export default function HomePage() {
                   )}
                   {!hasNextPage && !isFetchingNextPage && posts.length > 0 && (
                     <div className="flex flex-col items-center gap-2 py-4">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
-                        <RefreshCw className="w-4 h-4 text-snet-purple/60" />
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-kyte-blue/10 to-kyte-coral/10 flex items-center justify-center">
+                        <RefreshCw className="w-4 h-4 text-kyte-blue/60" />
                       </div>
                       <span className="text-sm text-muted-foreground">
                         Bạn đã xem hết tin

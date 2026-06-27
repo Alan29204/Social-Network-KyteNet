@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+﻿import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Carousel,
@@ -321,8 +321,8 @@ export function PostCard({
       {/* Repost indicator */}
       {isRepost && (
         <div className="px-4 pb-2 flex items-center gap-2 text-muted-foreground">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
-            <Share2 className="w-3.5 h-3.5 text-snet-purple" />
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-kyte-blue/10 to-kyte-coral/10 flex items-center justify-center">
+            <Share2 className="w-3.5 h-3.5 text-kyte-blue" />
           </div>
           <span className="text-xs font-medium">
             <span className="font-semibold">{renderRepostedBy()}</span> đã đăng
@@ -332,16 +332,16 @@ export function PostCard({
       )}
 
       {/* Card Container with gradient border on hover */}
-      <div className="relative rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-snet-purple/5 dark:hover:shadow-snet-purple/10 card-hover">
+      <div className="relative rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-kyte-blue/5 dark:hover:shadow-kyte-blue/10 card-hover">
         {/* Top gradient accent line */}
-        <div className="h-0.5 w-full bg-gradient-to-r from-snet-purple via-snet-pink to-snet-blue opacity-60" />
+        <div className="h-0.5 w-full bg-gradient-to-r from-kyte-blue via-kyte-coral to-kyte-blue opacity-60" />
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div className="flex items-center gap-3">
             <Link to={`/profile/${displayPost.user.id}`} className="shrink-0">
               <div className="relative">
-                <Avatar className="w-10 h-10 ring-2 ring-snet-purple/20 ring-offset-2 ring-offset-background cursor-pointer transition-all hover:ring-snet-purple/40">
+                <Avatar className="w-10 h-10 ring-2 ring-kyte-blue/20 ring-offset-2 ring-offset-background cursor-pointer transition-all hover:ring-kyte-blue/40">
                   <AvatarImage
                     src={getAvatarUrl(
                       displayPost.user.avatarUrl ||
@@ -360,7 +360,7 @@ export function PostCard({
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <Link to={`/profile/${displayPost.user.id}`}>
-                  <span className="font-semibold text-sm hover:text-snet-purple transition-colors">
+                  <span className="font-semibold text-sm hover:text-kyte-blue transition-colors">
                     {getDisplayName(displayPost.user)}
                   </span>
                 </Link>
@@ -371,7 +371,7 @@ export function PostCard({
                     className={`text-xs font-semibold transition-all px-2 py-0.5 rounded-full ${
                       isFollowing || isPendingFollow
                         ? 'text-muted-foreground bg-secondary hover:bg-secondary/80'
-                        : 'text-white bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90'
+                        : 'text-white bg-gradient-to-r from-kyte-blue to-kyte-coral hover:opacity-90'
                     } disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     {isPendingFollow
@@ -516,7 +516,7 @@ export function PostCard({
               className="flex items-center gap-1.5 group transition-all"
               onClick={() => setIsDetailOpen(true)}
             >
-              <MessageCircle className="w-5 h-5 text-foreground/70 group-hover:text-snet-blue transition-colors" />
+              <MessageCircle className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
               {post.commentsCount > 0 && (
                 <span className="text-xs font-semibold text-foreground/70">
                   {post.commentsCount}
@@ -559,7 +559,7 @@ export function PostCard({
               className="group transition-all"
               onClick={() => setShareOpen(true)}
             >
-              <Send className="w-5 h-5 text-foreground/70 group-hover:text-snet-blue transition-colors" />
+              <Send className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
             </button>
           </div>
           <button
@@ -570,8 +570,8 @@ export function PostCard({
             <Bookmark
               className={`w-5 h-5 transition-colors ${
                 localSaved
-                  ? 'fill-snet-purple text-snet-purple'
-                  : 'text-foreground/70 group-hover:text-snet-purple'
+                  ? 'fill-kyte-blue text-kyte-blue'
+                  : 'text-foreground/70 group-hover:text-kyte-blue'
               }`}
             />
           </button>
@@ -581,7 +581,7 @@ export function PostCard({
         <div className="px-4 pb-4 pt-1 flex flex-col gap-1">
           {post.commentsCount > 0 && (
             <button
-              className="text-muted-foreground text-xs text-left hover:text-snet-purple transition-colors"
+              className="text-muted-foreground text-xs text-left hover:text-kyte-blue transition-colors"
               onClick={() => setIsDetailOpen(true)}
             >
               Xem tất cả {post.commentsCount} bình luận
@@ -605,7 +605,7 @@ export function PostCard({
               readOnly
             />
             <button
-              className="text-xs font-semibold text-snet-purple hover:text-snet-pink transition-colors disabled:opacity-50"
+              className="text-xs font-semibold text-kyte-blue hover:text-kyte-coral transition-colors disabled:opacity-50"
               disabled
             >
               Đăng

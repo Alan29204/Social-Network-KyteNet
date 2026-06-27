@@ -1,4 +1,4 @@
-
+﻿
 import { Link } from 'react-router-dom';
 
 interface PostContentRendererProps {
@@ -27,7 +27,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
           {hashtags.map((tag: string, i: number) => (
-            <span key={i} className="text-snet-purple font-semibold mr-1">
+            <span key={i} className="text-kyte-blue font-semibold mr-1">
               #{tag}
             </span>
           ))}
@@ -68,7 +68,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
 
       if (part.startsWith('#')) {
         return (
-          <span key={index} className="text-snet-purple font-semibold">
+          <span key={index} className="text-kyte-blue font-semibold">
             {part}
           </span>
         );
@@ -90,7 +90,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
             e.stopPropagation();
             onShowMore?.();
           }}
-          className="text-muted-foreground ml-1 hover:text-snet-purple text-xs font-medium"
+          className="text-muted-foreground ml-1 hover:text-kyte-blue text-xs font-medium"
         >
           Xem thêm
         </button>
@@ -133,7 +133,7 @@ function TruncatedContent({ content, taggedUsers = [] }: { content: string, tagg
 
         if (part.startsWith('#')) {
           return (
-            <span key={index} className="text-snet-purple font-semibold">
+            <span key={index} className="text-kyte-blue font-semibold">
               {part}
             </span>
           );

@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from 'embla-carousel-react';
@@ -293,7 +293,7 @@ const CarouselDots = React.forwardRef<
           onClick={() => api?.scrollTo(i)}
           className={cn(
             'h-1.5 rounded-full transition-all',
-            i === selected ? 'w-4 bg-snet-purple' : 'w-1.5 bg-foreground/30',
+            i === selected ? 'w-4 bg-kyte-blue' : 'w-1.5 bg-foreground/30',
           )}
         />
       ))}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -53,7 +53,7 @@ export function CreateSaveListModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FolderPlus className="w-5 h-5 text-snet-purple" />
+            <FolderPlus className="w-5 h-5 text-kyte-blue" />
             Tạo bộ sưu tập mới
           </DialogTitle>
         </DialogHeader>

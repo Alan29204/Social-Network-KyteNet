@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   chatRoomsControllerMarkRoomAsRead,
@@ -524,7 +524,7 @@ export function FloatingChatRoom({
             className="relative rounded-full p-2 transition-colors hover:bg-secondary"
             title="Quay lại"
           >
-            <ArrowLeft className="h-4 w-4 text-snet-purple" />
+            <ArrowLeft className="h-4 w-4 text-kyte-blue" />
             {hasUnreadInOtherRoom && (
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-card bg-destructive" />
             )}
@@ -695,7 +695,7 @@ export function FloatingChatRoom({
                         <div
                           className={`w-fit px-3 py-2 text-[14px] leading-relaxed ${
                             isMine
-                              ? 'bg-snet-purple text-white'
+                              ? 'bg-kyte-blue text-white'
                               : 'border border-border bg-secondary text-foreground'
                           } ${msg.is_sending ? 'opacity-70' : ''} ${
                             msg.is_failed ? 'bg-destructive text-white' : ''
@@ -768,11 +768,11 @@ export function FloatingChatRoom({
               </div>
             )}
             <div className="flex items-center gap-2">
-              <div className="relative flex flex-1 items-center rounded-full border border-transparent bg-secondary px-3 py-1.5 transition-all focus-within:border-snet-purple/30 focus-within:bg-background">
+              <div className="relative flex flex-1 items-center rounded-full border border-transparent bg-secondary px-3 py-1.5 transition-all focus-within:border-kyte-blue/30 focus-within:bg-background">
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker((prev) => !prev)}
-                  className="mr-2 shrink-0 text-muted-foreground hover:text-snet-purple"
+                  className="mr-2 shrink-0 text-muted-foreground hover:text-kyte-blue"
                 >
                   <Smile className="h-5 w-5" />
                 </button>
@@ -814,7 +814,7 @@ export function FloatingChatRoom({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="ml-2 shrink-0 text-muted-foreground hover:text-snet-purple"
+                  className="ml-2 shrink-0 text-muted-foreground hover:text-kyte-blue"
                 >
                   <ImageIcon className="h-5 w-5" />
                 </button>
@@ -824,7 +824,7 @@ export function FloatingChatRoom({
                   type="button"
                   onClick={() => handleSendMessage()}
                   disabled={isSending}
-                  className="shrink-0 rounded-full bg-snet-purple p-2 text-white transition-all disabled:opacity-50"
+                  className="shrink-0 rounded-full bg-kyte-blue p-2 text-white transition-all disabled:opacity-50"
                 >
                   {isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

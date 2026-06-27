@@ -93,9 +93,9 @@ export function SidebarLeft() {
   useEffect(() => {
     // Update browser title
     if (unreadNotificationCount > 0) {
-      document.title = `(${unreadNotificationCount}) SNet`;
+      document.title = `(${unreadNotificationCount}) KyteNet`;
     } else {
-      document.title = 'SNet';
+      document.title = 'KyteNet';
     }
   }, [unreadNotificationCount]);
 
@@ -107,7 +107,11 @@ export function SidebarLeft() {
       setIsFollowRequestsOpen(true);
     };
     window.addEventListener('openFollowRequests', handleOpenFollowRequests);
-    return () => window.removeEventListener('openFollowRequests', handleOpenFollowRequests);
+    return () =>
+      window.removeEventListener(
+        'openFollowRequests',
+        handleOpenFollowRequests,
+      );
   }, []);
 
   useEffect(() => {
@@ -131,11 +135,14 @@ export function SidebarLeft() {
             if (r.id === newMsg.chat_room_id) {
               const shouldIncrementUnread =
                 newMsg.created_by !== user.id &&
-                (location.pathname !== '/messages' || selectedRoomId !== newMsg.chat_room_id);
-                
+                (location.pathname !== '/messages' ||
+                  selectedRoomId !== newMsg.chat_room_id);
+
               foundRoom = {
                 ...r,
-                unread_count: shouldIncrementUnread ? (r.unread_count || 0) + 1 : r.unread_count,
+                unread_count: shouldIncrementUnread
+                  ? (r.unread_count || 0) + 1
+                  : r.unread_count,
                 last_message: newMsg,
               };
               return false;
@@ -144,7 +151,10 @@ export function SidebarLeft() {
           });
 
           if (foundRoom) {
-            return { ...old, data: { ...old.data, data: [foundRoom, ...remainingRooms] } };
+            return {
+              ...old,
+              data: { ...old.data, data: [foundRoom, ...remainingRooms] },
+            };
           }
           return old;
         },
@@ -188,31 +198,31 @@ export function SidebarLeft() {
   return (
     <>
       {/* Spacer to prevent content from going under the fixed sidebar */}
-      <div className="hidden md:block w-[72px] shrink-0 min-h-screen" />
+      <div className="hidden md:block w-[88px] shrink-0 min-h-screen" />
 
       <aside
         className={cn(
           'group hidden md:flex flex-col fixed top-0 left-0 z-40 min-h-screen bg-background border-r border-border transition-all duration-300 shadow-none hover:shadow-xl',
-          isNotificationOpen ? 'w-[72px]' : 'w-[72px] hover:w-[244px]',
+          isNotificationOpen ? 'w-[88px]' : 'w-[88px] hover:w-[244px]',
         )}
       >
         {/* Logo */}
         <div className="px-4 h-[72px] flex items-center group-hover:px-6 transition-all mt-4 mb-4">
-          <span
+          <img
+            src="/kytenet-logo.png"
+            alt="KyteNet"
             className={cn(
-              'text-2xl font-bold shrink-0 select-none mx-auto tracking-tighter bg-gradient-to-r from-snet-purple to-snet-pink bg-clip-text text-transparent',
-              !isNotificationOpen && 'group-hover:hidden',
+              'w-12 h-12 shrink-0 mx-auto select-none',
+              !isNotificationOpen && 'group-hover:mx-0',
             )}
-          >
-            S
-          </span>
+          />
           <span
             className={cn(
-              'hidden text-2xl font-bold select-none tracking-tight bg-gradient-to-r from-snet-purple via-snet-pink to-snet-blue bg-clip-text text-transparent',
+              'hidden text-xl font-bold select-none tracking-tight text-kyte-blue font-heading ml-2',
               !isNotificationOpen && 'group-hover:block',
             )}
           >
-            SNet
+            KyteNet
           </span>
         </div>
 
@@ -226,10 +236,10 @@ export function SidebarLeft() {
                   onClick={() => setIsCreateModalOpen(true)}
                   className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none"
                 >
-                  <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
                     <item.icon
                       strokeWidth={2}
-                      className="w-6 h-6 text-foreground/80"
+                      className="w-7 h-7 text-foreground/80"
                     />
                   </div>
                   <span
@@ -255,11 +265,11 @@ export function SidebarLeft() {
                     isNotificationOpen && 'font-bold',
                   )}
                 >
-                  <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
                     <item.icon
                       strokeWidth={isNotificationOpen ? 2.5 : 2}
                       className={cn(
-                        'w-6 h-6',
+                        'w-7 h-7',
                         isNotificationOpen
                           ? 'text-foreground'
                           : 'text-foreground/80',
@@ -316,11 +326,11 @@ export function SidebarLeft() {
               >
                 {({ isActive }) => (
                   <>
-                    <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                    <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
                       <item.icon
                         strokeWidth={isActive ? 2.5 : 2}
                         className={cn(
-                          'w-6 h-6',
+                          'w-7 h-7',
                           isActive ? 'text-foreground' : 'text-foreground/80',
                         )}
                       />
@@ -351,10 +361,10 @@ export function SidebarLeft() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium outline-none">
-                <div className="relative shrink-0 flex items-center justify-center w-6 h-6 mx-auto group-hover:mx-0 transition-all">
+                <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
                   <Menu
                     strokeWidth={2}
-                    className="w-6 h-6 text-foreground/80"
+                    className="w-7 h-7 text-foreground/80"
                   />
                 </div>
                 <span
@@ -383,10 +393,7 @@ export function SidebarLeft() {
                   <span>Cài đặt</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled
-                className="p-3 rounded-lg text-[15px]"
-              >
+              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
                 <Activity className="mr-3 h-5 w-5" />
                 <span>Hoạt động của bạn</span>
               </DropdownMenuItem>
@@ -394,7 +401,7 @@ export function SidebarLeft() {
                 asChild
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
               >
-                <Link to={user?.id ? `/profile/${user.id}/saved` : "/saved"}>
+                <Link to={user?.id ? `/profile/${user.id}/saved` : '/saved'}>
                   <Bookmark className="mr-3 h-5 w-5" />
                   <span>Đã lưu</span>
                 </Link>
@@ -424,20 +431,14 @@ export function SidebarLeft() {
                 )}
                 <span>Chuyển chế độ</span>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled
-                className="p-3 rounded-lg text-[15px]"
-              >
+              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
                 <MessageSquareWarning className="mr-3 h-5 w-5" />
                 <span>Báo cáo sự cố</span>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1" />
 
-              <DropdownMenuItem
-                disabled
-                className="p-3 rounded-lg text-[15px]"
-              >
+              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
                 <RefreshCw className="mr-3 h-5 w-5" />
                 <span>Chuyển tài khoản</span>
               </DropdownMenuItem>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -98,7 +98,7 @@ export function SaveToListModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bookmark className="w-5 h-5 text-snet-purple" />
+            <Bookmark className="w-5 h-5 text-kyte-blue" />
             Lưu vào bộ sưu tập
           </DialogTitle>
         </DialogHeader>
@@ -106,7 +106,7 @@ export function SaveToListModal({
         <div className="flex flex-col gap-1 max-h-[50vh] overflow-y-auto py-1">
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-snet-purple" />
+              <Loader2 className="w-6 h-6 animate-spin text-kyte-blue" />
             </div>
           ) : (lists?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
@@ -121,8 +121,8 @@ export function SaveToListModal({
                 className="flex items-center justify-between gap-3 px-3 py-3 rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50"
               >
                 <span className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-snet-purple/15 to-snet-pink/15 flex items-center justify-center">
-                    <Bookmark className="w-4 h-4 text-snet-purple" />
+                  <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-kyte-blue/15 to-kyte-coral/15 flex items-center justify-center">
+                    <Bookmark className="w-4 h-4 text-kyte-blue" />
                   </span>
                   <span className="font-medium text-sm">{list.name}</span>
                 </span>
@@ -165,7 +165,7 @@ export function SaveToListModal({
         ) : (
           <button
             onClick={() => setCreating(true)}
-            className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary transition-colors text-snet-purple font-medium text-sm border-t border-border"
+            className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary transition-colors text-kyte-blue font-medium text-sm border-t border-border"
           >
             <FolderPlus className="w-5 h-5" />
             Tạo bộ sưu tập mới

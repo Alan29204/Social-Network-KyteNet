@@ -206,7 +206,7 @@ export default function SearchPage() {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Tìm kiếm trên SNet"
+            placeholder="Tìm kiếm trên KyteNet"
             className="w-full pl-10 pr-10 py-3 bg-muted/50 hover:bg-muted focus:bg-muted rounded-xl text-sm outline-none transition-colors"
           />
           {inputValue && (

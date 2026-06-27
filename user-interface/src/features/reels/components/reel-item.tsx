@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Heart,
@@ -315,7 +315,7 @@ export function ReelItem({
         <div className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
           <Bookmark
             className={`w-6 h-6 ${
-              saved ? 'fill-snet-purple text-snet-purple' : ''
+              saved ? 'fill-kyte-blue text-kyte-blue' : ''
             }`}
           />
         </div>

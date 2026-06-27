@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+﻿import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useState } from 'react';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
@@ -28,7 +28,7 @@ export function MobileBottomNav() {
                 <button
                   key={item.label}
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-snet-purple to-snet-pink text-white shadow-lg shadow-snet-purple/20 hover:opacity-90 transition-all active:scale-95"
+                  className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-kyte-blue to-kyte-coral text-white shadow-lg shadow-kyte-blue/20 hover:opacity-90 transition-all active:scale-95"
                 >
                   <PlusSquare className="w-5 h-5" />
                 </button>
@@ -51,7 +51,7 @@ export function MobileBottomNav() {
                 className={cn(
                   'flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all',
                   isActive
-                    ? 'text-snet-purple'
+                    ? 'text-kyte-blue'
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >

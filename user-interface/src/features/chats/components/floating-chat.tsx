@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+﻿import { useLocation } from 'react-router-dom';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
 import { FloatingChatList } from './floating-chat-list';
 import { FloatingChatRoom } from './floating-chat-room';
@@ -62,7 +62,7 @@ export function FloatingChat() {
         >
           <div className="relative">
             <svg
-              className="w-5 h-5 text-foreground group-hover:text-snet-purple transition-colors"
+              className="w-5 h-5 text-foreground group-hover:text-kyte-blue transition-colors"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

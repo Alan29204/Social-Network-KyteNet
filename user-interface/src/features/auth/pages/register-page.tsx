@@ -198,7 +198,7 @@ export default function RegisterPage() {
       <Card className="shadow-none border-border">
         <CardHeader className="space-y-1 items-center mb-4 text-center">
           <CardTitle className="text-4xl tracking-tight font-bold mb-4">
-            SNet
+            KyteNet
           </CardTitle>
           <CardDescription>
             Đăng ký để xem ảnh và video từ bạn bè.

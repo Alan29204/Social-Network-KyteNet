@@ -69,7 +69,7 @@ export default function LoginPage() {
       <Card className="shadow-none border-border">
         <CardHeader className="space-y-1 items-center mb-4">
           <CardTitle className="text-4xl tracking-tight font-bold mb-4">
-            SNet
+            KyteNet
           </CardTitle>
           <CardDescription>Đăng nhập để xem ảnh và video từ bạn bè.</CardDescription>
         </CardHeader>

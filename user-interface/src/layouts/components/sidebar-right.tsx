@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+﻿import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { Link } from 'react-router-dom';
 import { useRelationsControllerGetSuggestedUsers } from '@/services/apis/gen/queries';
@@ -25,7 +25,7 @@ function SidebarSuggestionItem({ user }: { user: any }) {
         className="flex items-center gap-3 cursor-pointer min-w-0 flex-1 mr-2"
       >
         <div className="relative shrink-0">
-          <Avatar className="w-10 h-10 ring-2 ring-snet-purple/10 transition-all group-hover:ring-snet-purple/30">
+          <Avatar className="w-10 h-10 ring-2 ring-kyte-blue/10 transition-all group-hover:ring-kyte-blue/30">
             <AvatarImage
               src={getAvatarUrl(user.avatar)}
               className="object-cover"
@@ -61,7 +61,7 @@ function SidebarSuggestionItem({ user }: { user: any }) {
         className={
           followAction.isFollowing || followAction.isPendingFollow
             ? 'text-xs font-semibold text-muted-foreground hover:text-muted-foreground/80 shrink-0 px-3 py-1 rounded-full border border-border hover:bg-secondary transition-all disabled:opacity-60'
-            : 'text-xs font-semibold text-white shrink-0 px-4 py-1 rounded-full bg-gradient-to-r from-snet-purple to-snet-pink hover:opacity-90 shadow-sm shadow-snet-purple/20 transition-all disabled:opacity-60'
+            : 'text-xs font-semibold text-white shrink-0 px-4 py-1 rounded-full bg-gradient-to-r from-kyte-blue to-kyte-coral hover:opacity-90 shadow-sm shadow-kyte-blue/20 transition-all disabled:opacity-60'
         }
       >
         {followAction.isPendingFollow
@@ -94,14 +94,14 @@ export function SidebarRight() {
       {/* Current User Card */}
       <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-4 mb-6 card-hover">
         {/* Gradient accent */}
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-snet-purple via-snet-pink to-snet-blue" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-kyte-blue via-kyte-coral to-kyte-blue" />
 
         <Link
           to={`/profile/${currentUser.id}`}
           className="flex items-center gap-4 cursor-pointer"
         >
           <div className="relative">
-            <Avatar className="w-12 h-12 ring-2 ring-snet-purple/20">
+            <Avatar className="w-12 h-12 ring-2 ring-kyte-blue/20">
               <AvatarImage src={getAvatarUrl(currentUser.avatar)} className="object-cover" />
               <AvatarFallback className="bg-muted" />
             </Avatar>
@@ -121,8 +121,8 @@ export function SidebarRight() {
       {/* Suggestions Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-snet-purple/10 to-snet-pink/10 flex items-center justify-center">
-            <Users className="w-3.5 h-3.5 text-snet-purple" />
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-kyte-blue/10 to-kyte-coral/10 flex items-center justify-center">
+            <Users className="w-3.5 h-3.5 text-kyte-blue" />
           </div>
           <span className="text-sm font-bold text-foreground">
             Gợi ý cho bạn
@@ -130,7 +130,7 @@ export function SidebarRight() {
         </div>
         <Link
           to="/explore/people"
-          className="text-xs font-semibold text-snet-purple hover:text-snet-pink transition-colors"
+          className="text-xs font-semibold text-kyte-blue hover:text-kyte-coral transition-colors"
         >
           Xem tất cả
         </Link>
@@ -140,7 +140,7 @@ export function SidebarRight() {
       <div className="flex flex-col gap-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-snet-purple" />
+            <Loader2 className="w-6 h-6 animate-spin text-kyte-blue" />
           </div>
         ) : suggestions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -171,7 +171,7 @@ export function SidebarRight() {
           )}
         </div>
         <span className="text-[11px] text-muted-foreground/40 mt-2 block">
-          © 2026 SNet Social Network
+          © 2026 KyteNet Social Network
         </span>
       </div>
     </aside>
