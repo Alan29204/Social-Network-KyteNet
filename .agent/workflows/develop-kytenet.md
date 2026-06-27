@@ -1,8 +1,6 @@
 ---
-description: Phát triển và hoàn thiện ứng dụng SNet (Frontend & Backend)
+description: Phát triển và hoàn thiện ứng dụng KyteNet (Frontend & Backend)
 ---
-
-Tôi đang làm mạng xã hội dựa trên frontend SNet-Frontend và tôi muốn bạn hãy code SNet-Backend và chỉnh sửa 1 phần SNet-Frontend để ứng dụng hoàn thiện.
 
 **Các yêu cầu quan trọng:**
 

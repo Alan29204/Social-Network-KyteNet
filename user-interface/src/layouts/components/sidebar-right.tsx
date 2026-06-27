@@ -35,9 +35,7 @@ function SidebarSuggestionItem({ user }: { user: any }) {
           {mutualFriends.length > 0 && (
             <div className="absolute -bottom-0.5 -right-0.5">
               <Avatar className="w-4 h-4 ring-[1.5px] ring-background">
-                <AvatarImage
-                  src={getAvatarUrl(mutualFriends[0].avatar)}
-                />
+                <AvatarImage src={getAvatarUrl(mutualFriends[0].avatar)} />
                 <AvatarFallback className="bg-muted" />
               </Avatar>
             </div>
@@ -86,7 +84,8 @@ export function SidebarRight() {
 
   const { data: suggestedRes, isLoading } =
     useRelationsControllerGetSuggestedUsers({ limit: 5 });
-  const rawSuggestions = (suggestedRes as any)?.data?.data || (suggestedRes as any)?.data || [];
+  const rawSuggestions =
+    (suggestedRes as any)?.data?.data || (suggestedRes as any)?.data || [];
   const suggestions = Array.isArray(rawSuggestions) ? rawSuggestions : [];
 
   return (
@@ -102,7 +101,10 @@ export function SidebarRight() {
         >
           <div className="relative">
             <Avatar className="w-12 h-12 ring-2 ring-kyte-blue/20">
-              <AvatarImage src={getAvatarUrl(currentUser.avatar)} className="object-cover" />
+              <AvatarImage
+                src={getAvatarUrl(currentUser.avatar)}
+                className="object-cover"
+              />
               <AvatarFallback className="bg-muted" />
             </Avatar>
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-card rounded-full" />
@@ -159,19 +161,17 @@ export function SidebarRight() {
       {/* Footer Links */}
       <div className="mt-auto pt-6 pb-4">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {['Giới thiệu', 'Trợ giúp', 'Bảo mật', 'Điều khoản', 'API'].map(
-            (link) => (
-              <button
-                key={link}
-                className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-              >
-                {link}
-              </button>
-            ),
-          )}
+          {['Giới thiệu', 'Trợ giúp', 'Điều khoản'].map((link) => (
+            <button
+              key={link}
+              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              {link}
+            </button>
+          ))}
         </div>
         <span className="text-[11px] text-muted-foreground/40 mt-2 block">
-          © 2026 KyteNet Social Network
+          © 2026 KyteNet from ALAN29204
         </span>
       </div>
     </aside>
