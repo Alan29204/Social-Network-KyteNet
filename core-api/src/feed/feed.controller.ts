@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
   ParseIntPipe,
   DefaultValuePipe,
@@ -50,17 +51,12 @@ export class FeedController {
   }
 
   /**
-   * Get the AI-personalized "Recommended" feed ("Dành cho bạn").
-   * Uses ChromaDB embedding similarity based on the user's interaction history.
-   * Falls back to the "Explore" feed when the AI service has no suggestions.
+   * Force-refresh the Explore feed ordering ("tap to refresh" / pull-to-refresh).
+   * Rebuilds the personalized ranking with a light shuffle so the order changes.
    */
-  @Get('recommended')
-  @ApiOperation({ summary: 'Get AI-personalized recommended feed' })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  getRecommendedFeed(
-    @User() user: IUser,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
-  ) {
-    return this.feedService.getRecommendedFeed(user.id, limit);
+  @Post('explore/refresh')
+  @ApiOperation({ summary: 'Refresh (reshuffle) the Explore feed ranking' })
+  refreshExplore(@User() user: IUser) {
+    return this.feedService.refreshExploreRanking(user.id);
   }
 }

@@ -11,10 +11,9 @@ import {
   useSearchControllerSearchUsers,
   useSearchControllerSearchPosts,
   useSearchControllerSearchByHashtag,
-  useSearchControllerSemanticSearch,
 } from '@/services/apis/gen/queries';
 
-type TabValue = 'all' | 'users' | 'posts' | 'hashtag' | 'semantic';
+type TabValue = 'all' | 'users' | 'posts' | 'hashtag';
 
 /** Chuẩn hóa response orval (mọi cấp data) về một mảng. */
 function extractArray(res: any): any[] {
@@ -23,17 +22,6 @@ function extractArray(res: any): any[] {
   if (Array.isArray(res.data)) return res.data;
   if (Array.isArray(res.data?.data)) return res.data.data;
   return [];
-}
-
-function extractSource(res: any): string | undefined {
-  return (
-    res?.source ||
-    res?.meta?.source ||
-    res?.data?.source ||
-    res?.data?.meta?.source ||
-    res?.data?.data?.source ||
-    res?.data?.data?.meta?.source
-  );
 }
 
 /** Map raw post từ API sang props của PostCard. */
@@ -89,6 +77,19 @@ export default function SearchPage() {
     setSearchParams(params, { replace: true });
   }, [debouncedQ, tab, setSearchParams]);
 
+  // Đồng bộ URL -> state (vd: bấm hashtag khi đang ở trang Tìm kiếm).
+  // Guard `!==` tránh loop với effect state->URL phía trên.
+  useEffect(() => {
+    const urlQ = searchParams.get('q') || '';
+    const urlTab = (searchParams.get('tab') as TabValue) || 'all';
+    if (urlQ !== debouncedQ) {
+      setInputValue(urlQ);
+      setDebouncedQ(urlQ);
+    }
+    if (urlTab !== tab) setTab(urlTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Lưu lịch sử khi có truy vấn ổn định
   useEffect(() => {
     if (debouncedQ.length >= 2) {
@@ -119,10 +120,6 @@ export default function SearchPage() {
     { tag: debouncedQ },
     enabled(tab === 'hashtag'),
   );
-  const semanticQuery = useSearchControllerSemanticSearch(
-    { q: debouncedQ },
-    enabled(tab === 'semantic'),
-  );
 
   // ── Dữ liệu đã chuẩn hóa ──
   const allUsers = useMemo(
@@ -144,14 +141,6 @@ export default function SearchPage() {
   const hashtagPosts = useMemo(
     () => extractArray(hashtagQuery.data),
     [hashtagQuery.data],
-  );
-  const semanticPosts = useMemo(
-    () => extractArray(semanticQuery.data),
-    [semanticQuery.data],
-  );
-  const semanticSource = useMemo(
-    () => extractSource(semanticQuery.data),
-    [semanticQuery.data],
   );
 
   const handleClear = () => {
@@ -235,7 +224,6 @@ export default function SearchPage() {
               <TabsTrigger value="users">Mọi người</TabsTrigger>
               <TabsTrigger value="posts">Bài viết</TabsTrigger>
               <TabsTrigger value="hashtag">Hashtag</TabsTrigger>
-              <TabsTrigger value="semantic">AI</TabsTrigger>
             </TabsList>
 
             {/* Tab Tất cả */}
@@ -291,20 +279,6 @@ export default function SearchPage() {
                 : hashtagPosts.length === 0
                   ? renderEmpty('bài viết với hashtag')
                   : renderPostList(hashtagPosts)}
-            </TabsContent>
-
-            {/* Tab AI Semantic */}
-            <TabsContent value="semantic" className="mt-4">
-              <div className="flex items-center gap-2 px-3 mb-3 text-xs text-muted-foreground">
-                {semanticSource === 'keyword_fallback'
-                  ? 'Đang dùng tìm kiếm từ khóa dự phòng'
-                  : 'Tìm kiếm theo ngữ nghĩa bằng AI'}
-              </div>
-              {semanticQuery.isLoading
-                ? renderLoader()
-                : semanticPosts.length === 0
-                  ? renderEmpty('kết quả ngữ nghĩa')
-                  : renderPostList(semanticPosts)}
             </TabsContent>
           </Tabs>
         )}

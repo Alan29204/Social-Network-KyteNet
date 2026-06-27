@@ -17,14 +17,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { FeedService } from 'src/feed/feed.service';
-import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { forwardRef, Inject } from '@nestjs/common';
 import { NotificationService } from 'src/modules/notifications/notifications.service';
 import { NotificationType } from 'src/common/enums/notification.enum';
 import {
-  buildPostSearchableText,
   extractHashtagsFromContent,
   normalizePostHashtags,
 } from 'src/common/utils/searchableText';
@@ -39,7 +36,6 @@ export class PostsService {
     private readonly redisService: RedisService,
     private readonly mediaService: MediaService,
     private readonly feedService: FeedService,
-    private readonly configService: ConfigService,
     @InjectQueue('create-posts')
     private mediasPostsQueue: Queue,
     @Inject(forwardRef(() => RelationsService))
@@ -49,62 +45,6 @@ export class PostsService {
     private readonly postVisibilityService: PostVisibilityService,
     private readonly savePostsService: SavePostsService,
   ) {}
-
-  /** Base URL + headers cho các call nội bộ tới ai-services. */
-  private get aiBaseUrl(): string {
-    return this.configService.get<string>(
-      'AI_SERVICE_URL',
-      'http://localhost:8000',
-    );
-  }
-  private get aiHeaders() {
-    return {
-      key_auth: this.configService.get<string>('AI_SERVICE_KEY', 'key_auth'),
-    };
-  }
-
-  /** Xóa embedding của bài viết khỏi ChromaDB (best-effort, không chặn xóa bài). */
-  private async deletePostEmbedding(postId: string): Promise<void> {
-    try {
-      await axios.delete(`${this.aiBaseUrl}/posts/embed/${postId}`, {
-        headers: this.aiHeaders,
-        timeout: 5000,
-      });
-    } catch (err) {
-      console.warn(
-        `[Embedding] Failed to delete embedding for post ${postId}:`,
-        (err as Error)?.message,
-      );
-    }
-  }
-
-  /** Cập nhật/embed lại nội dung bài viết trong ChromaDB (best-effort). */
-  private async upsertPostEmbedding(
-    postId: string,
-    content?: string | null,
-    hashtags?: string[] | string | null,
-  ): Promise<void> {
-    const searchableText = buildPostSearchableText(content, hashtags);
-
-    if (!searchableText) {
-      // Không còn nội dung/hashtag có thể tìm kiếm -> xóa embedding cũ nếu có
-      await this.deletePostEmbedding(postId);
-      return;
-    }
-
-    try {
-      await axios.post(
-        `${this.aiBaseUrl}/posts/embed`,
-        { post_id: postId, content: searchableText, hashtags },
-        { headers: this.aiHeaders, timeout: 5000 },
-      );
-    } catch (err) {
-      console.warn(
-        `[Embedding] Failed to upsert embedding for post ${postId}:`,
-        (err as Error)?.message,
-      );
-    }
-  }
 
   private sortCommentsForDisplay(postData: any): void {
     if (!postData) return;
@@ -381,19 +321,13 @@ export class PostsService {
 
       await this.repository.save(newPost);
 
-      // Add feed fanout job to queue (also triggers embedding in ai-services)
+      // Add feed fanout job to queue
       this.mediasPostsQueue.add(
         'create-posts',
         {
           post_id: newPost.id,
           author_id: newPost.user_id,
           created_at: newPost.created_at.toISOString(),
-          content: newPost.content || '',
-          hashtags: newPost.hashtags || [],
-          searchable_text: buildPostSearchableText(
-            newPost.content,
-            newPost.hashtags,
-          ),
         },
         {
           removeOnComplete: true,
@@ -495,12 +429,6 @@ export class PostsService {
           post_id: sharedPost.id,
           author_id: sharedPost.user_id,
           created_at: sharedPost.created_at.toISOString(),
-          content: sharedPost.content || '',
-          hashtags: sharedPost.hashtags || [],
-          searchable_text: buildPostSearchableText(
-            sharedPost.content,
-            sharedPost.hashtags,
-          ),
         },
         { removeOnComplete: true, removeOnFail: true },
       );
@@ -749,17 +677,6 @@ export class PostsService {
       });
       await this.redisService.del(`post:${dto.id}`);
 
-      // Đồng bộ embedding khi nội dung/hashtag thay đổi (best-effort)
-      if (postContent !== undefined || updatedHashtags !== undefined) {
-        await this.upsertPostEmbedding(
-          dto.id,
-          postContent !== undefined ? postContent : post.content || '',
-          updatedHashtags !== undefined
-            ? updatedHashtags
-            : post.hashtags || [],
-        );
-      }
-
       const updatedPost = await this.findPostByID(dto.id, user);
 
       return { message: 'Update post successfully', post: updatedPost };
@@ -815,9 +732,6 @@ export class PostsService {
       // Remove from all followers' feeds (async)
       await this.feedService.removePostFromFeeds(id, user.id);
 
-      // Đồng bộ: xóa embedding khỏi ChromaDB (best-effort)
-      await this.deletePostEmbedding(id);
-
       return { message: 'Delete post successfully', post_id: id };
     } catch (err) {
       console.error('DELETE POST ERROR:', err);
@@ -847,15 +761,6 @@ export class PostsService {
 
       await this.repository.save(post);
       await this.redisService.del(`post:${postId}`);
-
-      // Update embedding in Chromadb because content changed
-      if (post.content !== undefined) {
-        await this.upsertPostEmbedding(
-          post.id,
-          post.content || '',
-          post.hashtags || [],
-        );
-      }
 
       return { message: 'Remove tag successfully' };
     } catch (err) {

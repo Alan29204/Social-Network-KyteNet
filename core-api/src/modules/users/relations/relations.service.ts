@@ -59,7 +59,13 @@ export class RelationsService {
 
   private async clearSuggestedCaches(...userIds: Array<string | undefined>) {
     const ids = [...new Set(userIds.filter((id): id is string => !!id))];
-    await Promise.all(ids.map((id) => this.redisService.del(`suggested:${id}`)));
+    await Promise.all(
+      ids.flatMap((id) => [
+        this.redisService.del(`suggested:${id}`),
+        // Keep feed/search relation caches fresh after any follow/block change
+        this.feedService.invalidateRelationCache(id),
+      ]),
+    );
   }
 
   private normalizeMutualFriends(value: any) {

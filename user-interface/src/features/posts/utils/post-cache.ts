@@ -6,10 +6,8 @@ const POST_LIST_KEYS = new Set([
   '/posts',
   '/feed/following',
   '/feed/explore',
-  '/feed/recommended',
   '/search/posts',
   '/search/all',
-  '/search/semantic',
 ]);
 
 const isObject = (value: unknown): value is Record<string, any> =>
@@ -48,7 +46,6 @@ const isPostSurfaceKey = (queryKey: QueryKey) => {
     return true;
   }
 
-  if (first === 'feed' && second === 'recommended') return true;
   if (first === 'infinite' && typeof second === 'string') {
     return POST_LIST_KEYS.has(second) || second.startsWith('/search');
   }
@@ -107,11 +104,6 @@ export const invalidatePostSurfaces = (
       queryKey: ['infinite', '/feed/following'],
     }),
     queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] }),
-    queryClient.invalidateQueries({ queryKey: ['feed', 'recommended'] }),
-    queryClient.invalidateQueries({ queryKey: ['/feed/recommended'] }),
-    queryClient.invalidateQueries({
-      queryKey: ['infinite', '/feed/recommended'],
-    }),
   ];
 
   if (options.postId) {

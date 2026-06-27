@@ -1,6 +1,20 @@
 ﻿
 import { Link } from 'react-router-dom';
 
+/** Render một hashtag dạng liên kết tới kết quả tìm kiếm theo tag. */
+function HashtagLink({ tag, className }: { tag: string; className?: string }) {
+  const clean = tag.replace(/^#/, '');
+  return (
+    <Link
+      to={`/search?q=${encodeURIComponent(clean)}&tab=hashtag`}
+      className={`text-kyte-blue font-semibold hover:underline ${className ?? ''}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      #{clean}
+    </Link>
+  );
+}
+
 interface PostContentRendererProps {
   content?: string;
   taggedUsers?: string[];
@@ -27,9 +41,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
           {hashtags.map((tag: string, i: number) => (
-            <span key={i} className="text-kyte-blue font-semibold mr-1">
-              #{tag}
-            </span>
+            <HashtagLink key={i} tag={tag} className="mr-1" />
           ))}
         </p>
       );
@@ -67,11 +79,7 @@ export function PostContentRenderer({ content, taggedUsers = [], hashtags = [], 
       }
 
       if (part.startsWith('#')) {
-        return (
-          <span key={index} className="text-kyte-blue font-semibold">
-            {part}
-          </span>
-        );
+        return <HashtagLink key={index} tag={part} />;
       }
 
       return <span key={index}>{part}</span>;
@@ -132,11 +140,7 @@ function TruncatedContent({ content, taggedUsers = [] }: { content: string, tagg
         }
 
         if (part.startsWith('#')) {
-          return (
-            <span key={index} className="text-kyte-blue font-semibold">
-              {part}
-            </span>
-          );
+          return <HashtagLink key={index} tag={part} />;
         }
 
         return <span key={index}>{part}</span>;

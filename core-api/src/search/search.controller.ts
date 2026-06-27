@@ -76,27 +76,4 @@ export class SearchController {
       Number(limit) || 10,
     );
   }
-
-  @Get('semantic')
-  @ResponseMessage('Semantic search results')
-  @ApiOperation({
-    summary:
-      'AI Semantic search posts using ChromaDB (falls back to keyword search if unavailable)',
-  })
-  @ApiQuery({ name: 'q', required: true, type: String })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  semanticSearch(
-    @Query('q') query: string,
-    @User() user: IUser,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.searchService.semanticSearchPosts(
-      query,
-      user.id,
-      Number(page) || 1,
-      Number(limit) || 10,
-    );
-  }
 }

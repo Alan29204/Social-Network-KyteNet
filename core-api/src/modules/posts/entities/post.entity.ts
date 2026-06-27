@@ -48,6 +48,7 @@ export class Post {
   @Column({ type: 'uuid', nullable: true })
   shared_post_id: string;
 
+  @Index()
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

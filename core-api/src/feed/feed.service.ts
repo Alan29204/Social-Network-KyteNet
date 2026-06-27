@@ -1,10 +1,9 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { Relation } from 'src/modules/users/relations/entities/relation.entity';
+import { Reaction } from 'src/modules/posts/reactions/entities/reaction.entity';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { RelationType } from 'src/common/enums/relation.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
@@ -13,29 +12,54 @@ import { PrivacyType } from 'src/common/enums/privacy.enum';
 const MAX_FEED_SIZE = 500;
 /** Follower count threshold to classify a user as "celebrity" (Fan-out on Read) */
 const CELEBRITY_THRESHOLD = 1000;
+/** TTL (seconds) for cached following/blocked relation ID lists */
+const RELATION_CACHE_TTL = 60;
+/** Redis key for the globally-cached Explore candidate ranking */
+const EXPLORE_CANDIDATES_KEY = 'explore:candidates';
+/** TTL (seconds) for the Explore candidate cache */
+const EXPLORE_CANDIDATES_TTL = 300;
+/** Max number of candidate posts ranked for the Explore feed pool */
+const EXPLORE_CANDIDATES_LIMIT = 200;
+/** Only rank posts from the last N days in the Explore feed */
+const EXPLORE_WINDOW_DAYS = 30;
+
+// ── Personalized Explore ranking ──
+/** TTL (seconds) for a user's cached hashtag interest profile */
+const INTEREST_CACHE_TTL = 1800;
+/** History window (days) for building the interest profile */
+const INTEREST_WINDOW_DAYS = 60;
+/** Number of top interest hashtags kept per user */
+const INTEREST_TOP_K = 20;
+/** Max posts per author allowed near the top of the Explore feed (diversity) */
+const MAX_POSTS_PER_AUTHOR = 2;
+/** TTL (seconds) for a user's cached personalized Explore ranking */
+const EXPLORE_RANKED_TTL = 120;
+/** Ranking weights: engagement, topic affinity, social proof */
+const W_ENGAGEMENT = 1;
+const W_TOPIC = 1.2;
+const W_SOCIAL = 1.5;
+/** Random jitter added to the score when reshuffling on explicit refresh */
+const SHUFFLE_JITTER = 0.6;
+
+/** A candidate post in the Explore pool with the signals needed to re-rank it */
+interface ExploreCandidate {
+  id: string;
+  authorId: string;
+  hashtags: string[];
+  score: number;
+}
 
 @Injectable()
 export class FeedService {
-  private readonly aiServiceUrl: string;
-  private readonly aiServiceKey: string;
-
   constructor(
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(Relation)
     private readonly relationRepository: Repository<Relation>,
+    @InjectRepository(Reaction)
+    private readonly reactionRepository: Repository<Reaction>,
     private readonly redisService: RedisService,
-    private readonly configService: ConfigService,
-  ) {
-    this.aiServiceUrl = this.configService.get<string>(
-      'AI_SERVICE_URL',
-      'http://localhost:8000',
-    );
-    this.aiServiceKey = this.configService.get<string>(
-      'AI_SERVICE_KEY',
-      'key_auth',
-    );
-  }
+  ) {}
 
   // ═══════════════════════════════════════════
   //  PUBLIC: Feed Endpoints
@@ -147,193 +171,304 @@ export class FeedService {
   }
 
   /**
-   * Gets the "For You" feed — public posts ranked by engagement score.
-   * Uses Fan-out on Read with weighted scoring:
-   *   score = (likes × 2) + (comments × 3) - (age_hours × 0.5)
+   * Gets the "Explore" feed (Khám phá) — a personalized discovery feed.
+   *
+   * Posts are taken from the globally-ranked engagement pool and re-ranked per
+   * user by: engagement + hashtag interest affinity + social proof (likes from
+   * people you follow), with an author-diversity cap. The personalized ranking
+   * is cached per user ({@link EXPLORE_RANKED_TTL}s) so `cursor` is a numeric
+   * **offset** into that ranked list and "load more" is cheap.
    *
    * @param userId - Current user ID
-   * @param cursor - Timestamp cursor for pagination
+   * @param cursor - Offset into the ranked list (undefined = start)
    * @param limit - Number of posts to return
    */
   async getExploreFeed(userId: string, cursor?: number, limit: number = 10) {
     try {
-      const blockedUserIds = await this.getBlockedUserIds(userId);
-      const followingIds = await this.getFollowingIds(userId);
+      const offset = cursor && cursor > 0 ? cursor : 0;
 
-      const query = this.postRepository
-        .createQueryBuilder('post')
-        .leftJoinAndSelect('post.user', 'user')
-        .leftJoinAndSelect('post.shared_post', 'shared_post')
-        .leftJoinAndSelect('shared_post.user', 'shared_post_user')
-        .leftJoin('post.reactions', 'reaction')
-        .leftJoin('post.comments', 'comment')
-        .addSelect('COUNT(DISTINCT reaction.id)', 'like_count')
-        .addSelect('COUNT(DISTINCT comment.id)', 'comment_count')
-        .where('post.privacy = :privacy', { privacy: PrivacyType.PUBLIC })
-        .andWhere('user.privacy = :uPrivacy', { uPrivacy: PrivacyType.PUBLIC })
-        .andWhere('post.user_id != :userId', { userId })
-        .andWhere('post.shared_post_id IS NULL');
-
-      if (blockedUserIds.length > 0) {
-        query.andWhere('post.user_id NOT IN (:...blocked)', {
-          blocked: blockedUserIds,
-        });
-        query.andWhere(
-          '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...blocked))',
-          { blocked: blockedUserIds },
-        );
-        query.andWhere(
-          '(shared_post_user.id IS NULL OR shared_post_user.privacy = :spPrivacy)',
-          { spPrivacy: PrivacyType.PUBLIC },
-        );
+      const rankedIds = await this.getPersonalizedExploreRanking(userId);
+      if (rankedIds.length === 0) {
+        return { data: [], meta: { next_cursor: null, has_more: false } };
       }
 
-      if (followingIds.length > 0) {
-        query.andWhere('post.user_id NOT IN (:...followingIds)', {
-          followingIds,
-        });
-        query.andWhere(
-          '(shared_post_user.id IS NULL OR shared_post_user.id NOT IN (:...followingIds))',
-          { followingIds },
-        );
+      const pageIds = rankedIds.slice(offset, offset + limit);
+      if (pageIds.length === 0) {
+        return { data: [], meta: { next_cursor: null, has_more: false } };
       }
 
-      if (cursor) {
-        query.andWhere('post.created_at < :cursor', {
-          cursor: new Date(cursor),
-        });
-      }
+      // Hydrate and restore the ranked order (getPostsByIds sorts by created_at).
+      const posts = await this.getPostsByIds(pageIds);
+      const orderMap = new Map(pageIds.map((id, idx) => [id, idx]));
+      posts.sort(
+        (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+      );
 
-      let rawPosts = await query
-        .addSelect(
-          `(COUNT(DISTINCT reaction.id) * 2 + COUNT(DISTINCT comment.id) * 3) - (EXTRACT(EPOCH FROM (NOW() - post.created_at)) / 3600 * 0.5)`,
-          'engagement_score',
-        )
-        .groupBy('post.id')
-        .addGroupBy('user.id')
-        .addGroupBy('shared_post.id')
-        .addGroupBy('shared_post_user.id')
-        .orderBy('engagement_score', 'DESC')
-        .take(limit)
-        .getMany();
+      const enriched = await this.enrichInteractions(posts, userId);
 
-      // Deduplicate original posts and aggregate reposters
-      const seenOriginalsExplore = new Map<string, any>();
-      rawPosts.forEach((p: any) => {
-        const originalId = p.shared_post_id || p.id;
-
-        if (!seenOriginalsExplore.has(originalId)) {
-          if (p.shared_post_id) {
-            p.reposted_by = [{ id: p.user.id, username: p.user.username }];
-          }
-          seenOriginalsExplore.set(originalId, p);
-        } else {
-          const keptPost = seenOriginalsExplore.get(originalId);
-          if (p.shared_post_id && keptPost.shared_post_id) {
-            if (!keptPost.reposted_by.some((u: any) => u.id === p.user.id)) {
-              keptPost.reposted_by.push({
-                id: p.user.id,
-                username: p.user.username,
-              });
-            }
-          }
-        }
-      });
-      rawPosts = Array.from(seenOriginalsExplore.values());
-
-      // Enrich with interactions
-      const enriched = await this.enrichInteractions(rawPosts, userId);
-
-      const lastPost = enriched[enriched.length - 1];
-      const nextCursor = lastPost
-        ? new Date(lastPost.created_at).getTime()
-        : null;
+      const nextOffset = offset + limit;
+      const hasMore = nextOffset < rankedIds.length;
 
       return {
         data: enriched,
         meta: {
-          next_cursor: nextCursor,
-          has_more: enriched.length === limit,
+          next_cursor: hasMore ? nextOffset : null,
+          has_more: hasMore,
         },
       };
     } catch (error) {
-      console.error('Error fetching for-you feed:', error);
+      console.error('Error fetching explore feed:', error);
       throw new InternalServerErrorException('Error fetching feed');
     }
   }
 
   /**
-   * Gợi ý cá nhân hóa qua AI (ChromaDB): lấy danh sách post_ids đã xếp hạng
-   * theo sở thích người dùng, hydrate + enrich.
-   * Nếu AI không có gợi ý (người dùng mới / AI sập) -> fallback "For You".
+   * Builds (or reads from cache) the personalized, diversity-aware ordering of
+   * Explore post IDs for a user. Cached at `explore:ranked:{uid}` so pagination
+   * is stable and subsequent pages avoid recomputation.
    *
-   * @param userId - Current user ID
-   * @param limit - Số bài muốn lấy
+   * @param opts.shuffle - Add random jitter to reorder near-equal posts (used by
+   *   the explicit "refresh" action). Default ranking stays deterministic.
    */
-  async getRecommendedFeed(userId: string, limit: number = 10) {
-    try {
-      let postIds: string[] = [];
-      let source = 'personalized';
-      let aiUnavailable = false;
-
+  private async getPersonalizedExploreRanking(
+    userId: string,
+    opts?: { shuffle?: boolean },
+  ): Promise<string[]> {
+    const cacheKey = `explore:ranked:${userId}`;
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
       try {
-        const response = await axios.post(
-          `${this.aiServiceUrl}/posts/recommend`,
-          { user_id: userId, limit },
-          { headers: { key_auth: this.aiServiceKey }, timeout: 8000 },
-        );
-        postIds = response.data?.post_ids || [];
-        source = response.data?.source || 'personalized';
-      } catch (err) {
-        aiUnavailable = true;
-        console.warn(
-          '[Recommend] AI service unavailable, fallback to Explore:',
-          (err as Error)?.message,
-        );
+        return JSON.parse(cached) as string[];
+      } catch {
+        /* corrupted cache -> recompute */
       }
-
-      // Không có gợi ý -> dùng feed "Khám phá" mặc định
-      if (postIds.length === 0) {
-        const fallback = await this.getExploreFeed(userId, undefined, limit);
-        return {
-          ...fallback,
-          meta: {
-            ...fallback.meta,
-            source: aiUnavailable ? 'ai_unavailable' : 'explore_fallback',
-          },
-        };
-      }
-
-      const blockedUserIds = await this.getBlockedUserIds(userId);
-      const followingIds = await this.getFollowingIds(userId);
-
-      const posts = await this.getPostsByIds(postIds);
-      const publicOriginalPosts = posts.filter(
-        (p) => p.privacy === PrivacyType.PUBLIC && !p.shared_post_id,
-      );
-      const visible = this.applyPrivacyFilter(
-        publicOriginalPosts,
-        userId,
-        blockedUserIds,
-        followingIds,
-      );
-
-      // Giữ đúng thứ tự xếp hạng AI trả về
-      const orderMap = new Map(postIds.map((id, idx) => [id, idx]));
-      visible.sort(
-        (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
-      );
-
-      const enriched = await this.enrichInteractions(visible, userId);
-
-      return {
-        data: enriched,
-        meta: { next_cursor: null, has_more: false, source },
-      };
-    } catch (error) {
-      console.error('Error fetching recommended feed:', error);
-      throw new InternalServerErrorException('Error fetching recommended feed');
     }
+
+    const candidates = await this.getExploreCandidates();
+    const blockedSet = new Set(await this.getBlockedUserIds(userId));
+    const followingSet = new Set(await this.getFollowingIds(userId));
+
+    // Per-user filtering: hide own posts, blocked authors, and people already
+    // followed (those belong in the Following feed).
+    const visible = candidates.filter(
+      (c) =>
+        c.authorId !== userId &&
+        !blockedSet.has(c.authorId) &&
+        !followingSet.has(c.authorId),
+    );
+
+    if (visible.length === 0) {
+      await this.redisService.set(cacheKey, JSON.stringify([]), EXPLORE_RANKED_TTL);
+      return [];
+    }
+
+    // Personalization signals
+    const interest = await this.buildUserInterestProfile(userId);
+    const socialMap = await this.getSocialProofMap(
+      visible.map((c) => c.id),
+      [...followingSet],
+    );
+
+    // Normalization bounds across the visible pool
+    const scores = visible.map((c) => c.score);
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+    const engRange = maxScore - minScore || 1;
+
+    const topicRawOf = (c: ExploreCandidate) =>
+      c.hashtags.reduce((sum, tag) => sum + (interest[tag.toLowerCase()] || 0), 0);
+    const maxTopic = Math.max(1, ...visible.map(topicRawOf));
+    const maxSocial = Math.max(1, ...visible.map((c) => socialMap.get(c.id) || 0));
+
+    const ranked = visible
+      .map((c) => {
+        const engNorm = (c.score - minScore) / engRange;
+        const topicNorm = topicRawOf(c) / maxTopic;
+        const socialNorm = (socialMap.get(c.id) || 0) / maxSocial;
+        const finalScore =
+          W_ENGAGEMENT * engNorm +
+          W_TOPIC * topicNorm +
+          W_SOCIAL * socialNorm +
+          (opts?.shuffle ? Math.random() * SHUFFLE_JITTER : 0);
+        return { c, finalScore };
+      })
+      .sort((a, b) => b.finalScore - a.finalScore || b.c.score - a.c.score);
+
+    // Diversity: cap posts per author near the top, push overflow to the end.
+    const perAuthor = new Map<string, number>();
+    const primary: string[] = [];
+    const overflow: string[] = [];
+    for (const { c } of ranked) {
+      const n = perAuthor.get(c.authorId) || 0;
+      if (n < MAX_POSTS_PER_AUTHOR) {
+        primary.push(c.id);
+        perAuthor.set(c.authorId, n + 1);
+      } else {
+        overflow.push(c.id);
+      }
+    }
+    const rankedIds = [...primary, ...overflow];
+
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(rankedIds),
+      EXPLORE_RANKED_TTL,
+    );
+    return rankedIds;
+  }
+
+  /**
+   * Force a fresh Explore ordering for a user (FB-style "tap to refresh"):
+   * drops the cached ranking and rebuilds it with light random shuffle so the
+   * order visibly changes. Pagination stays stable within the new session.
+   */
+  async refreshExploreRanking(userId: string): Promise<{ ok: true }> {
+    await this.redisService.del(`explore:ranked:${userId}`);
+    await this.getPersonalizedExploreRanking(userId, { shuffle: true });
+    return { ok: true };
+  }
+
+  /**
+   * Builds (or reads from cache) a user's hashtag interest profile: a map of
+   * `hashtag -> weight` aggregated from posts they reacted to, saved, or
+   * authored within {@link INTEREST_WINDOW_DAYS} days. Cached at
+   * `interest:{uid}`. Empty for brand-new users (cold start).
+   */
+  private async buildUserInterestProfile(
+    userId: string,
+  ): Promise<Record<string, number>> {
+    const cacheKey = `interest:${userId}`;
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as Record<string, number>;
+      } catch {
+        /* corrupted cache -> recompute */
+      }
+    }
+
+    const rows: Array<{ tag: string; score: string }> =
+      await this.postRepository.query(
+        `
+        SELECT lower(tag) AS tag, SUM(weight) AS score
+        FROM (
+          SELECT unnest(p.hashtags) AS tag, 1.0 AS weight
+          FROM reaction r JOIN post p ON p.id = r.post_id
+          WHERE r.user_id = $1 AND r.is_hidden = false
+            AND p.created_at >= NOW() - INTERVAL '${INTEREST_WINDOW_DAYS} days'
+          UNION ALL
+          SELECT unnest(p.hashtags) AS tag, 1.5 AS weight
+          FROM save_post sp
+          JOIN save_list sl ON sl.id = sp.save_list_id
+          JOIN post p ON p.id = sp.post_id
+          WHERE sl.user_id = $1
+          UNION ALL
+          SELECT unnest(p.hashtags) AS tag, 1.0 AS weight
+          FROM post p
+          WHERE p.user_id = $1
+            AND p.created_at >= NOW() - INTERVAL '${INTEREST_WINDOW_DAYS} days'
+        ) t
+        WHERE tag IS NOT NULL AND tag <> ''
+        GROUP BY lower(tag)
+        ORDER BY score DESC
+        LIMIT ${INTEREST_TOP_K}
+        `,
+        [userId],
+      );
+
+    const profile: Record<string, number> = {};
+    for (const row of rows) {
+      profile[row.tag] = parseFloat(row.score) || 0;
+    }
+
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(profile),
+      INTEREST_CACHE_TTL,
+    );
+    return profile;
+  }
+
+  /**
+   * For the given candidate posts, counts how many of the people the user
+   * follows have liked each one (social proof). Returns Map<postId, count>.
+   */
+  private async getSocialProofMap(
+    postIds: string[],
+    followingIds: string[],
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (postIds.length === 0 || followingIds.length === 0) return result;
+
+    const rows = await this.reactionRepository
+      .createQueryBuilder('r')
+      .select('r.post_id', 'pid')
+      .addSelect('COUNT(DISTINCT r.user_id)', 'cnt')
+      .where('r.post_id IN (:...postIds)', { postIds })
+      .andWhere('r.user_id IN (:...followingIds)', { followingIds })
+      .andWhere('r.is_hidden = false')
+      .groupBy('r.post_id')
+      .getRawMany();
+
+    for (const row of rows) {
+      result.set(row.pid as string, parseInt(row.cnt, 10) || 0);
+    }
+    return result;
+  }
+
+  /**
+   * Computes (or reads from cache) the globally-ranked Explore candidate pool:
+   * the top {@link EXPLORE_CANDIDATES_LIMIT} public original posts from the last
+   * {@link EXPLORE_WINDOW_DAYS} days, ordered by engagement score. Cached for
+   * {@link EXPLORE_CANDIDATES_TTL}s so the heavy aggregate runs at most once per
+   * window instead of on every request.
+   */
+  private async getExploreCandidates(): Promise<ExploreCandidate[]> {
+    const cached = await this.redisService.get(EXPLORE_CANDIDATES_KEY);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as ExploreCandidate[];
+      } catch {
+        /* corrupted cache -> recompute */
+      }
+    }
+
+    const engagementExpr = `(COUNT(DISTINCT reaction.id) * 2 + COUNT(DISTINCT comment.id) * 3) - (EXTRACT(EPOCH FROM (NOW() - post.created_at)) / 3600 * 0.5)`;
+
+    const raw = await this.postRepository
+      .createQueryBuilder('post')
+      .leftJoin('post.user', 'user')
+      .leftJoin('post.reactions', 'reaction')
+      .leftJoin('post.comments', 'comment')
+      .select('post.id', 'id')
+      .addSelect('post.user_id', 'authorId')
+      .addSelect('post.hashtags', 'hashtags')
+      .addSelect(engagementExpr, 'score')
+      .where('post.privacy = :privacy', { privacy: PrivacyType.PUBLIC })
+      .andWhere('user.privacy = :uPrivacy', { uPrivacy: PrivacyType.PUBLIC })
+      .andWhere('post.shared_post_id IS NULL')
+      .andWhere(
+        `post.created_at >= NOW() - INTERVAL '${EXPLORE_WINDOW_DAYS} days'`,
+      )
+      .groupBy('post.id')
+      .addGroupBy('post.user_id')
+      .orderBy(engagementExpr, 'DESC')
+      .limit(EXPLORE_CANDIDATES_LIMIT)
+      .getRawMany();
+
+    const candidates: ExploreCandidate[] = raw.map((r) => ({
+      id: r.id as string,
+      authorId: r.authorId as string,
+      hashtags: Array.isArray(r.hashtags) ? (r.hashtags as string[]) : [],
+      score: parseFloat(r.score) || 0,
+    }));
+
+    await this.redisService.set(
+      EXPLORE_CANDIDATES_KEY,
+      JSON.stringify(candidates),
+      EXPLORE_CANDIDATES_TTL,
+    );
+    return candidates;
   }
 
   // ═══════════════════════════════════════════
@@ -505,8 +640,22 @@ export class FeedService {
     }
   }
 
-  /** Get IDs of users that the given user follows */
+  /**
+   * Get IDs of users that the given user follows.
+   * Cached in Redis (short TTL) and shared with the search feature; invalidated
+   * by {@link FeedService.invalidateRelationCache} on follow/unfollow/block.
+   */
   private async getFollowingIds(userId: string): Promise<string[]> {
+    const cacheKey = `rel:following:${userId}`;
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as string[];
+      } catch {
+        /* corrupted cache -> fall through to DB */
+      }
+    }
+
     const relations = await this.relationRepository.find({
       where: [
         {
@@ -518,11 +667,23 @@ export class FeedService {
       select: ['accept_side_id'],
     });
 
-    return [...new Set(relations.map((r) => r.accept_side_id))];
+    const ids = [...new Set(relations.map((r) => r.accept_side_id))];
+    await this.redisService.set(cacheKey, JSON.stringify(ids), RELATION_CACHE_TTL);
+    return ids;
   }
 
-  /** Get IDs of users blocked by or blocking the given user */
+  /** Get IDs of users blocked by or blocking the given user (Redis cached) */
   private async getBlockedUserIds(userId: string): Promise<string[]> {
+    const cacheKey = `rel:blocked:${userId}`;
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as string[];
+      } catch {
+        /* corrupted cache -> fall through to DB */
+      }
+    }
+
     const blocks = await this.relationRepository.find({
       where: [
         { request_side_id: userId, relation_type: RelationType.BLOCK },
@@ -531,13 +692,28 @@ export class FeedService {
       select: ['request_side_id', 'accept_side_id'],
     });
 
-    return [
+    const ids = [
       ...new Set(
         blocks.map((b) =>
           b.request_side_id === userId ? b.accept_side_id : b.request_side_id,
         ),
       ),
     ];
+    await this.redisService.set(cacheKey, JSON.stringify(ids), RELATION_CACHE_TTL);
+    return ids;
+  }
+
+  /**
+   * Invalidate the cached following/blocked IDs for a user.
+   * Call after any follow/unfollow/block/unblock so feed & search see fresh data.
+   */
+  async invalidateRelationCache(userId: string): Promise<void> {
+    await this.redisService.del(
+      `rel:following:${userId}`,
+      `rel:blocked:${userId}`,
+      // Personalized Explore ranking depends on the following/blocked sets.
+      `explore:ranked:${userId}`,
+    );
   }
 
   /** Get celebrity post IDs that a user should see */
@@ -695,17 +871,42 @@ export class FeedService {
       authorIds,
     );
 
-    return Promise.all(
-      posts.map(async (post) => {
-        const actualPostId = post.shared_post ? post.shared_post.id : post.id;
-        const is_reposted = !!(await this.postRepository.findOne({
-          where: { user_id: userId, shared_post_id: actualPostId },
-        }));
-        const repostsCount = await this.postRepository.count({
-          where: { shared_post_id: actualPostId },
-        });
+    // Batch repost data (was N+1: 1 findOne + 1 count per post).
+    const actualPostIds = [
+      ...new Set(
+        posts.map((post) => (post.shared_post ? post.shared_post.id : post.id)),
+      ),
+    ];
+    const repostsCountMap = new Map<string, number>();
+    const userRepostedSet = new Set<string>();
 
-        return {
+    if (actualPostIds.length > 0) {
+      const repostCountRows = await this.postRepository
+        .createQueryBuilder('p')
+        .select('p.shared_post_id', 'sid')
+        .addSelect('COUNT(*)', 'cnt')
+        .where('p.shared_post_id IN (:...ids)', { ids: actualPostIds })
+        .groupBy('p.shared_post_id')
+        .getRawMany();
+      for (const row of repostCountRows) {
+        repostsCountMap.set(row.sid as string, parseInt(row.cnt, 10) || 0);
+      }
+
+      const userReposts = await this.postRepository.find({
+        where: { user_id: userId, shared_post_id: In(actualPostIds) },
+        select: ['shared_post_id'],
+      });
+      for (const r of userReposts) {
+        if (r.shared_post_id) userRepostedSet.add(r.shared_post_id);
+      }
+    }
+
+    return posts.map((post) => {
+      const actualPostId = post.shared_post ? post.shared_post.id : post.id;
+      const is_reposted = userRepostedSet.has(actualPostId);
+      const repostsCount = repostsCountMap.get(actualPostId) || 0;
+
+      return {
           ...post,
           user: this.withViewerRelation(
             post.user,
@@ -743,7 +944,6 @@ export class FeedService {
             is_reposted: is_reposted,
           },
         };
-      }),
-    );
+    });
   }
 }
