@@ -6,11 +6,12 @@ import { ReportsController } from './reports.controller';
 import { Post } from '../posts/entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { ChatMessage } from '../chats/entities/chat-message.entity';
+import { Comment } from '../posts/comments/entities/comment.entity';
 import { NotificationModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Report, Post, User, ChatMessage]),
+    TypeOrmModule.forFeature([Report, Post, User, ChatMessage, Comment]),
     NotificationModule,
   ],
   providers: [ReportsService],

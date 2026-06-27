@@ -934,6 +934,30 @@
         ]
       }
     },
+    "/relations/block-status/{user_id}": {
+      "get": {
+        "operationId": "RelationsController_getBlockStatus",
+        "summary": "Kiểm tra có quan hệ chặn (2 chiều) với user hay không",
+        "parameters": [
+          {
+            "name": "user_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
     "/relations/{user_id}": {
       "get": {
         "operationId": "RelationsController_getRelation",
@@ -2173,10 +2197,10 @@
         ]
       }
     },
-    "/feed/foryou": {
+    "/feed/explore": {
       "get": {
-        "operationId": "FeedController_getForYouFeed",
-        "summary": "Get For You Feed (ranked by engagement)",
+        "operationId": "FeedController_getExploreFeed",
+        "summary": "Get Explore Feed (ranked by engagement)",
         "parameters": [
           {
             "name": "cursor",
@@ -6010,7 +6034,8 @@
             "enum": [
               "post",
               "user",
-              "message"
+              "message",
+              "comment"
             ]
           },
           "reason": {
@@ -6047,6 +6072,9 @@
           "reported_message_id": {
             "type": "string"
           },
+          "reported_comment_id": {
+            "type": "string"
+          },
           "admin_note": {
             "type": "string"
           },
@@ -6056,6 +6084,7 @@
               "no_action",
               "warn_reported",
               "remove_post",
+              "remove_comment",
               "lock_user"
             ]
           },
@@ -6082,6 +6111,9 @@
           "reported_message": {
             "$ref": "#/components/schemas/ChatMessage"
           },
+          "reported_comment": {
+            "$ref": "#/components/schemas/Comment"
+          },
           "resolved_by_user": {
             "$ref": "#/components/schemas/User"
           }
@@ -6096,6 +6128,7 @@
           "reported_post_id",
           "reported_user_id",
           "reported_message_id",
+          "reported_comment_id",
           "admin_note",
           "admin_action",
           "resolved_by",
@@ -6105,6 +6138,7 @@
           "reported_post",
           "reported_user",
           "reported_message",
+          "reported_comment",
           "resolved_by_user"
         ]
       },
@@ -6124,6 +6158,7 @@
               "no_action",
               "warn_reported",
               "remove_post",
+              "remove_comment",
               "lock_user"
             ],
             "type": "string",
@@ -6149,7 +6184,8 @@
             "enum": [
               "post",
               "user",
-              "message"
+              "message",
+              "comment"
             ],
             "type": "string",
             "example": "post"
@@ -6182,6 +6218,10 @@
           "reported_message_id": {
             "type": "string",
             "description": "ID of the reported message"
+          },
+          "reported_comment_id": {
+            "type": "string",
+            "description": "ID of the reported comment"
           }
         },
         "required": [

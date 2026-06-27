@@ -18,7 +18,6 @@ import { socketService } from '@/services/socket.service';
 import {
   Home,
   Search,
-  Compass,
   Film,
   MessageCircle,
   Bell,
@@ -48,7 +47,6 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { icon: Home, label: 'Trang chủ', href: '/' },
   { icon: Search, label: 'Tìm kiếm', href: '/search' },
-  { icon: Compass, label: 'Khám phá', href: '/explore' },
   { icon: Film, label: 'Reels', href: '/reels' },
   { icon: MessageCircle, label: 'Tin nhắn', href: '/messages' },
   { icon: Bell, label: 'Thông báo', href: '/notifications' },
@@ -305,10 +303,6 @@ export function SidebarLeft() {
                     // Determine which queries to invalidate based on route
                     if (href === '/')
                       queryClient.invalidateQueries({ queryKey: ['feed'] });
-                    if (href === '/explore')
-                      queryClient.invalidateQueries({
-                        queryKey: ['feed', 'foryou'],
-                      });
                     if (href.startsWith('/profile'))
                       queryClient.invalidateQueries({ queryKey: ['profile'] });
                   }

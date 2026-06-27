@@ -40,4 +40,9 @@ export class CreateReportDto {
   @IsUUID()
   @ApiProperty({ required: false, description: 'ID of the reported message' })
   reported_message_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  @ApiProperty({ required: false, description: 'ID of the reported comment' })
+  reported_comment_id?: string;
 }

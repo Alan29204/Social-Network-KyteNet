@@ -23,7 +23,7 @@ export function ProfileTabs({ userId }: ProfileTabsProps) {
 
   const tabs = [
     { value: 'all', icon: <Menu className="w-5 h-5" />, label: 'BÀI VIẾT', content: <AllPostsList userId={userId} /> },
-    { value: 'media', icon: <ImageIcon className="w-5 h-5" />, label: 'MEDIA', content: <MediaPostsGrid userId={userId} /> },
+    { value: 'media', icon: <ImageIcon className="w-5 h-5" />, label: 'HÌNH ẢNH', content: <MediaPostsGrid userId={userId} /> },
     { value: 'video', icon: <PlaySquare className="w-5 h-5" />, label: 'VIDEO', content: <VideoPostsGrid userId={userId} /> },
   ];
 

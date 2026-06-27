@@ -10,7 +10,6 @@ import ForgotPasswordPage from '@/features/auth/pages/forgot-password-page';
 import ProfilePage from '@/features/profile/pages/profile-page';
 import EditProfilePage from '@/features/profile/pages/edit-profile-page';
 import BlockedAccountsPage from '@/features/profile/pages/blocked-accounts-page';
-import ExplorePage from '@/features/explore/pages/explore-page';
 import SuggestedPeoplePage from '@/features/explore/pages/suggested-people-page';
 import MessagesPage from '@/features/chats/pages/messages-page';
 import PostPage from '@/features/posts/pages/post-page';
@@ -58,7 +57,7 @@ function App() {
               <Route path="search" element={<SearchPage />} />
               <Route path="reels" element={<ReelsPage />} />
               <Route path="saved" element={<SavedPage />} />
-              <Route path="explore" element={<ExplorePage />} />
+              {/* /explore (feed) đã bỏ — trang chủ đã có tab "Khám phá" */}
               <Route path="explore/people" element={<SuggestedPeoplePage />} />
               <Route path="messages" element={<MessagesPage />} />
               <Route path="messages/:roomId" element={<MessagesPage />} />

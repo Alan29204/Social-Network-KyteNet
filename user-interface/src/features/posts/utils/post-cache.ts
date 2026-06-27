@@ -5,7 +5,7 @@ type QuerySnapshot = Array<[QueryKey, unknown]>;
 const POST_LIST_KEYS = new Set([
   '/posts',
   '/feed/following',
-  '/feed/foryou',
+  '/feed/explore',
   '/feed/recommended',
   '/search/posts',
   '/search/all',
@@ -106,7 +106,7 @@ export const invalidatePostSurfaces = (
     queryClient.invalidateQueries({
       queryKey: ['infinite', '/feed/following'],
     }),
-    queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] }),
+    queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] }),
     queryClient.invalidateQueries({ queryKey: ['feed', 'recommended'] }),
     queryClient.invalidateQueries({ queryKey: ['/feed/recommended'] }),
     queryClient.invalidateQueries({

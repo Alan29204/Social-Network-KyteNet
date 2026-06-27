@@ -256,6 +256,22 @@ export class RelationsController {
     return this.relationShipsService.rejectFollowRequest(user, dto.user_id);
   }
 
+  @Get('block-status/:user_id')
+  @ResponseMessage('Get block status successfully')
+  @ApiOperation({
+    summary: 'Kiểm tra có quan hệ chặn (2 chiều) với user hay không',
+  })
+  async getBlockStatus(
+    @User() user: IUser,
+    @Param('user_id', ParseUUIDPipe) user_id: string,
+  ) {
+    const is_blocked = await this.relationShipsService.areBlocked(
+      user.id,
+      user_id,
+    );
+    return { is_blocked };
+  }
+
   @Get(':user_id')
   @ResponseMessage('Get relation between 2 users successfully')
   @ApiOperation({ summary: 'Get relation between 2 users' })

@@ -49,6 +49,7 @@ const actionLabels: Record<string, string> = {
   no_action: 'Không áp dụng thêm',
   warn_reported: 'Cảnh báo người bị tố cáo',
   remove_post: 'Gỡ bài viết',
+  remove_comment: 'Gỡ bình luận',
   lock_user: 'Khóa tài khoản',
 };
 
@@ -75,11 +76,13 @@ const typeBadge = (type: string) => {
     post: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     user: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
     message: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    comment: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
   };
   const labels: Record<string, string> = {
     post: 'Bài viết',
     user: 'Người dùng',
     message: 'Tin nhắn',
+    comment: 'Bình luận',
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border ${map[type] || ''}`}>
@@ -94,6 +97,7 @@ const getActionsForReport = (report: any, status: string) => {
   if (status === 'rejected') return ['no_action'];
   const actions = ['no_action', 'warn_reported', 'lock_user'];
   if (report?.type === 'post') actions.splice(2, 0, 'remove_post');
+  if (report?.type === 'comment') actions.splice(2, 0, 'remove_comment');
   return actions;
 };
 
@@ -163,6 +167,26 @@ function ReportTargetDetail({ report }: { report: any }) {
           Tài khoản bị tố cáo
         </div>
         <UserLine user={report.reported_user} />
+      </div>
+    );
+  }
+
+  if (report.type === 'comment') {
+    const comment = report.reported_comment;
+    return (
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <MessageSquare className="w-4 h-4" />
+          Bình luận bị tố cáo
+        </div>
+        {!comment ? (
+          <p className="text-sm text-muted-foreground">Bình luận không còn khả dụng.</p>
+        ) : (
+          <>
+            <UserLine user={comment.user} />
+            <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+          </>
+        )}
       </div>
     );
   }

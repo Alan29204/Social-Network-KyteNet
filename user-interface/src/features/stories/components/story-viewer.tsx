@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Trash2, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
-import { useMarkStoryViewed, useDeleteStory } from '../api';
+import { useMarkStoryViewed, useDeleteStory, useStoryViewers } from '../api';
 import type { StoryGroup } from '../types';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
+import { normalizePostMediaUrl } from '@/features/posts/utils/post-card-mapper';
 
 interface StoryViewerProps {
   groups: StoryGroup[];
@@ -27,6 +34,7 @@ export function StoryViewer({
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [viewersOpen, setViewersOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef<number>();
@@ -35,6 +43,9 @@ export function StoryViewer({
   const group = groups[groupIndex];
   const story = group?.stories[storyIndex];
   const isOwner = currentUser?.id === group?.user.id;
+
+  // Danh sách người đã xem (chỉ chủ story)
+  const { data: viewers = [] } = useStoryViewers(story?.id ?? null, isOwner);
 
   // Đánh dấu đã xem mỗi khi sang story mới
   useEffect(() => {
@@ -132,17 +143,17 @@ export function StoryViewer({
         <X className="w-6 h-6" />
       </button>
 
-      {/* Điều hướng desktop */}
+      {/* Điều hướng trước/sau */}
       <button
         onClick={goPrevStory}
-        className="hidden sm:flex absolute left-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+        className="flex absolute left-2 sm:left-4 z-30 p-2 rounded-full bg-white/15 hover:bg-white/30 text-white"
         aria-label="Trước"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
       <button
         onClick={goNextStory}
-        className="hidden sm:flex absolute right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+        className="flex absolute right-2 sm:right-4 z-30 p-2 rounded-full bg-white/15 hover:bg-white/30 text-white"
         aria-label="Sau"
       >
         <ChevronRight className="w-6 h-6" />
@@ -215,16 +226,17 @@ export function StoryViewer({
           {story.type === 'video' ? (
             <video
               ref={videoRef}
-              src={story.media_url || ''}
+              src={normalizePostMediaUrl(story.media_url || '')}
               className="w-full h-full object-contain"
               autoPlay
+              muted
               playsInline
               onTimeUpdate={handleVideoTime}
               onEnded={goNextStory}
             />
           ) : story.type === 'image' ? (
             <img
-              src={story.media_url || ''}
+              src={normalizePostMediaUrl(story.media_url || '')}
               alt="story"
               className="w-full h-full object-contain"
             />
@@ -246,12 +258,57 @@ export function StoryViewer({
 
         {/* Số người xem (chủ story) */}
         {isOwner && (
-          <div className="absolute bottom-4 left-3 z-20 flex items-center gap-1 text-white/80 text-xs">
+          <button
+            onClick={() => {
+              setPaused(true);
+              setViewersOpen(true);
+            }}
+            className="absolute bottom-4 left-3 z-20 flex items-center gap-1.5 text-white text-sm font-medium hover:text-white/80"
+          >
             <Eye className="w-4 h-4" />
-            <span>Story của bạn</span>
-          </div>
+            <span>{viewers.length} người đã xem</span>
+          </button>
         )}
       </div>
+
+      {/* Danh sách người đã xem */}
+      <Dialog
+        open={viewersOpen}
+        onOpenChange={(o) => {
+          setViewersOpen(o);
+          if (!o) setPaused(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Người đã xem ({viewers.length})</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto flex flex-col gap-1">
+            {viewers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Chưa có ai xem story này.
+              </p>
+            ) : (
+              viewers.map((v) => (
+                <div key={v.id} className="flex items-center gap-3 py-2">
+                  <Avatar className="w-9 h-9">
+                    <AvatarImage src={getAvatarUrl(v.avatar)} />
+                    <AvatarFallback className="bg-muted" />
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {getDisplayName(v)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      @{v.username}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

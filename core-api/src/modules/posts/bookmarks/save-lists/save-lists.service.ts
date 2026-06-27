@@ -43,22 +43,29 @@ export class SaveListsService {
         take: limit,
       });
 
-      // Đính kèm ảnh bìa (media bài mới nhất) + số lượng cho từng bộ sưu tập.
+      // Đính kèm ảnh bìa (media của bài đã lưu mới nhất CÓ media) + số lượng.
       const data = await Promise.all(
         lists.map(async (list) => {
-          const [latest, count] = await Promise.all([
-            this.savePostRepository.findOne({
+          const [recent, count] = await Promise.all([
+            this.savePostRepository.find({
               where: { save_list_id: list.id },
               relations: ['post'],
               order: { id: 'DESC' },
+              take: 10,
             }),
             this.savePostRepository.count({
               where: { save_list_id: list.id },
             }),
           ]);
-          const medias = latest?.post?.medias || [];
-          const cover =
-            Array.isArray(medias) && medias.length > 0 ? medias[0] : null;
+          // Lấy bài mới nhất có ít nhất 1 media làm ảnh bìa.
+          let cover: string | null = null;
+          for (const sp of recent) {
+            const medias = sp.post?.medias;
+            if (Array.isArray(medias) && medias.length > 0) {
+              cover = medias[0];
+              break;
+            }
+          }
           return { ...list, cover, count };
         }),
       );

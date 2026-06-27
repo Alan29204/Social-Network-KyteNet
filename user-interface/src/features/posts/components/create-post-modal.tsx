@@ -22,6 +22,7 @@ import {
 import { Paperclip, X, Globe, Users, Lock, Loader2, Smile, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { useToast } from '@/hooks/use-toast';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import {
   Popover,
@@ -41,7 +42,10 @@ interface CreatePostModalProps {
   // TODO: Add current user info prop or fetch from store
 }
 
+const MAX_MEDIA = 10;
+
 export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
+  const { toast } = useToast();
   const [images, setImages] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<{url: string, type: string}[]>([]);
   const [caption, setCaption] = useState('');
@@ -106,9 +110,24 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
+      let newFiles = Array.from(e.target.files);
+      const remaining = MAX_MEDIA - images.length;
+      if (remaining <= 0) {
+        toast({
+          description: `Mỗi bài viết chỉ được tối đa ${MAX_MEDIA} ảnh/video.`,
+          variant: 'destructive',
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      if (newFiles.length > remaining) {
+        newFiles = newFiles.slice(0, remaining);
+        toast({
+          description: `Chỉ thêm tối đa ${MAX_MEDIA} ảnh/video mỗi bài viết.`,
+        });
+      }
       setImages((prev) => [...prev, ...newFiles]);
-      
+
       const newPreviews = newFiles.map((file) => ({
         url: URL.createObjectURL(file),
         type: file.type

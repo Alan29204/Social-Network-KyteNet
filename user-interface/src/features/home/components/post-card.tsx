@@ -6,6 +6,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  CarouselDots,
 } from '@/components/ui/carousel';
 import {
   Heart,
@@ -25,6 +26,7 @@ import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { SharePostModal } from '@/features/posts/components/share-post-modal';
 import { SaveToListModal } from '@/features/saved/components/save-to-list-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
@@ -134,12 +136,13 @@ export function PostCard({
   const [shareOpen, setShareOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [unsaveConfirmOpen, setUnsaveConfirmOpen] = useState(false);
+  const [unrepostConfirmOpen, setUnrepostConfirmOpen] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
+  const { toast } = useToast();
 
   // Local state for debounced optimistic repost
   const [localReposted, setLocalReposted] = useState(post.isReposted);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount);
-  const repostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [localLiked, setLocalLiked] = useState(post.isLiked);
@@ -203,19 +206,37 @@ export function PostCard({
     },
   });
 
+  // Bấm nút đăng lại: nếu đang đăng lại -> hỏi xác nhận hủy; nếu chưa -> đăng lại luôn.
   const handleRepost = () => {
-    const newStatus = !localReposted;
-    setLocalReposted(newStatus);
-    setLocalRepostsCount((prev) =>
-      newStatus ? (prev || 0) + 1 : Math.max(0, (prev || 1) - 1),
-    );
+    if (localReposted) {
+      setUnrepostConfirmOpen(true);
+      return;
+    }
+    setLocalReposted(true);
+    setLocalRepostsCount((prev) => (prev || 0) + 1);
+    repostMutation.mutate(undefined, {
+      onSuccess: () => toast({ description: 'Đã đăng lại bài viết' }),
+      onError: () => {
+        // hoàn tác optimistic nếu lỗi
+        setLocalReposted(false);
+        setLocalRepostsCount((prev) => Math.max(0, (prev || 1) - 1));
+        toast({ description: 'Không thể đăng lại. Thử lại sau.', variant: 'destructive' });
+      },
+    });
+  };
 
-    if (repostTimerRef.current) clearTimeout(repostTimerRef.current);
-    repostTimerRef.current = setTimeout(() => {
-      if (newStatus !== post.isReposted) {
-        repostMutation.mutate();
-      }
-    }, 500);
+  const confirmUnrepost = () => {
+    setUnrepostConfirmOpen(false);
+    setLocalReposted(false);
+    setLocalRepostsCount((prev) => Math.max(0, (prev || 1) - 1));
+    repostMutation.mutate(undefined, {
+      onSuccess: () => toast({ description: 'Đã hủy đăng lại bài viết' }),
+      onError: () => {
+        setLocalReposted(true);
+        setLocalRepostsCount((prev) => (prev || 0) + 1);
+        toast({ description: 'Không thể hủy đăng lại. Thử lại sau.', variant: 'destructive' });
+      },
+    });
   };
 
   const unsaveMutation = useMutation({
@@ -431,6 +452,7 @@ export function PostCard({
                 </CarouselContent>
                 <CarouselPrevious className="left-3 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-background border-none shadow-lg" />
                 <CarouselNext className="right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-background border-none shadow-lg" />
+                <CarouselDots className="absolute bottom-3 left-1/2 -translate-x-1/2" />
               </Carousel>
             ) : (
               (() => {
@@ -645,6 +667,16 @@ export function PostCard({
         confirmText="Bỏ lưu"
         destructive
         onConfirm={confirmUnsave}
+      />
+
+      <ConfirmDialog
+        open={unrepostConfirmOpen}
+        onOpenChange={setUnrepostConfirmOpen}
+        title="Hủy đăng lại bài viết này?"
+        description="Bài đăng lại của bạn sẽ bị gỡ khỏi trang cá nhân."
+        confirmText="Hủy đăng lại"
+        destructive
+        onConfirm={confirmUnrepost}
       />
 
       <PostLikesModal

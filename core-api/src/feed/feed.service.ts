@@ -155,7 +155,7 @@ export class FeedService {
    * @param cursor - Timestamp cursor for pagination
    * @param limit - Number of posts to return
    */
-  async getForYouFeed(userId: string, cursor?: number, limit: number = 10) {
+  async getExploreFeed(userId: string, cursor?: number, limit: number = 10) {
     try {
       const blockedUserIds = await this.getBlockedUserIds(userId);
       const followingIds = await this.getFollowingIds(userId);
@@ -218,17 +218,17 @@ export class FeedService {
         .getMany();
 
       // Deduplicate original posts and aggregate reposters
-      const seenOriginalsForYou = new Map<string, any>();
+      const seenOriginalsExplore = new Map<string, any>();
       rawPosts.forEach((p: any) => {
         const originalId = p.shared_post_id || p.id;
 
-        if (!seenOriginalsForYou.has(originalId)) {
+        if (!seenOriginalsExplore.has(originalId)) {
           if (p.shared_post_id) {
             p.reposted_by = [{ id: p.user.id, username: p.user.username }];
           }
-          seenOriginalsForYou.set(originalId, p);
+          seenOriginalsExplore.set(originalId, p);
         } else {
-          const keptPost = seenOriginalsForYou.get(originalId);
+          const keptPost = seenOriginalsExplore.get(originalId);
           if (p.shared_post_id && keptPost.shared_post_id) {
             if (!keptPost.reposted_by.some((u: any) => u.id === p.user.id)) {
               keptPost.reposted_by.push({
@@ -239,7 +239,7 @@ export class FeedService {
           }
         }
       });
-      rawPosts = Array.from(seenOriginalsForYou.values());
+      rawPosts = Array.from(seenOriginalsExplore.values());
 
       // Enrich with interactions
       const enriched = await this.enrichInteractions(rawPosts, userId);
@@ -287,19 +287,19 @@ export class FeedService {
       } catch (err) {
         aiUnavailable = true;
         console.warn(
-          '[Recommend] AI service unavailable, fallback to ForYou:',
+          '[Recommend] AI service unavailable, fallback to Explore:',
           (err as Error)?.message,
         );
       }
 
-      // Không có gợi ý -> dùng feed "For You" mặc định
+      // Không có gợi ý -> dùng feed "Khám phá" mặc định
       if (postIds.length === 0) {
-        const fallback = await this.getForYouFeed(userId, undefined, limit);
+        const fallback = await this.getExploreFeed(userId, undefined, limit);
         return {
           ...fallback,
           meta: {
             ...fallback.meta,
-            source: aiUnavailable ? 'ai_unavailable' : 'foryou_fallback',
+            source: aiUnavailable ? 'ai_unavailable' : 'explore_fallback',
           },
         };
       }

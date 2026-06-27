@@ -9,11 +9,13 @@ import {
 import { User } from 'src/modules/users/entities/user.entity';
 import { Post } from 'src/modules/posts/entities/post.entity';
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
+import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
 
 export enum ReportType {
   POST = 'post',
   USER = 'user',
   MESSAGE = 'message',
+  COMMENT = 'comment',
 }
 
 export enum ReportReason {
@@ -35,6 +37,7 @@ export enum ReportAction {
   NO_ACTION = 'no_action',
   WARN_REPORTED = 'warn_reported',
   REMOVE_POST = 'remove_post',
+  REMOVE_COMMENT = 'remove_comment',
   LOCK_USER = 'lock_user',
 }
 
@@ -71,6 +74,10 @@ export class Report {
   @Column({ type: 'uuid', nullable: true })
   reported_message_id: string;
 
+  /** ID of the reported comment (if type = comment) */
+  @Column({ type: 'uuid', nullable: true })
+  reported_comment_id: string;
+
   /** Admin note on resolution */
   @Column({ nullable: true })
   admin_note: string;
@@ -102,6 +109,10 @@ export class Report {
   @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reported_message_id' })
   reported_message: ChatMessage;
+
+  @ManyToOne(() => Comment, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'reported_comment_id' })
+  reported_comment: Comment;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'resolved_by' })

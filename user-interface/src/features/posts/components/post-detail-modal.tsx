@@ -7,6 +7,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  CarouselDots,
 } from '@/components/ui/carousel';
 import {
   Heart,
@@ -22,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { formatTimeAgo } from '@/utils/date-formatter';
@@ -127,7 +129,18 @@ export function PostDetailModal({
   const [commentAction, setCommentAction] = useState<{
     id: string;
     username: string;
+    content: string;
+    isOwner: boolean;
+    canDelete: boolean;
   } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+  const [reportComment, setReportComment] = useState<{ id: string } | null>(
+    null,
+  );
+  const [reportReason, setReportReason] = useState<string>('spam');
 
   // Lấy chi tiết bài viết (bao gồm comments mới nhất)
   const { data: queryData, isLoading, isError } = useQuery({
@@ -141,6 +154,14 @@ export function PostDetailModal({
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
+
+  // Tự đặt con trỏ vào ô bình luận khi mở bài (trừ khi đang nhảy tới 1 bình luận cụ thể)
+  useEffect(() => {
+    if (open && !targetCommentId) {
+      const t = setTimeout(() => inputRef.current?.focus(), 300);
+      return () => clearTimeout(t);
+    }
+  }, [open, targetCommentId]);
 
   useEffect(() => {
     if (open && syncUrl) {
@@ -220,7 +241,7 @@ export function PostDetailModal({
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -239,7 +260,7 @@ export function PostDetailModal({
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -254,11 +275,43 @@ export function PostDetailModal({
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
       setCommentAction(null);
     },
+  });
+
+  const editCommentMutation = useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      orvalClient({ url: `/comments/${id}`, method: 'PATCH', data: { content } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['postDetail', initialPost.id],
+      });
+      setEditingComment(null);
+      toast({ description: 'Đã cập nhật bình luận' });
+    },
+    onError: () =>
+      toast({ description: 'Không thể sửa bình luận.', variant: 'destructive' }),
+  });
+
+  const reportCommentMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      orvalClient({
+        url: '/reports',
+        method: 'POST',
+        data: { type: 'comment', reported_comment_id: id, reason },
+      }),
+    onSuccess: () => {
+      setReportComment(null);
+      toast({ description: 'Đã gửi báo cáo. Cảm ơn bạn!' });
+    },
+    onError: () =>
+      toast({
+        description: 'Không thể gửi báo cáo. Thử lại sau.',
+        variant: 'destructive',
+      }),
   });
 
   const handlePostComment = () => {
@@ -399,7 +452,7 @@ export function PostDetailModal({
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
       queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/foryou'] });
+      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -415,6 +468,8 @@ export function PostDetailModal({
 
     const isLiked = c.interactions?.is_liked;
     const likesCount = c.interactions?.likes || 0;
+    const editing =
+      editingComment && editingComment.id === c.id ? editingComment : null;
 
     return (
       <div key={c.id} id={`comment-${c.id}`} className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''} transition-colors duration-1000 p-1 -m-1 rounded-lg`}>
@@ -437,9 +492,50 @@ export function PostDetailModal({
                 {getDisplayName(c.user)}
               </span>
             </Link>
-            <span className="text-sm whitespace-pre-wrap">
-              <PostContentRenderer content={c.content} taggedUsers={c.tagged_users} />
-            </span>
+            {editing ? (
+              <span className="inline-flex items-center gap-2 align-middle">
+                <input
+                  autoFocus
+                  value={editing.content}
+                  onChange={(e) =>
+                    setEditingComment({ id: c.id, content: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editing.content.trim()) {
+                      editCommentMutation.mutate({
+                        id: c.id,
+                        content: editing.content.trim(),
+                      });
+                    } else if (e.key === 'Escape') {
+                      setEditingComment(null);
+                    }
+                  }}
+                  className="text-sm bg-secondary rounded-md px-2 py-1 outline-none min-w-[160px]"
+                />
+                <button
+                  className="text-xs font-semibold text-snet-purple"
+                  onClick={() =>
+                    editing.content.trim() &&
+                    editCommentMutation.mutate({
+                      id: c.id,
+                      content: editing.content.trim(),
+                    })
+                  }
+                >
+                  Lưu
+                </button>
+                <button
+                  className="text-xs text-muted-foreground"
+                  onClick={() => setEditingComment(null)}
+                >
+                  Hủy
+                </button>
+              </span>
+            ) : (
+              <span className="text-sm whitespace-pre-wrap">
+                <PostContentRenderer content={c.content} taggedUsers={c.tagged_users} />
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground font-semibold">
             <span>{formatTimeAgo(c.created_at)}</span>
@@ -456,17 +552,22 @@ export function PostDetailModal({
             >
               Trả lời
             </button>
-            {(currentUser?.id === c.user.id ||
-              currentUser?.id === post?.user?.id) && (
-              <button
-                className="hover:text-foreground transition-colors ml-1"
-                onClick={() =>
-                  setCommentAction({ id: c.id, username: getDisplayName(c.user) })
-                }
-              >
-                <MoreHorizontal className="w-3 h-3 inline-block" />
-              </button>
-            )}
+            <button
+              className="hover:text-foreground transition-colors ml-1"
+              onClick={() =>
+                setCommentAction({
+                  id: c.id,
+                  username: getDisplayName(c.user),
+                  content: c.content,
+                  isOwner: currentUser?.id === c.user.id,
+                  canDelete:
+                    currentUser?.id === c.user.id ||
+                    currentUser?.id === post?.user?.id,
+                })
+              }
+            >
+              <MoreHorizontal className="w-3 h-3 inline-block" />
+            </button>
           </div>
         </div>
         <Button
@@ -524,44 +625,52 @@ export function PostDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* Nút điều hướng trước/sau — đặt ở rìa màn hình (ngoài khung bài viết) */}
+      {open &&
+        (onNavigatePrevious || onNavigateNext) &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-0 z-[80] hidden sm:block">
+            {onNavigatePrevious && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="pointer-events-auto absolute left-4 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full bg-background/90 shadow-lg backdrop-blur hover:bg-background disabled:opacity-30"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onNavigatePrevious();
+                }}
+                disabled={!canNavigatePrevious}
+                aria-label="Bài viết trước"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+            )}
+            {onNavigateNext && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="pointer-events-auto absolute right-4 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full bg-background/90 shadow-lg backdrop-blur hover:bg-background disabled:opacity-30"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onNavigateNext();
+                }}
+                disabled={!canNavigateNext || isNavigatingNext}
+                aria-label="Bài viết tiếp theo"
+              >
+                {isNavigatingNext ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <ChevronRight className="h-6 w-6" />
+                )}
+              </Button>
+            )}
+          </div>,
+          document.body,
+        )}
       <DialogContent className="max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0">
         <DialogTitle className="sr-only">Chi tiết bài viết</DialogTitle>
-        {onNavigatePrevious && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute left-2 top-1/2 z-[70] h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg backdrop-blur hover:bg-background"
-            onClick={(event) => {
-              event.stopPropagation();
-              onNavigatePrevious();
-            }}
-            disabled={!canNavigatePrevious}
-            aria-label="Bài viết trước"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        )}
-        {onNavigateNext && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute right-2 top-1/2 z-[70] h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg backdrop-blur hover:bg-background"
-            onClick={(event) => {
-              event.stopPropagation();
-              onNavigateNext();
-            }}
-            disabled={!canNavigateNext || isNavigatingNext}
-            aria-label="Bài viết tiếp theo"
-          >
-            {isNavigatingNext ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ChevronRight className="h-5 w-5" />
-            )}
-          </Button>
-        )}
 
         {/* Header (Cố định ở trên) */}
         {isRepost && (
@@ -665,6 +774,7 @@ export function PostDetailModal({
                   </CarouselContent>
                   <CarouselPrevious className="left-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
                   <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
+                  <CarouselDots className="absolute bottom-3 left-1/2 -translate-x-1/2" />
                 </Carousel>
               ) : (
                 (() => {
@@ -946,22 +1056,114 @@ export function PostDetailModal({
           onOpenChange={(open) => !open && setCommentAction(null)}
         >
           <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden rounded-xl border-none">
-            <DialogTitle className="sr-only">Xóa bình luận</DialogTitle>
-            <button
-              className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
-              onClick={() =>
-                commentAction && deleteCommentMutation.mutate(commentAction.id)
-              }
-            >
-              Xóa
-            </button>
-            <div className="h-[1px] w-full bg-border"></div>
+            <DialogTitle className="sr-only">Tùy chọn bình luận</DialogTitle>
+            {commentAction.isOwner && (
+              <>
+                <button
+                  className="w-full p-4 text-sm font-semibold hover:bg-muted transition-colors active:bg-muted/80"
+                  onClick={() => {
+                    setEditingComment({
+                      id: commentAction.id,
+                      content: commentAction.content,
+                    });
+                    setCommentAction(null);
+                  }}
+                >
+                  Sửa
+                </button>
+                <div className="h-[1px] w-full bg-border"></div>
+              </>
+            )}
+            {commentAction.canDelete && (
+              <>
+                <button
+                  className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
+                  onClick={() =>
+                    deleteCommentMutation.mutate(commentAction.id)
+                  }
+                >
+                  Xóa
+                </button>
+                <div className="h-[1px] w-full bg-border"></div>
+              </>
+            )}
+            {!commentAction.isOwner && (
+              <>
+                <button
+                  className="w-full p-4 text-sm font-semibold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
+                  onClick={() => {
+                    setReportComment({ id: commentAction.id });
+                    setReportReason('spam');
+                    setCommentAction(null);
+                  }}
+                >
+                  Tố cáo
+                </button>
+                <div className="h-[1px] w-full bg-border"></div>
+              </>
+            )}
             <button
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
               onClick={() => setCommentAction(null)}
             >
               Hủy
             </button>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {reportComment && (
+        <Dialog
+          open={!!reportComment}
+          onOpenChange={(open) => !open && setReportComment(null)}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogTitle>Tố cáo bình luận</DialogTitle>
+            <div className="flex flex-col gap-3 py-2">
+              <p className="text-sm text-muted-foreground">
+                Chọn lý do bạn muốn tố cáo bình luận này:
+              </p>
+              <div className="flex flex-col gap-1">
+                {[
+                  { value: 'spam', label: 'Spam' },
+                  { value: 'harassment', label: 'Quấy rối' },
+                  { value: 'violence', label: 'Bạo lực' },
+                  { value: 'adult_content', label: 'Nội dung người lớn' },
+                  { value: 'fake_info', label: 'Thông tin sai sự thật' },
+                  { value: 'other', label: 'Khác' },
+                ].map((r) => (
+                  <label
+                    key={r.value}
+                    className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted"
+                  >
+                    <input
+                      type="radio"
+                      name="report-reason"
+                      value={r.value}
+                      checked={reportReason === r.value}
+                      onChange={() => setReportReason(r.value)}
+                    />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+              <Button
+                className="w-full"
+                disabled={reportCommentMutation.isPending}
+                onClick={() =>
+                  reportCommentMutation.mutate({
+                    id: reportComment.id,
+                    reason: reportReason,
+                  })
+                }
+              >
+                {reportCommentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Gửi báo cáo'
+                )}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       )}

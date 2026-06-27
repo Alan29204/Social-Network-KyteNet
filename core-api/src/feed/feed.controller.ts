@@ -33,26 +33,26 @@ export class FeedController {
   }
 
   /**
-   * Get the "For You" feed — public posts ranked by engagement score.
+   * Get the "Explore" feed (Khám phá) — public posts ranked by engagement score.
    * Uses cursor-based pagination for infinite scroll.
    */
-  @Get('foryou')
-  @ApiOperation({ summary: 'Get For You Feed (ranked by engagement)' })
+  @Get('explore')
+  @ApiOperation({ summary: 'Get Explore Feed (ranked by engagement)' })
   @ApiQuery({ name: 'cursor', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  getForYouFeed(
+  getExploreFeed(
     @User() user: IUser,
     @Query('cursor') cursor?: string,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
   ) {
     const cursorNum = cursor ? Number(cursor) : undefined;
-    return this.feedService.getForYouFeed(user.id, cursorNum, limit);
+    return this.feedService.getExploreFeed(user.id, cursorNum, limit);
   }
 
   /**
    * Get the AI-personalized "Recommended" feed ("Dành cho bạn").
    * Uses ChromaDB embedding similarity based on the user's interaction history.
-   * Falls back to the "For You" feed when the AI service has no suggestions.
+   * Falls back to the "Explore" feed when the AI service has no suggestions.
    */
   @Get('recommended')
   @ApiOperation({ summary: 'Get AI-personalized recommended feed' })

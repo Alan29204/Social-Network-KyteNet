@@ -250,6 +250,58 @@ const CarouselNext = React.forwardRef<
 });
 CarouselNext.displayName = 'CarouselNext';
 
+/** Chấm tròn chỉ số/vị trí media (chỉ hiện khi có >1 slide). */
+const CarouselDots = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  const { api } = useCarousel();
+  const [snaps, setSnaps] = React.useState<number[]>([]);
+  const [selected, setSelected] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!api) return;
+    const update = () => {
+      setSnaps(api.scrollSnapList());
+      setSelected(api.selectedScrollSnap());
+    };
+    update();
+    api.on('select', update);
+    api.on('reInit', update);
+    return () => {
+      api.off('select', update);
+      api.off('reInit', update);
+    };
+  }, [api]);
+
+  if (snaps.length <= 1) return null;
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'flex items-center justify-center gap-1.5',
+        className,
+      )}
+      {...props}
+    >
+      {snaps.map((_, i) => (
+        <button
+          key={i}
+          type="button"
+          aria-label={`Tới ảnh ${i + 1}`}
+          onClick={() => api?.scrollTo(i)}
+          className={cn(
+            'h-1.5 rounded-full transition-all',
+            i === selected ? 'w-4 bg-snet-purple' : 'w-1.5 bg-foreground/30',
+          )}
+        />
+      ))}
+    </div>
+  );
+});
+CarouselDots.displayName = 'CarouselDots';
+
 export {
   type CarouselApi,
   Carousel,
@@ -257,4 +309,5 @@ export {
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
+  CarouselDots,
 };

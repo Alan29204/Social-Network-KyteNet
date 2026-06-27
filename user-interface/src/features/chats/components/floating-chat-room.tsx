@@ -17,7 +17,7 @@ import {
   ArrowLeft,
   ImageIcon,
   Loader2,
-  Maximize2,
+  Maximize,
   Send,
   Smile,
   X,
@@ -25,7 +25,8 @@ import {
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { socketService } from '@/services/socket.service';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { useToast } from '@/hooks/use-toast';
 import {
   isChatRoomsQueryKey,
@@ -200,8 +201,25 @@ export function FloatingChatRoom({
     : otherUser?.profile_picture_url ||
       otherUser?.avatar ||
       '/default-avatar.png';
+  // Kiểm tra chặn 2 chiều cho cả chat thật lẫn chat ảo (virtualRecipient).
+  const otherUserId = !isGroup
+    ? otherUser?.id || virtualRecipient?.id
+    : undefined;
+  const { data: blockStatus } = useQuery({
+    queryKey: ['block-status', otherUserId],
+    queryFn: async () => {
+      const res = await AXIOS_INSTANCE.get(
+        `/relations/block-status/${otherUserId}`,
+      );
+      const body = res?.data?.data ?? res?.data;
+      return !!body?.is_blocked;
+    },
+    enabled: !!otherUserId,
+  });
+
+  const isBlocked = !!activeRoom?.is_blocked || !!blockStatus;
   const canSend =
-    !activeRoom?.is_blocked &&
+    !isBlocked &&
     (currentMember?.status || '').toLowerCase() !== 'pending';
 
   const latestMineMessage = useMemo(
@@ -527,7 +545,7 @@ export function FloatingChatRoom({
             className="rounded-full p-2 transition-colors hover:bg-secondary"
             title="Mở toàn màn hình"
           >
-            <Maximize2 className="h-4 w-4" />
+            <Maximize className="h-4 w-4" />
           </button>
           <button
             onClick={closeChat}
@@ -716,7 +734,7 @@ export function FloatingChatRoom({
       </div>
 
       <div className="shrink-0 border-t border-border bg-card p-2">
-        {activeRoom?.is_blocked ? (
+        {isBlocked ? (
           <div className="py-2 text-center text-sm text-muted-foreground">
             Bạn không thể nhắn tin với người dùng này.
           </div>

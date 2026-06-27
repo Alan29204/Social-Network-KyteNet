@@ -228,18 +228,8 @@ export class ChatRoomsService {
       .getOne();
 
     if (!room) return null;
-    if (room.type === 'direct') {
-      const otherMember = (room.chat_members || []).find(
-        (member) => member.user_id !== userId,
-      );
-      if (
-        otherMember &&
-        (await this.relationsService.areBlocked(userId, otherMember.user_id))
-      ) {
-        return null;
-      }
-    }
-
+    // Phòng trực tiếp bị chặn: vẫn trả về room view (kèm is_blocked=true) để UI
+    // ẩn ô nhập + hiện thông báo, thay vì biến mất gây lỗi giao diện.
     const [roomView] = await this.buildRoomListItems([room], { id: userId });
     return roomView || null;
   }

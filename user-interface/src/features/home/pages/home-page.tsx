@@ -3,7 +3,7 @@ import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
 import {
   useFeedControllerGetFollowingFeedInfinite,
-  useFeedControllerGetForYouFeedInfinite,
+  useFeedControllerGetExploreFeedInfinite,
 } from '@/services/apis/gen/queries';
 import { useRecommendedFeed } from '@/features/home/hooks/use-recommended-feed';
 import { FeedPostItem } from '@/features/home/components/feed-post-item';
@@ -13,7 +13,7 @@ import { useInView } from 'react-intersection-observer';
 import { Loader2, Compass, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type FeedTab = 'following' | 'foryou' | 'recommended';
+type FeedTab = 'following' | 'explore' | 'recommended';
 
 /** Trích danh sách post từ 1 page (xử lý các kiểu bọc response khác nhau). */
 function extractPosts(page: any): any[] {
@@ -43,12 +43,12 @@ export default function HomePage() {
     },
   );
 
-  // ── For You feed (infinite, theo engagement) ──
-  const forYouQuery = useFeedControllerGetForYouFeedInfinite(
+  // ── Explore feed (Khám phá — infinite, theo engagement) ──
+  const exploreQuery = useFeedControllerGetExploreFeedInfinite(
     { limit: 10 },
     {
       query: {
-        enabled: activeTab === 'foryou',
+        enabled: activeTab === 'explore',
         getNextPageParam: (lastPage: any) => {
           const meta = lastPage.meta || lastPage.data?.meta;
           return meta?.has_more && meta?.next_cursor
@@ -62,7 +62,7 @@ export default function HomePage() {
   // ── Recommended feed (AI cá nhân hóa) ──
   const recommendedQuery = useRecommendedFeed(20, activeTab === 'recommended');
 
-  const infiniteQuery = activeTab === 'foryou' ? forYouQuery : followingQuery;
+  const infiniteQuery = activeTab === 'explore' ? exploreQuery : followingQuery;
   const isInfinite = activeTab !== 'recommended';
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
@@ -115,9 +115,9 @@ export default function HomePage() {
             </span>
           </button>
           <button
-            onClick={() => setActiveTab('foryou')}
+            onClick={() => setActiveTab('explore')}
             className={`relative px-5 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
-              activeTab === 'foryou'
+              activeTab === 'explore'
                 ? 'bg-gradient-to-r from-snet-purple to-snet-blue text-white shadow-lg shadow-snet-purple/20'
                 : 'text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary'
             }`}

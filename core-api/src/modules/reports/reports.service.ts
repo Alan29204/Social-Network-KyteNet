@@ -17,6 +17,7 @@ import { IUser } from '../users/users.interface';
 import { Post } from '../posts/entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { ChatMessage } from '../chats/entities/chat-message.entity';
+import { Comment } from '../posts/comments/entities/comment.entity';
 import { NotificationService } from '../notifications/notifications.service';
 import { RoleType } from 'src/common/enums/role.enum';
 
@@ -31,6 +32,8 @@ export class ReportsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(ChatMessage)
     private readonly _chatMessageRepository: Repository<ChatMessage>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -44,6 +47,9 @@ export class ReportsService {
     if (dto.type === ReportType.MESSAGE && !dto.reported_message_id) {
       throw new BadRequestException('reported_message_id is required when type is message');
     }
+    if (dto.type === ReportType.COMMENT && !dto.reported_comment_id) {
+      throw new BadRequestException('reported_comment_id is required when type is comment');
+    }
 
     try {
       const report = this.reportsRepository.create({
@@ -54,6 +60,7 @@ export class ReportsService {
         reported_post_id: dto.reported_post_id,
         reported_user_id: dto.reported_user_id,
         reported_message_id: dto.reported_message_id,
+        reported_comment_id: dto.reported_comment_id,
         status: ReportStatus.PENDING,
       });
       await this.reportsRepository.save(report);
@@ -149,6 +156,8 @@ export class ReportsService {
       .leftJoinAndSelect('report.reported_message', 'reported_message')
       .leftJoinAndSelect('reported_message.user', 'reported_message_author')
       .leftJoinAndSelect('reported_message.shared_post', 'reported_message_post')
+      .leftJoinAndSelect('report.reported_comment', 'reported_comment')
+      .leftJoinAndSelect('reported_comment.user', 'reported_comment_author')
       .leftJoinAndSelect('report.resolved_by_user', 'resolved_by_user');
   }
 
@@ -175,6 +184,33 @@ export class ReportsService {
             status: ReportStatus.RESOLVED,
             action,
             postId: report.reported_post_id,
+          },
+        );
+      }
+      return;
+    }
+
+    if (action === ReportAction.REMOVE_COMMENT) {
+      if (!report.reported_comment_id || !report.reported_comment) {
+        throw new BadRequestException(
+          'remove_comment requires an available reported comment',
+        );
+      }
+
+      const commentAuthorId = report.reported_comment.user_id;
+      await this.commentRepository.delete(report.reported_comment_id);
+
+      if (commentAuthorId) {
+        await this.notificationService.notifySystemToUser(
+          commentAuthorId,
+          'Bình luận của bạn đã bị gỡ',
+          'Một bình luận của bạn đã bị gỡ vì vi phạm tiêu chuẩn cộng đồng.',
+          {
+            context: 'report_resolution',
+            reportId: report.id,
+            status: ReportStatus.RESOLVED,
+            action,
+            commentId: report.reported_comment_id,
           },
         );
       }
@@ -231,6 +267,7 @@ export class ReportsService {
     if (report.type === ReportType.USER) return report.reported_user_id;
     if (report.type === ReportType.POST) return report.reported_post?.user_id;
     if (report.type === ReportType.MESSAGE) return report.reported_message?.created_by;
+    if (report.type === ReportType.COMMENT) return report.reported_comment?.user_id;
     return null;
   }
 

@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeMediaUrl } from '@/features/profile/components/post-lists/media-grid-utils';
 
 interface SaveListItem {
   id: string;
@@ -51,23 +52,6 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
     },
   });
 
-  // Tóm tắt bộ sưu tập mặc định "Tất cả đã lưu" (cover + tổng số)
-  const { data: allSaved, isLoading: loadingAll } = useQuery({
-    queryKey: ['saved-summary'],
-    queryFn: async () => {
-      const res = await AXIOS_INSTANCE.get('/save-posts/me/list', {
-        params: { page: 1, limit: 1 },
-      });
-      const body = res?.data?.data ?? res?.data;
-      const first = body?.data?.[0];
-      const medias = first?.post?.medias ?? first?.medias ?? [];
-      return {
-        cover: Array.isArray(medias) && medias.length > 0 ? medias[0] : null,
-        count: body?.meta?.total ?? 0,
-      } as { cover: string | null; count: number };
-    },
-  });
-
   const renameMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
       await AXIOS_INSTANCE.put(`/save-lists/${id}`, { name });
@@ -94,7 +78,7 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
       toast({ description: 'Không thể xóa. Thử lại sau.', variant: 'destructive' }),
   });
 
-  const isLoading = loadingLists || loadingAll;
+  const isLoading = loadingLists;
 
   if (isLoading) {
     return (
@@ -108,18 +92,23 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
     );
   }
 
-  const renderCover = (cover?: string | null, label?: string) =>
-    cover ? (
+  const renderCover = (cover?: string | null, label?: string) => {
+    const src = cover ? normalizeMediaUrl(cover) : '';
+    return src ? (
       <img
-        src={cover}
+        src={src}
         alt={label || 'cover'}
         className="absolute inset-0 w-full h-full object-cover"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = 'none';
+        }}
       />
     ) : (
-      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-snet-purple/20 to-snet-pink/20">
         <Bookmark className="w-10 h-10 text-muted-foreground/40" />
       </div>
     );
+  };
 
   return (
     <>
@@ -134,18 +123,6 @@ export function SavedCollections({ userId: _userId }: { userId: string }) {
             Tạo bộ sưu tập mới
           </span>
         </button>
-
-        {/* Bộ sưu tập "Tất cả bài đã lưu" (mặc định) */}
-        <div
-          className="aspect-square rounded-xl overflow-hidden relative group cursor-pointer border"
-          onClick={() => navigate('/saved')}
-        >
-          {renderCover(allSaved?.cover, 'Tất cả')}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-          <div className="absolute bottom-3 left-3 z-20 text-white font-medium">
-            Tất cả ({allSaved?.count || 0})
-          </div>
-        </div>
 
         {/* Các bộ sưu tập của user */}
         {(lists || []).map((list) => (

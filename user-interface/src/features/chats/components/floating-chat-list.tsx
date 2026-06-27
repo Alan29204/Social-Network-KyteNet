@@ -1,7 +1,7 @@
 import { useChatRoomsControllerGetListChatRoom } from '@/services/apis/gen/queries';
 import { useFloatingChatStore } from '@/features/chats/stores/floating-chat-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Maximize2, X } from 'lucide-react';
+import { Loader2, Maximize, X } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
@@ -62,7 +62,7 @@ export function FloatingChatList() {
             className="p-2 hover:bg-secondary rounded-full transition-colors"
             title="Mở toàn màn hình"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize className="w-4 h-4" />
           </button>
           <button
             onClick={closeChat}

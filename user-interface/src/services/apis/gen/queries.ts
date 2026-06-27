@@ -1544,7 +1544,7 @@ cursor?: number;
 limit?: number;
 };
 
-export type FeedControllerGetForYouFeedParams = {
+export type FeedControllerGetExploreFeedParams = {
 cursor?: number;
 limit?: number;
 };
@@ -8156,19 +8156,19 @@ export function useFeedControllerGetFollowingFeed<TData = Awaited<ReturnType<typ
 
 
 
-export type feedControllerGetForYouFeedResponse200 = {
+export type feedControllerGetExploreFeedResponse200 = {
   data: void
   status: 200
 }
 
-export type feedControllerGetForYouFeedResponseSuccess = (feedControllerGetForYouFeedResponse200) & {
+export type feedControllerGetExploreFeedResponseSuccess = (feedControllerGetExploreFeedResponse200) & {
   headers: Headers;
 };
 ;
 
-export type feedControllerGetForYouFeedResponse = (feedControllerGetForYouFeedResponseSuccess)
+export type feedControllerGetExploreFeedResponse = (feedControllerGetExploreFeedResponseSuccess)
 
-export const getFeedControllerGetForYouFeedUrl = (params?: FeedControllerGetForYouFeedParams,) => {
+export const getFeedControllerGetExploreFeedUrl = (params?: FeedControllerGetExploreFeedParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -8180,15 +8180,15 @@ export const getFeedControllerGetForYouFeedUrl = (params?: FeedControllerGetForY
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/feed/foryou?${stringifiedParams}` : `/feed/foryou`
+  return stringifiedParams.length > 0 ? `/feed/explore?${stringifiedParams}` : `/feed/explore`
 }
 
 /**
  * @summary Get For You Feed (ranked by engagement)
  */
-export const feedControllerGetForYouFeed = async (params?: FeedControllerGetForYouFeedParams, options?: RequestInit): Promise<feedControllerGetForYouFeedResponse> => {
+export const feedControllerGetExploreFeed = async (params?: FeedControllerGetExploreFeedParams, options?: RequestInit): Promise<feedControllerGetExploreFeedResponse> => {
 
-  return orvalClient<feedControllerGetForYouFeedResponse>(getFeedControllerGetForYouFeedUrl(params),
+  return orvalClient<feedControllerGetExploreFeedResponse>(getFeedControllerGetExploreFeedUrl(params),
   {
     ...options,
     method: 'GET'
@@ -8201,75 +8201,75 @@ export const feedControllerGetForYouFeed = async (params?: FeedControllerGetForY
 
 
 
-export const getFeedControllerGetForYouFeedInfiniteQueryKey = (params?: FeedControllerGetForYouFeedParams,) => {
+export const getFeedControllerGetExploreFeedInfiniteQueryKey = (params?: FeedControllerGetExploreFeedParams,) => {
     return [
-    'infinite', `/feed/foryou`, ...(params ? [params] : [])
+    'infinite', `/feed/explore`, ...(params ? [params] : [])
     ] as const;
     }
 
-export const getFeedControllerGetForYouFeedQueryKey = (params?: FeedControllerGetForYouFeedParams,) => {
+export const getFeedControllerGetExploreFeedQueryKey = (params?: FeedControllerGetExploreFeedParams,) => {
     return [
-    `/feed/foryou`, ...(params ? [params] : [])
+    `/feed/explore`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getFeedControllerGetForYouFeedInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, FeedControllerGetForYouFeedParams['cursor']>, TError = unknown>(params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
+export const getFeedControllerGetExploreFeedInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, FeedControllerGetExploreFeedParams['cursor']>, TError = unknown>(params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getFeedControllerGetForYouFeedInfiniteQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getFeedControllerGetExploreFeedInfiniteQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, QueryKey, FeedControllerGetForYouFeedParams['cursor']> = ({ signal, pageParam }) => feedControllerGetForYouFeed({...params, 'cursor': pageParam ?? params?.['cursor']}, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, QueryKey, FeedControllerGetExploreFeedParams['cursor']> = ({ signal, pageParam }) => feedControllerGetExploreFeed({...params, 'cursor': pageParam ?? params?.['cursor']}, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type FeedControllerGetForYouFeedInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>>
-export type FeedControllerGetForYouFeedInfiniteQueryError = unknown
+export type FeedControllerGetExploreFeedInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>>
+export type FeedControllerGetExploreFeedInfiniteQueryError = unknown
 
 
-export function useFeedControllerGetForYouFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, FeedControllerGetForYouFeedParams['cursor']>, TError = unknown>(
- params: undefined |  FeedControllerGetForYouFeedParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']>> & Pick<
+export function useFeedControllerGetExploreFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, FeedControllerGetExploreFeedParams['cursor']>, TError = unknown>(
+ params: undefined |  FeedControllerGetExploreFeedParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>,
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>,
           TError,
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, QueryKey
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, QueryKey
         > , 'initialData'
       >, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFeedControllerGetForYouFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, FeedControllerGetForYouFeedParams['cursor']>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']>> & Pick<
+export function useFeedControllerGetExploreFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, FeedControllerGetExploreFeedParams['cursor']>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>,
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>,
           TError,
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, QueryKey
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, QueryKey
         > , 'initialData'
       >, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFeedControllerGetForYouFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, FeedControllerGetForYouFeedParams['cursor']>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
+export function useFeedControllerGetExploreFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, FeedControllerGetExploreFeedParams['cursor']>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Get For You Feed (ranked by engagement)
  */
 
-export function useFeedControllerGetForYouFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, FeedControllerGetForYouFeedParams['cursor']>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData, QueryKey, FeedControllerGetForYouFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
+export function useFeedControllerGetExploreFeedInfinite<TData = InfiniteData<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, FeedControllerGetExploreFeedParams['cursor']>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData, QueryKey, FeedControllerGetExploreFeedParams['cursor']>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getFeedControllerGetForYouFeedInfiniteQueryOptions(params,options)
+  const queryOptions = getFeedControllerGetExploreFeedInfiniteQueryOptions(params,options)
 
   const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -8281,62 +8281,62 @@ export function useFeedControllerGetForYouFeedInfinite<TData = InfiniteData<Awai
 
 
 
-export const getFeedControllerGetForYouFeedQueryOptions = <TData = Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError = unknown>(params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+export const getFeedControllerGetExploreFeedQueryOptions = <TData = Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError = unknown>(params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getFeedControllerGetForYouFeedQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getFeedControllerGetExploreFeedQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>> = ({ signal }) => feedControllerGetForYouFeed(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>> = ({ signal }) => feedControllerGetExploreFeed(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
-export type FeedControllerGetForYouFeedQueryResult = NonNullable<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>>
-export type FeedControllerGetForYouFeedQueryError = unknown
+export type FeedControllerGetExploreFeedQueryResult = NonNullable<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>>
+export type FeedControllerGetExploreFeedQueryError = unknown
 
 
-export function useFeedControllerGetForYouFeed<TData = Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError = unknown>(
- params: undefined |  FeedControllerGetForYouFeedParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData>> & Pick<
+export function useFeedControllerGetExploreFeed<TData = Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError = unknown>(
+ params: undefined |  FeedControllerGetExploreFeedParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>,
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>,
           TError,
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>
         > , 'initialData'
       >, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFeedControllerGetForYouFeed<TData = Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData>> & Pick<
+export function useFeedControllerGetExploreFeed<TData = Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>,
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>,
           TError,
-          Awaited<ReturnType<typeof feedControllerGetForYouFeed>>
+          Awaited<ReturnType<typeof feedControllerGetExploreFeed>>
         > , 'initialData'
       >, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useFeedControllerGetForYouFeed<TData = Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+export function useFeedControllerGetExploreFeed<TData = Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Get For You Feed (ranked by engagement)
  */
 
-export function useFeedControllerGetForYouFeed<TData = Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError = unknown>(
- params?: FeedControllerGetForYouFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetForYouFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
+export function useFeedControllerGetExploreFeed<TData = Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError = unknown>(
+ params?: FeedControllerGetExploreFeedParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof feedControllerGetExploreFeed>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getFeedControllerGetForYouFeedQueryOptions(params,options)
+  const queryOptions = getFeedControllerGetExploreFeedQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
