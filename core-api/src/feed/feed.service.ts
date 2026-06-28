@@ -38,8 +38,10 @@ const EXPLORE_RANKED_TTL = 120;
 const W_ENGAGEMENT = 1;
 const W_TOPIC = 1.2;
 const W_SOCIAL = 1.5;
-/** Random jitter added to the score when reshuffling on explicit refresh */
-const SHUFFLE_JITTER = 0.6;
+/** TTL (seconds) for a user's "seen" set in the Explore feed */
+const SEEN_TTL_SECONDS = 7 * 24 * 3600;
+/** Max number of seen post IDs kept per user (trim oldest beyond this) */
+const SEEN_MAX = 1000;
 
 /** A candidate post in the Explore pool with the signals needed to re-rank it */
 interface ExploreCandidate {
@@ -197,6 +199,19 @@ export class FeedService {
         return { data: [], meta: { next_cursor: null, has_more: false } };
       }
 
+      // Mark these posts as "seen" so future builds push them down / surface fresh.
+      const now = Date.now();
+      await this.redisService.zAdd(
+        `explore:seen:${userId}`,
+        ...pageIds.flatMap((id) => [now, id]),
+      );
+      await this.redisService.expire(`explore:seen:${userId}`, SEEN_TTL_SECONDS);
+      await this.redisService.zRemRangeByRank(
+        `explore:seen:${userId}`,
+        0,
+        -(SEEN_MAX + 1),
+      );
+
       // Hydrate and restore the ranked order (getPostsByIds sorts by created_at).
       const posts = await this.getPostsByIds(pageIds);
       const orderMap = new Map(pageIds.map((id, idx) => [id, idx]));
@@ -227,12 +242,12 @@ export class FeedService {
    * Explore post IDs for a user. Cached at `explore:ranked:{uid}` so pagination
    * is stable and subsequent pages avoid recomputation.
    *
-   * @param opts.shuffle - Add random jitter to reorder near-equal posts (used by
-   *   the explicit "refresh" action). Default ranking stays deterministic.
+   * Seen-tracking: posts the user already viewed are pushed to the bottom
+   * (oldest-seen first) so refresh/scroll surfaces fresh content, while never
+   * leaving the feed empty — once all unseen are exhausted, seen posts recycle.
    */
   private async getPersonalizedExploreRanking(
     userId: string,
-    opts?: { shuffle?: boolean },
   ): Promise<string[]> {
     const cacheKey = `explore:ranked:${userId}`;
     const cached = await this.redisService.get(cacheKey);
@@ -280,34 +295,45 @@ export class FeedService {
     const maxTopic = Math.max(1, ...visible.map(topicRawOf));
     const maxSocial = Math.max(1, ...visible.map((c) => socialMap.get(c.id) || 0));
 
-    const ranked = visible
-      .map((c) => {
-        const engNorm = (c.score - minScore) / engRange;
-        const topicNorm = topicRawOf(c) / maxTopic;
-        const socialNorm = (socialMap.get(c.id) || 0) / maxSocial;
-        const finalScore =
-          W_ENGAGEMENT * engNorm +
-          W_TOPIC * topicNorm +
-          W_SOCIAL * socialNorm +
-          (opts?.shuffle ? Math.random() * SHUFFLE_JITTER : 0);
-        return { c, finalScore };
-      })
-      .sort((a, b) => b.finalScore - a.finalScore || b.c.score - a.c.score);
-
-    // Diversity: cap posts per author near the top, push overflow to the end.
-    const perAuthor = new Map<string, number>();
-    const primary: string[] = [];
-    const overflow: string[] = [];
-    for (const { c } of ranked) {
-      const n = perAuthor.get(c.authorId) || 0;
-      if (n < MAX_POSTS_PER_AUTHOR) {
-        primary.push(c.id);
-        perAuthor.set(c.authorId, n + 1);
-      } else {
-        overflow.push(c.id);
-      }
+    // Điểm cá nhân hóa (tất định) cho từng ứng viên
+    const scoreMap = new Map<string, number>();
+    for (const c of visible) {
+      const engNorm = (c.score - minScore) / engRange;
+      const topicNorm = topicRawOf(c) / maxTopic;
+      const socialNorm = (socialMap.get(c.id) || 0) / maxSocial;
+      scoreMap.set(
+        c.id,
+        W_ENGAGEMENT * engNorm + W_TOPIC * topicNorm + W_SOCIAL * socialNorm,
+      );
     }
-    const rankedIds = [...primary, ...overflow];
+
+    // Seen-tracking: chưa xem lên trước, đã xem (cũ nhất trước) xuống sau.
+    const seenMembers = await this.redisService.zRange(
+      `explore:seen:${userId}`,
+      0,
+      -1,
+    ); // thứ tự cũ -> mới (score = thời điểm xem)
+    const seenOrder = new Map(seenMembers.map((id, idx) => [id, idx]));
+    const seenSet = new Set(seenMembers);
+
+    const unseen = visible.filter((c) => !seenSet.has(c.id));
+    const seen = visible.filter((c) => seenSet.has(c.id));
+
+    // Phần chưa xem: điểm cá nhân hóa giảm dần + đa dạng tác giả
+    unseen.sort(
+      (a, b) =>
+        (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0) ||
+        b.score - a.score,
+    );
+    const unseenRankedIds = this.applyAuthorDiversity(unseen);
+
+    // Phần đã xem: xem lâu nhất trước (đỡ lặp lại ngay)
+    seen.sort(
+      (a, b) => (seenOrder.get(a.id) ?? 0) - (seenOrder.get(b.id) ?? 0),
+    );
+    const seenRankedIds = seen.map((c) => c.id);
+
+    const rankedIds = [...unseenRankedIds, ...seenRankedIds];
 
     await this.redisService.set(
       cacheKey,
@@ -318,13 +344,32 @@ export class FeedService {
   }
 
   /**
+   * Author-diversity pass: keep at most {@link MAX_POSTS_PER_AUTHOR} posts per
+   * author near the top, push the overflow to the end. Input must be pre-sorted.
+   */
+  private applyAuthorDiversity(sorted: ExploreCandidate[]): string[] {
+    const perAuthor = new Map<string, number>();
+    const primary: string[] = [];
+    const overflow: string[] = [];
+    for (const c of sorted) {
+      const n = perAuthor.get(c.authorId) || 0;
+      if (n < MAX_POSTS_PER_AUTHOR) {
+        primary.push(c.id);
+        perAuthor.set(c.authorId, n + 1);
+      } else {
+        overflow.push(c.id);
+      }
+    }
+    return [...primary, ...overflow];
+  }
+
+  /**
    * Force a fresh Explore ordering for a user (FB-style "tap to refresh"):
-   * drops the cached ranking and rebuilds it with light random shuffle so the
-   * order visibly changes. Pagination stays stable within the new session.
+   * drops the cached ranking. The next fetch rebuilds it with seen-tracking, so
+   * already-viewed posts sink and unseen ones surface (deterministic, no random).
    */
   async refreshExploreRanking(userId: string): Promise<{ ok: true }> {
     await this.redisService.del(`explore:ranked:${userId}`);
-    await this.getPersonalizedExploreRanking(userId, { shuffle: true });
     return { ok: true };
   }
 
