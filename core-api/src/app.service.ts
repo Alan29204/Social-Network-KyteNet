@@ -51,7 +51,7 @@ export class AppService {
       history: [],
     });
 
-    const promptBase = `Trong dự án ứng dụng mạng xã hội tên SNet, SNet có các chức 
+    const promptBase = `Trong dự án ứng dụng mạng xã hội tên KyteNet, KyteNet có các chức 
     năng tạo đoạn chat,nhắn tin, theo dõi người dùng khác, hủy theo dõi người dùng
     khác, thông báo, đăng bài, thả cảm xúc, bình luận. Bạn hãy trả lời câu hỏi sau:`;
 

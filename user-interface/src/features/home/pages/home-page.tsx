@@ -9,7 +9,7 @@ import {
 } from '@/services/apis/gen/queries';
 import { FeedPostItem } from '@/features/home/components/feed-post-item';
 import { FeedComposer } from '@/features/home/components/feed-composer';
-import { StoryBar } from '@/features/stories/components/story-bar';
+import { ActiveMutualsBar } from '@/features/home/components/active-mutuals-bar';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInView } from 'react-intersection-observer';
@@ -127,8 +127,8 @@ export default function HomePage() {
     <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
       {/* Center Feed Area */}
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6 px-0 sm:px-0 lg:translate-x-14">
-        {/* Stories Bar */}
-        <StoryBar />
+        {/* Mutual đang online */}
+        <ActiveMutualsBar />
 
         {/* Thanh tạo bài viết */}
         <div className="px-4 sm:px-0">

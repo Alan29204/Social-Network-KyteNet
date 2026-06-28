@@ -592,6 +592,40 @@
         ]
       }
     },
+    "/relations/active-mutuals": {
+      "get": {
+        "operationId": "RelationsController_getActiveMutuals",
+        "summary": "Get mutual-follow users who are currently online",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Relations"
+        ]
+      }
+    },
     "/relations/block": {
       "post": {
         "operationId": "RelationsController_blockUser",
@@ -3677,189 +3711,6 @@
           "Search"
         ]
       }
-    },
-    "/stories": {
-      "post": {
-        "operationId": "StoriesController_create",
-        "summary": "Tạo story (ảnh/video hoặc text)",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "content": {
-                    "type": "string"
-                  },
-                  "background": {
-                    "type": "string"
-                  },
-                  "privacy": {
-                    "type": "string",
-                    "enum": [
-                      "public",
-                      "follower",
-                      "private"
-                    ]
-                  },
-                  "media-story": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Story"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
-    },
-    "/stories/feed": {
-      "get": {
-        "operationId": "StoriesController_getFeed",
-        "summary": "Lấy story của bản thân + người đang follow",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
-    },
-    "/stories/user/{userId}": {
-      "get": {
-        "operationId": "StoriesController_getUserStories",
-        "summary": "Lấy story còn hạn của một user",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Story"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
-    },
-    "/stories/{id}/view": {
-      "post": {
-        "operationId": "StoriesController_markViewed",
-        "summary": "Đánh dấu đã xem story",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
-    },
-    "/stories/{id}/viewers": {
-      "get": {
-        "operationId": "StoriesController_getViewers",
-        "summary": "Lấy danh sách người đã xem (chỉ chủ story)",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
-    },
-    "/stories/{id}": {
-      "delete": {
-        "operationId": "StoriesController_remove",
-        "summary": "Xóa story",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Stories"
-        ]
-      }
     }
   },
   "info": {
@@ -4233,464 +4084,6 @@
           "email",
           "reset_code",
           "new_password"
-        ]
-      },
-      "UserIdDto": {
-        "type": "object",
-        "properties": {
-          "user_id": {
-            "type": "string",
-            "description": "Target user ID"
-          }
-        },
-        "required": [
-          "user_id"
-        ]
-      },
-      "UpdateRelationDto": {
-        "type": "object",
-        "properties": {
-          "user_id": {
-            "type": "string",
-            "example": "123123123123",
-            "description": "ID user other"
-          },
-          "relation": {
-            "enum": [
-              "following",
-              "block",
-              "none",
-              "pending"
-            ],
-            "type": "string",
-            "example": "following"
-          },
-          "action": {
-            "type": "object",
-            "example": "restrict",
-            "description": "Action to perform: restrict, unrestrict"
-          }
-        },
-        "required": [
-          "user_id"
-        ]
-      },
-      "NotificationActorDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "avatar": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "username",
-          "avatar"
-        ]
-      },
-      "NotificationMetadataDto": {
-        "type": "object",
-        "properties": {
-          "actors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationActorDto"
-            }
-          },
-          "thumbnail": {
-            "type": "string",
-            "nullable": true
-          },
-          "reaction": {
-            "type": "string",
-            "nullable": true
-          },
-          "context": {
-            "type": "string",
-            "nullable": true
-          },
-          "postId": {
-            "type": "string",
-            "nullable": true
-          },
-          "commentId": {
-            "type": "string",
-            "nullable": true
-          },
-          "aggregationKey": {
-            "type": "string",
-            "nullable": true
-          },
-          "comment_type": {
-            "type": "string",
-            "nullable": true
-          },
-          "relation_type": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "actors"
-        ]
-      },
-      "NotificationItemDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "notification_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "notification_type": {
-            "enum": [
-              "like",
-              "comment",
-              "follow",
-              "reaction",
-              "follow_request",
-              "system",
-              "mention"
-            ],
-            "type": "string"
-          },
-          "target_type": {
-            "type": "string",
-            "nullable": true
-          },
-          "target_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "is_read": {
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "metadata": {
-            "nullable": true,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NotificationMetadataDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "notification_id",
-          "title",
-          "message",
-          "notification_type",
-          "target_type",
-          "target_id",
-          "is_read",
-          "created_at",
-          "updated_at",
-          "metadata"
-        ]
-      },
-      "NotificationPaginationMetaDto": {
-        "type": "object",
-        "properties": {
-          "total": {
-            "type": "number"
-          },
-          "page": {
-            "type": "number"
-          },
-          "limit": {
-            "type": "number"
-          },
-          "totalPages": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "total",
-          "page",
-          "limit",
-          "totalPages"
-        ]
-      },
-      "NotificationListResponseDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NotificationItemDto"
-            }
-          },
-          "meta": {
-            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
-          }
-        },
-        "required": [
-          "data",
-          "meta"
-        ]
-      },
-      "UnreadCountResponseDto": {
-        "type": "object",
-        "properties": {
-          "unread_count": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "unread_count"
-        ]
-      },
-      "CreateNotiSystemDto": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "example": "Thông báo hệ thống"
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "example": "Hệ thống quá tốt"
-          }
-        },
-        "required": [
-          "title",
-          "message"
-        ]
-      },
-      "DeleteNotificationUserDto": {
-        "type": "object",
-        "properties": {
-          "noti_user_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "noti_user_id"
-        ]
-      },
-      "CreateChatRoomDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "example": "Group Chat"
-          },
-          "members": {
-            "example": [
-              "uuid-1",
-              "uuid-2"
-            ],
-            "description": "List of member IDs to add initially",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "UpdateChatRoomDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "example": "Group Chat"
-          },
-          "avatar-chat-room": {
-            "type": "string",
-            "format": "binary",
-            "description": "File ảnh đại diện phòng chat"
-          },
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      },
-      "UpdatePermissionAddMemberDto": {
-        "type": "object",
-        "properties": {
-          "new_permission_add_member": {
-            "enum": [
-              "admin",
-              "member"
-            ],
-            "type": "string",
-            "example": "member"
-          },
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "new_permission_add_member",
-          "id"
-        ]
-      },
-      "IdDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      },
-      "UpdateChatRoomSettingsDto": {
-        "type": "object",
-        "properties": {
-          "is_muted": {
-            "type": "boolean",
-            "example": true,
-            "description": "Trạng thái tắt thông báo"
-          }
-        },
-        "required": [
-          "is_muted"
-        ]
-      },
-      "UpdateChatRoomEmojiDto": {
-        "type": "object",
-        "properties": {
-          "emoji": {
-            "type": "string",
-            "example": "👍",
-            "description": "Biểu tượng cảm xúc nhanh của phòng chat"
-          }
-        },
-        "required": [
-          "emoji"
-        ]
-      },
-      "RequestJoinChatRoomDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "chat_room_id"
-        ]
-      },
-      "AddMembersDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string",
-            "description": "ID phòng chat"
-          },
-          "user_ids": {
-            "description": "Danh sách các ID người dùng muốn thêm",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "chat_room_id",
-          "user_ids"
-        ]
-      },
-      "RemoveMemberDto": {
-        "type": "object",
-        "properties": {
-          "chat_room_id": {
-            "type": "string",
-            "description": "ID phòng chat"
-          },
-          "target_user_id": {
-            "type": "string",
-            "description": "ID thành viên muốn xóa"
-          }
-        },
-        "required": [
-          "chat_room_id",
-          "target_user_id"
-        ]
-      },
-      "Relation": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "request_side_id": {
-            "type": "string"
-          },
-          "accept_side_id": {
-            "type": "string"
-          },
-          "request_side": {
-            "$ref": "#/components/schemas/User"
-          },
-          "accept_side": {
-            "$ref": "#/components/schemas/User"
-          },
-          "relation_type": {
-            "type": "string",
-            "enum": [
-              "following",
-              "block",
-              "none",
-              "pending"
-            ]
-          },
-          "is_restricted": {
-            "type": "boolean"
-          },
-          "is_mutual": {
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "request_side_id",
-          "accept_side_id",
-          "request_side",
-          "accept_side",
-          "relation_type",
-          "is_restricted",
-          "is_mutual",
-          "created_at"
         ]
       },
       "Notification": {
@@ -5282,13 +4675,13 @@
             }
           },
           "message_status": {
-            "type": "string",
             "enum": [
               "normal",
               "edited",
               "deleted",
               "system"
-            ]
+            ],
+            "type": "string"
           },
           "chat_room": {
             "$ref": "#/components/schemas/ChatRoom"
@@ -5392,6 +4785,110 @@
           "user_id",
           "chat_room",
           "user"
+        ]
+      },
+      "ChatRoom": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "object"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "permission_add_member": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reaction_default": {
+            "type": "string",
+            "enum": [
+              "like",
+              "love",
+              "haha",
+              "wow",
+              "sad",
+              "angry"
+            ]
+          },
+          "quick_emoji": {
+            "type": "string"
+          },
+          "end_to_end_encryption": {
+            "type": "boolean"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "chat_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMember"
+            }
+          },
+          "chat_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
+          },
+          "pin_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinMessage"
+            }
+          },
+          "pin_chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PinChat"
+            }
+          },
+          "waiting_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WaitingMembers"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "avatar",
+          "created_by",
+          "permission_add_member",
+          "created_at",
+          "last_message_at",
+          "reaction_default",
+          "quick_emoji",
+          "end_to_end_encryption",
+          "user",
+          "chat_members",
+          "chat_messages",
+          "pin_messages",
+          "pin_chats",
+          "waiting_members"
         ]
       },
       "User": {
@@ -5621,108 +5118,462 @@
           "waiting_members"
         ]
       },
-      "ChatRoom": {
+      "Relation": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
-          "name": {
+          "request_side_id": {
             "type": "string"
           },
-          "type": {
-            "type": "object"
-          },
-          "avatar": {
+          "accept_side_id": {
             "type": "string"
           },
-          "created_by": {
-            "type": "string"
+          "request_side": {
+            "$ref": "#/components/schemas/User"
           },
-          "permission_add_member": {
+          "accept_side": {
+            "$ref": "#/components/schemas/User"
+          },
+          "relation_type": {
             "type": "string",
             "enum": [
-              "admin",
-              "member"
+              "following",
+              "block",
+              "none",
+              "pending"
             ]
+          },
+          "is_restricted": {
+            "type": "boolean"
+          },
+          "is_mutual": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "request_side_id",
+          "accept_side_id",
+          "request_side",
+          "accept_side",
+          "relation_type",
+          "is_restricted",
+          "is_mutual",
+          "created_at"
+        ]
+      },
+      "UserIdDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "Target user ID"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "UpdateRelationDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "example": "123123123123",
+            "description": "ID user other"
+          },
+          "relation": {
+            "enum": [
+              "following",
+              "block",
+              "none",
+              "pending"
+            ],
+            "type": "string",
+            "example": "following"
+          },
+          "action": {
+            "type": "object",
+            "example": "restrict",
+            "description": "Action to perform: restrict, unrestrict"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "NotificationActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar"
+        ]
+      },
+      "NotificationMetadataDto": {
+        "type": "object",
+        "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationActorDto"
+            }
+          },
+          "thumbnail": {
+            "type": "string",
+            "nullable": true
+          },
+          "reaction": {
+            "type": "string",
+            "nullable": true
+          },
+          "context": {
+            "type": "string",
+            "nullable": true
+          },
+          "postId": {
+            "type": "string",
+            "nullable": true
+          },
+          "commentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "aggregationKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "relation_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "actors"
+        ]
+      },
+      "NotificationItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notification_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "notification_type": {
+            "enum": [
+              "like",
+              "comment",
+              "follow",
+              "reaction",
+              "follow_request",
+              "system",
+              "mention"
+            ],
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_read": {
+            "type": "boolean"
           },
           "created_at": {
             "format": "date-time",
             "type": "string"
           },
-          "last_message_at": {
+          "updated_at": {
             "format": "date-time",
             "type": "string"
           },
-          "reaction_default": {
-            "type": "string",
-            "enum": [
-              "like",
-              "love",
-              "haha",
-              "wow",
-              "sad",
-              "angry"
+          "metadata": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationMetadataDto"
+              }
             ]
-          },
-          "quick_emoji": {
-            "type": "string"
-          },
-          "end_to_end_encryption": {
-            "type": "boolean"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "chat_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMember"
-            }
-          },
-          "chat_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
-            }
-          },
-          "pin_messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinMessage"
-            }
-          },
-          "pin_chats": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PinChat"
-            }
-          },
-          "waiting_members": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WaitingMembers"
-            }
           }
         },
         "required": [
           "id",
-          "name",
-          "type",
-          "avatar",
-          "created_by",
-          "permission_add_member",
+          "notification_id",
+          "title",
+          "message",
+          "notification_type",
+          "target_type",
+          "target_id",
+          "is_read",
           "created_at",
-          "last_message_at",
-          "reaction_default",
-          "quick_emoji",
-          "end_to_end_encryption",
-          "user",
-          "chat_members",
-          "chat_messages",
-          "pin_messages",
-          "pin_chats",
-          "waiting_members"
+          "updated_at",
+          "metadata"
+        ]
+      },
+      "NotificationPaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "NotificationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NotificationPaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "unread_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unread_count"
+        ]
+      },
+      "CreateNotiSystemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "example": "Thông báo hệ thống"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "example": "Hệ thống quá tốt"
+          }
+        },
+        "required": [
+          "title",
+          "message"
+        ]
+      },
+      "DeleteNotificationUserDto": {
+        "type": "object",
+        "properties": {
+          "noti_user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "noti_user_id"
+        ]
+      },
+      "CreateChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "example": "Group Chat"
+          },
+          "members": {
+            "example": [
+              "uuid-1",
+              "uuid-2"
+            ],
+            "description": "List of member IDs to add initially",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "example": "Group Chat"
+          },
+          "avatar-chat-room": {
+            "type": "string",
+            "format": "binary",
+            "description": "File ảnh đại diện phòng chat"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdatePermissionAddMemberDto": {
+        "type": "object",
+        "properties": {
+          "new_permission_add_member": {
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "type": "string",
+            "example": "member"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_permission_add_member",
+          "id"
+        ]
+      },
+      "IdDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "UpdateChatRoomSettingsDto": {
+        "type": "object",
+        "properties": {
+          "is_muted": {
+            "type": "boolean",
+            "example": true,
+            "description": "Trạng thái tắt thông báo"
+          }
+        },
+        "required": [
+          "is_muted"
+        ]
+      },
+      "UpdateChatRoomEmojiDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "example": "👍",
+            "description": "Biểu tượng cảm xúc nhanh của phòng chat"
+          }
+        },
+        "required": [
+          "emoji"
+        ]
+      },
+      "RequestJoinChatRoomDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chat_room_id"
+        ]
+      },
+      "AddMembersDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string",
+            "description": "ID phòng chat"
+          },
+          "user_ids": {
+            "description": "Danh sách các ID người dùng muốn thêm",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "chat_room_id",
+          "user_ids"
+        ]
+      },
+      "RemoveMemberDto": {
+        "type": "object",
+        "properties": {
+          "chat_room_id": {
+            "type": "string",
+            "description": "ID phòng chat"
+          },
+          "target_user_id": {
+            "type": "string",
+            "description": "ID thành viên muốn xóa"
+          }
+        },
+        "required": [
+          "chat_room_id",
+          "target_user_id"
         ]
       },
       "AppResponseSerialization": {
@@ -6178,104 +6029,6 @@
         "required": [
           "type",
           "reason"
-        ]
-      },
-      "Story": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "type": {
-            "enum": [
-              "image",
-              "video",
-              "text"
-            ],
-            "type": "string"
-          },
-          "media_url": {
-            "type": "string"
-          },
-          "content": {
-            "type": "string"
-          },
-          "background": {
-            "type": "string"
-          },
-          "privacy": {
-            "enum": [
-              "public",
-              "follower",
-              "private"
-            ],
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "views": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StoryView"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "user_id",
-          "type",
-          "media_url",
-          "content",
-          "background",
-          "privacy",
-          "created_at",
-          "expires_at",
-          "user",
-          "views"
-        ]
-      },
-      "StoryView": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "story_id": {
-            "type": "string"
-          },
-          "viewer_id": {
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "story": {
-            "$ref": "#/components/schemas/Story"
-          },
-          "viewer": {
-            "$ref": "#/components/schemas/User"
-          }
-        },
-        "required": [
-          "id",
-          "story_id",
-          "viewer_id",
-          "created_at",
-          "story",
-          "viewer"
         ]
       }
     }

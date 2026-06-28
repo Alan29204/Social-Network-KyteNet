@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Users, FileText, UserPlus, AlertTriangle } from 'lucide-react';
 import {
   useAdminPosts,
@@ -12,7 +13,11 @@ import { vi } from 'date-fns/locale';
 const unwrap = (value: any) => value?.data || value;
 
 export default function AdminDashboardPage() {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Cố định mốc 7 ngày để queryKey không đổi mỗi render (tránh refetch loop).
+  const sevenDaysAgo = useMemo(
+    () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
   const { data, isLoading } = useAdminStats();
   const { data: newUsersData, isLoading: isLoadingUsers } = useAdminUsers({
     page: 1,

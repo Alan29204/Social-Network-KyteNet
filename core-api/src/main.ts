@@ -100,7 +100,7 @@ async function bootstrap() {
     JSON.stringify(documentFactory(), null, 2),
   );
 
-  const logger = new Logger('Social-Network-SNET');
+  const logger = new Logger('Social-Network-KyteNet');
   await app.listen(configService.get<string>('PORT'), () => {
     logger.log(
       `Server running on port http://localhost:${configService.get<string>('PORT')}`,

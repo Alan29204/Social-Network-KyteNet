@@ -65,16 +65,16 @@ export class MailService {
 
     const title =
       purpose === 'register'
-        ? 'Xác thực đăng ký tài khoản Snet'
-        : 'Đặt lại mật khẩu Snet';
+        ? 'Xác thực đăng ký tài khoản KyteNet'
+        : 'Đặt lại mật khẩu KyteNet';
     const intro =
       purpose === 'register'
-        ? 'Cảm ơn bạn đã đăng ký Snet. Hãy dùng mã OTP dưới đây để xác thực email của bạn:'
+        ? 'Cảm ơn bạn đã đăng ký KyteNet. Hãy dùng mã OTP dưới đây để xác thực email của bạn:'
         : 'Bạn vừa yêu cầu đặt lại mật khẩu. Hãy dùng mã OTP dưới đây để tiếp tục:';
 
     try {
       await transporter.sendMail({
-        from: `"Snet" <${from}>`,
+        from: `"KyteNet" <${from}>`,
         to,
         subject: `${title} - Mã OTP: ${code}`,
         html: this.buildOtpHtml(title, intro, code),
@@ -91,7 +91,7 @@ export class MailService {
   private buildOtpHtml(title: string, intro: string, code: string): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
-        <h2 style="color: #7c3aed; margin: 0 0 16px;">Snet</h2>
+        <h2 style="color: #7c3aed; margin: 0 0 16px;">KyteNet</h2>
         <h3 style="margin: 0 0 12px;">${title}</h3>
         <p style="color: #444; line-height: 1.5;">${intro}</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; background: #f5f3ff; color: #6d28d9; padding: 16px; border-radius: 8px; margin: 20px 0;">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wind, Video, Image as ImageIcon, Smile } from 'lucide-react';
+import { Wind, Image as ImageIcon, Smile } from 'lucide-react';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { getDisplayName } from '@/utils/user';
@@ -33,7 +33,6 @@ export function FeedComposer() {
 
         {/* Icon gợi ý đính kèm / emoji */}
         <span className="flex items-center gap-2 shrink-0">
-          <Video className="w-5 h-5 text-red-500" />
           <ImageIcon className="w-5 h-5 text-green-500" />
           <Smile className="w-5 h-5 text-amber-500" />
         </span>

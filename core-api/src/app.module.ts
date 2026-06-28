@@ -30,7 +30,6 @@ import { FeedModule } from './feed/feed.module';
 import { MediaModule } from './infra/media/media.module';
 import { SearchModule } from './search/search.module';
 import { ReportsModule } from './modules/reports/reports.module';
-import { StoriesModule } from './modules/stories/stories.module';
 import { MailModule } from './infra/mail/mail.module';
 
 @Module({
@@ -95,7 +94,6 @@ import { MailModule } from './infra/mail/mail.module';
     MediaModule,
     SearchModule,
     ReportsModule,
-    StoriesModule,
     MailModule,
   ],
   controllers: [AppController],
