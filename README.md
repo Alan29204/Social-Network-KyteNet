@@ -1,4 +1,4 @@
-# 🌐 KyteNet
+# 🌐 Social Network KyteNet
 
 KyteNet là hệ thống mạng xã hội web được xây dựng theo mô hình client-server. Hệ thống hỗ trợ các chức năng chính như đăng bài viết, tương tác với bài viết, theo dõi người dùng, nhắn tin thời gian thực, thông báo, tìm kiếm nội dung, quản lý hồ sơ cá nhân và quản trị hệ thống.
 
