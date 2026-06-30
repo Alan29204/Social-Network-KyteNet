@@ -1,1 +1,0 @@
-﻿const { DataSource } = require('typeorm'); const ds = new DataSource({ type: 'postgres', host: 'localhost', port: 5432, username: 'postgres', password: '1', database: 'snet_db' }); ds.initialize().then(() => ds.query('SELECT id, content FROM post LIMIT 10')).then(console.log).then(() => ds.destroy());
