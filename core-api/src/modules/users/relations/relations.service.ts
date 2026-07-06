@@ -875,11 +875,11 @@ export class RelationsService {
     // 2. Lọc người đang online (batch-check Redis)
     const client = this.redisService.getClient();
     const pipeline = client.pipeline();
-    ids.forEach((id) => pipeline.get(`connection_number:${id}`));
+    ids.forEach((id) => pipeline.get(`presence:${id}`));
     const results = await pipeline.exec();
     const onlineIds = ids.filter((_, i) => {
       const val = results?.[i]?.[1] as string | null;
-      return !!val && parseInt(val) > 0;
+      return !!val;
     });
     if (onlineIds.length === 0) return [];
 

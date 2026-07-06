@@ -66,6 +66,9 @@ export const mapApiPostToPostCard = (post: any = {}) => ({
   isLiked: post.isLiked || post.interactions?.is_liked || false,
   isSaved: post.isSaved || post.interactions?.is_saved || false,
   isReposted: post.isReposted || post.interactions?.is_reposted || false,
+  myReaction: post.myReaction ?? post.interactions?.my_reaction ?? null,
+  reactionsBreakdown:
+    post.reactionsBreakdown || post.interactions?.reactionsBreakdown || undefined,
   interactions: post.interactions,
   repostedBy:
     post.reposted_by ||

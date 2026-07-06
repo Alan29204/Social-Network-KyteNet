@@ -1,7 +1,6 @@
 ﻿import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  Heart,
   MessageCircle,
   Bookmark,
   MoreHorizontal,
@@ -31,6 +30,7 @@ import { useFollowAction } from '@/features/profile/hooks/use-follow-action';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
+import { ReactionPicker } from '@/features/posts/components/reaction-picker';
 
 interface PostCardProps {
   post: {
@@ -137,23 +137,25 @@ export function PostCard({
   // Local state for debounced optimistic repost
   const [localReposted, setLocalReposted] = useState(post.isReposted);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount);
-  const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [localLiked, setLocalLiked] = useState(post.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(post.likesCount);
+  const [localReaction, setLocalReaction] = useState<string | null>(
+    (post as any).myReaction ?? (post.isLiked ? 'like' : null),
+  );
   const [localSaved, setLocalSaved] = useState(post.isSaved);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLocalReposted(post.isReposted);
     setLocalRepostsCount(post.repostsCount);
-    setLocalLiked(post.isLiked);
     setLocalLikesCount(post.likesCount);
+    setLocalReaction((post as any).myReaction ?? (post.isLiked ? 'like' : null));
     setLocalSaved(post.isSaved);
   }, [
     post.isReposted,
     post.repostsCount,
     post.isLiked,
+    (post as any).myReaction,
     post.likesCount,
     post.isSaved,
   ]);
@@ -172,19 +174,19 @@ export function PostCard({
     },
   });
 
-  const handleLikePost = () => {
-    // Optimistic UI: Update local state immediately
-    const newStatus = !localLiked;
-    setLocalLiked(newStatus);
-    setLocalLikesCount((prev) =>
-      newStatus ? (prev || 0) + 1 : Math.max(0, (prev || 1) - 1),
-    );
-
-    // Debounce API call: Wait 500ms before sending to server to prevent spam clicks
-    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
-    likeTimerRef.current = setTimeout(() => {
-      reactionMutation.mutate({ postId: displayPost.id, reaction: 'like' });
-    }, 500);
+  // Thả/đổi/gỡ cảm xúc (optimistic). Backend tự toggle nếu chọn lại cùng loại.
+  const handleReact = (type: string) => {
+    const prev = localReaction;
+    if (prev === type) {
+      setLocalReaction(null);
+      setLocalLikesCount((c) => Math.max(0, (c || 0) - 1));
+    } else if (prev == null) {
+      setLocalReaction(type);
+      setLocalLikesCount((c) => (c || 0) + 1);
+    } else {
+      setLocalReaction(type); // đổi loại, tổng không đổi
+    }
+    reactionMutation.mutate({ postId: displayPost.id, reaction: type });
   };
 
   const repostMutation = useMutation({
@@ -344,8 +346,6 @@ export function PostCard({
                   />
                   <AvatarFallback className="bg-muted" />
                 </Avatar>
-                {/* Online indicator (optional - can be dynamic) */}
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full" />
               </div>
             </Link>
             <div className="flex flex-col">
@@ -446,28 +446,14 @@ export function PostCard({
         {/* Actions Row */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-5">
-            <button
-              className="group transition-all"
-              onClick={handleLikePost}
-              aria-label={localLiked ? 'Bỏ thích bài viết' : 'Thích bài viết'}
-            >
-              <div
-                className={`relative transition-all duration-200 ${localLiked ? 'scale-110' : 'group-hover:scale-110'}`}
-              >
-                <Heart
-                  className={`w-5 h-5 transition-all duration-200 ${
-                    localLiked
-                      ? 'fill-red-500 text-red-500 animate-heart-beat'
-                      : 'text-foreground/70 group-hover:text-red-400'
-                  }`}
-                />
-              </div>
-            </button>
+            <ReactionPicker
+              current={localReaction}
+              onReact={handleReact}
+              size="sm"
+            />
             {localLikesCount > 0 && (
               <button
-                className={`-ml-4 text-xs font-semibold hover:underline ${
-                  localLiked ? 'text-red-500' : 'text-foreground/70'
-                }`}
+                className="text-xs font-semibold hover:underline text-foreground/70"
                 onClick={() => setLikesOpen(true)}
               >
                 {localLikesCount}
@@ -517,12 +503,15 @@ export function PostCard({
               </button>
             )}
 
-            <button
-              className="group transition-all"
-              onClick={() => setShareOpen(true)}
-            >
-              <Send className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
-            </button>
+            {/* Ẩn "gửi vào tin nhắn" với bài của tài khoản riêng tư (không phải của mình) */}
+            {(displayPost.user?.privacy !== 'private' || isMyPost) && (
+              <button
+                className="group transition-all"
+                onClick={() => setShareOpen(true)}
+              >
+                <Send className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
+              </button>
+            )}
           </div>
           <button
             className="group transition-all"

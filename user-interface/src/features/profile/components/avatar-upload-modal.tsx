@@ -108,19 +108,19 @@ export function AvatarUploadModal({
       // Đợi tải lại dữ liệu ngầm xong
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['infinite'] }),
-        queryClient.invalidateQueries({ queryKey: ['usersControllerGetProfile'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['usersControllerGetProfile'],
+        }),
         queryClient.invalidateQueries({ queryKey: ['profile'] }),
-        queryClient.invalidateQueries({ queryKey: ['postDetail'] })
+        queryClient.invalidateQueries({ queryKey: ['postDetail'] }),
       ]);
 
       handleClose();
 
       toast({
         title: 'Thành công',
-        description: 'Đã cập nhật ảnh đại diện thành công!',
+        description: 'Đã cập nhật ảnh đại diện!',
       });
-
-
     } catch (error) {
       console.error('Lỗi khi tải ảnh lên:', error);
       toast({
@@ -150,9 +150,11 @@ export function AvatarUploadModal({
       // Đợi tải lại dữ liệu ngầm xong
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['infinite'] }),
-        queryClient.invalidateQueries({ queryKey: ['usersControllerGetProfile'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['usersControllerGetProfile'],
+        }),
         queryClient.invalidateQueries({ queryKey: ['profile'] }),
-        queryClient.invalidateQueries({ queryKey: ['postDetail'] })
+        queryClient.invalidateQueries({ queryKey: ['postDetail'] }),
       ]);
 
       handleClose();
@@ -161,8 +163,6 @@ export function AvatarUploadModal({
         title: 'Thành công',
         description: 'Đã gỡ ảnh đại diện thành công!',
       });
-
-
     } catch (error) {
       console.error('Lỗi khi gỡ ảnh:', error);
       toast({

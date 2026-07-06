@@ -214,7 +214,7 @@ export class ReactionsService {
     user: IUser,
     page: number = 1,
     limit: number = 20,
-    reaction: ReactionType = ReactionType.LIKE,
+    reaction?: ReactionType,
   ) {
     await this.postVisibilityService.assertCanViewPost(postId, user.id);
 
@@ -233,8 +233,12 @@ export class ReactionsService {
       .addSelect('reaction.reaction', 'reaction')
       .addSelect('reaction.created_at', 'reacted_at')
       .where('reaction.post_id = :postId', { postId })
-      .andWhere('reaction.reaction = :reaction', { reaction })
       .andWhere('reaction.is_hidden = false');
+
+    // Chỉ lọc theo loại khi có truyền (bỏ trống = tab "Tất cả").
+    if (reaction) {
+      baseQb.andWhere('reaction.reaction = :reaction', { reaction });
+    }
 
     if (blockedUserIds.length > 0) {
       baseQb.andWhere('reaction.user_id NOT IN (:...blockedUserIds)', {

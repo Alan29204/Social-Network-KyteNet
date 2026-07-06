@@ -39,6 +39,7 @@ import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
 import { PostLikesModal } from '@/features/posts/components/post-likes-modal';
+import { ReactionPicker } from '@/features/posts/components/reaction-picker';
 import {
   isVideoPostMedia,
   normalizePostMediaUrl,
@@ -455,26 +456,39 @@ export function PostDetailModal({
     }, 500);
   }, [flushToggles]);
 
-  const handleLikePost = () => {
+  // Thả/đổi/gỡ cảm xúc (6 loại) cho BÀI VIẾT — optimistic + gọi thẳng /reactions.
+  const handleReactPost = (type: string) => {
     queryClient.setQueryData(['postDetail', initialPost.id], (old: any) => {
       if (!old?.data) return old;
-      const postData = old.data;
-      const isCurrentlyLiked = postData.interactions?.is_liked;
+      const pd = old.data;
+      const prev =
+        pd.interactions?.my_reaction ??
+        (pd.interactions?.is_liked ? 'like' : null);
+      let likes = pd.interactions?.likes || 0;
+      let next: string | null = type;
+      if (prev === type) {
+        next = null;
+        likes = Math.max(0, likes - 1);
+      } else if (prev == null) {
+        likes = likes + 1;
+      }
       return {
         ...old,
         data: {
-          ...postData,
+          ...pd,
           interactions: {
-            ...postData.interactions,
-            is_liked: !isCurrentlyLiked,
-            likes: isCurrentlyLiked
-              ? Math.max(0, (postData.interactions?.likes || 0) - 1)
-              : (postData.interactions?.likes || 0) + 1,
+            ...pd.interactions,
+            my_reaction: next,
+            is_liked: !!next,
+            likes,
           },
-        }
+        },
       };
     });
-    queueToggle(post?.id || initialPost.id, false);
+    reactionMutation.mutate({
+      postId: post?.id || initialPost.id,
+      reaction: type,
+    });
   };
 
   const handleLikeComment = (commentId: string) => {
@@ -837,23 +851,19 @@ export function PostDetailModal({
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
-                <button
-                  className="hover:text-muted-foreground transition-colors"
-                  onClick={handleLikePost}
-                  aria-label={
-                    post?.interactions?.is_liked || initialPost.isLiked
-                      ? 'Bỏ thích bài viết'
-                      : 'Thích bài viết'
+                <ReactionPicker
+                  current={
+                    post?.interactions?.my_reaction ??
+                    (post?.interactions?.is_liked || initialPost.isLiked
+                      ? 'like'
+                      : null)
                   }
-                >
-                  <Heart
-                    className={`w-6 h-6 ${post?.interactions?.is_liked || initialPost.isLiked ? 'fill-red-500 text-red-500' : ''}`}
-                  />
-                </button>
+                  onReact={handleReactPost}
+                />
                 {((post?.interactions?.likes ?? initialPost.likesCount) ||
                   0) > 0 && (
                   <button
-                    className="-ml-5 text-sm font-semibold hover:underline"
+                    className="text-sm font-semibold hover:underline"
                     onClick={() => setLikesOpen(true)}
                   >
                     {(post?.interactions?.likes ?? initialPost.likesCount) || 0}
@@ -897,9 +907,11 @@ export function PostDetailModal({
                     )}
                   </button>
                 )}
-                <button className="hover:text-muted-foreground transition-colors">
-                  <Send className="w-6 h-6" />
-                </button>
+                {displayPost?.user?.privacy !== 'private' && (
+                  <button className="hover:text-muted-foreground transition-colors">
+                    <Send className="w-6 h-6" />
+                  </button>
+                )}
               </div>
               <button className="hover:text-muted-foreground transition-colors">
                 <Bookmark

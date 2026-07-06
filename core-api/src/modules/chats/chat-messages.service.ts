@@ -37,6 +37,57 @@ export class ChatMessagesService {
   ) {}
 
   /**
+   * Chặn chia sẻ bài KHÔNG được phép xem vào tin nhắn (tài khoản/bài
+   * private/follower chưa follow, hoặc bị chặn). Dùng raw query để tránh phụ
+   * thuộc PostsModule (tránh circular DI). Logic khớp với strip lịch sử chat.
+   */
+  private async assertCanShareToMessage(
+    postId: string,
+    userId: string,
+  ): Promise<void> {
+    const rows = await this.dataSource.query(
+      `SELECT p.user_id, p.privacy AS post_privacy, u.privacy AS author_privacy
+       FROM post p JOIN "user" u ON u.id = p.user_id WHERE p.id = $1`,
+      [postId],
+    );
+    if (!rows || rows.length === 0) {
+      throw new NotFoundException('Bài viết không tồn tại');
+    }
+    const { user_id: authorId, post_privacy, author_privacy } = rows[0];
+    if (authorId === userId) return; // bài của chính mình
+
+    const isFollowing = async () => {
+      const r = await this.dataSource.query(
+        `SELECT 1 FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'following' LIMIT 1`,
+        [userId, authorId],
+      );
+      return r && r.length > 0;
+    };
+    const blocked = await this.dataSource.query(
+      `SELECT 1 FROM relation WHERE relation_type = 'block'
+         AND ((request_side_id = $1 AND accept_side_id = $2) OR (request_side_id = $2 AND accept_side_id = $1)) LIMIT 1`,
+      [authorId, userId],
+    );
+    if (blocked && blocked.length > 0) {
+      throw new BadRequestException('Không thể chia sẻ bài viết này');
+    }
+    // Tài khoản private (hoặc follower) chưa follow
+    if (
+      (author_privacy === 'private' || author_privacy === 'follower') &&
+      !(await isFollowing())
+    ) {
+      throw new BadRequestException('Không thể chia sẻ bài viết riêng tư');
+    }
+    // Bài private / follower chưa follow
+    if (post_privacy === 'private') {
+      throw new BadRequestException('Không thể chia sẻ bài viết riêng tư');
+    }
+    if (post_privacy === 'follower' && !(await isFollowing())) {
+      throw new BadRequestException('Không thể chia sẻ bài viết này');
+    }
+  }
+
+  /**
    * Get all member user IDs for a chat room.
    * Used by Gateway to broadcast messages to all members via userId sockets.
    * @param roomId - The chat room ID
@@ -156,6 +207,8 @@ export class ChatMessagesService {
         message.reply_to_id = dto.reply_to_id;
       }
       if (dto.shared_post_id) {
+        // Chặn chia sẻ vào tin nhắn bài KHÔNG được phép xem. Áp cho cả REST lẫn WS.
+        await this.assertCanShareToMessage(dto.shared_post_id, user.id);
         message.shared_post_id = dto.shared_post_id;
       }
 
@@ -282,6 +335,19 @@ export class ChatMessagesService {
                 if (isBlocked && isBlocked.length > 0) {
                   isUnavailable = true;
                   unavailableReason = 'blocked';
+                }
+
+                // 1b. Account-level PRIVATE: bài công khai được share TRƯỚC khi
+                // chủ tài khoản chuyển private -> ẩn với người không theo dõi.
+                if (!isUnavailable && post.user?.privacy === 'private') {
+                  const isFollowingAcc = await this.dataSource.query(
+                    `SELECT id FROM relation WHERE request_side_id = $1 AND accept_side_id = $2 AND relation_type = 'following'`,
+                    [userId, post.user_id],
+                  );
+                  if (!isFollowingAcc || isFollowingAcc.length === 0) {
+                    isUnavailable = true;
+                    unavailableReason = 'private';
+                  }
                 }
 
                 // 2. Check FOLLOWER privacy

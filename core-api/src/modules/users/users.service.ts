@@ -641,9 +641,9 @@ export class UsersService {
       const suggestedWithStatus = await Promise.all(
         suggested.map(async (u) => {
           const redisStatus = await this.redisService.get(
-            `connection_number:${u.id}`,
+            `presence:${u.id}`,
           );
-          const isOnline = !!redisStatus && parseInt(redisStatus) > 0;
+          const isOnline = !!redisStatus;
           return {
             ...u,
             is_online: isOnline,
@@ -713,9 +713,9 @@ export class UsersService {
     const resultsWithStatus = await Promise.all(
       results.map(async (u) => {
         const redisStatus = await this.redisService.get(
-          `connection_number:${u.id}`,
+          `presence:${u.id}`,
         );
-        const isOnline = !!redisStatus && parseInt(redisStatus) > 0;
+        const isOnline = !!redisStatus;
         return {
           id: u.id,
           username: u.username,

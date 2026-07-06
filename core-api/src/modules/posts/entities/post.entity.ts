@@ -34,7 +34,8 @@ export class Post {
   @Column('text', { array: true, default: null })
   medias: string[];
 
-  @Index()
+  // Không dùng @Index btree (vô dụng cho tìm hashtag). Search dùng GIN trigram
+  // trên f_unaccent(lower(array_to_string(hashtags,','))) tạo ở SearchIndexBootstrap.
   @Column('text', { array: true, default: '{}' })
   hashtags: string[];
 

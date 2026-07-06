@@ -120,12 +120,12 @@ export class ChatRoomsService {
       const redisClient = this.redisService.getClient();
       const pipeline = redisClient.pipeline();
       for (const uid of memberIdList) {
-        pipeline.get(`connection_number:${uid}`);
+        pipeline.get(`presence:${uid}`);
       }
       const redisResults = await pipeline.exec();
       memberIdList.forEach((uid, idx) => {
         const val = redisResults?.[idx]?.[1] as string | null;
-        onlineMap.set(uid, !!val && parseInt(val) > 0);
+        onlineMap.set(uid, !!val);
       });
     }
 

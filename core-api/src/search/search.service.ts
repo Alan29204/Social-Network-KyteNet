@@ -11,6 +11,9 @@ import { RedisService } from 'src/infra/redis/redis.service';
 /** TTL (seconds) for cached following/blocked relation ID lists (shared with feed) */
 const RELATION_CACHE_TTL = 60;
 
+/** Bộ lọc phân loại quan hệ cho kết quả tìm kiếm. */
+export type RelationFilter = 'all' | 'friends' | 'following' | 'not_following';
+
 @Injectable()
 export class SearchService {
   /** Memoized: whether the `f_unaccent` helper (unaccent + pg_trgm) is available. */
@@ -106,19 +109,171 @@ export class SearchService {
   }
 
   /**
+   * Lấy id các "bạn bè" (mutual — theo dõi lẫn nhau) của `userId`.
+   * Self-join 2 chiều FOLLOWING (không phụ thuộc cờ is_mutual — vốn có thể chưa
+   * set cho dữ liệu cũ), theo mẫu `RelationsService.getMutualFriends`.
+   */
+  private async getMutualIds(userId: string): Promise<string[]> {
+    const rows = await this.relationRepository
+      .createQueryBuilder('out')
+      .innerJoin(
+        Relation,
+        'inn',
+        'inn.request_side_id = out.accept_side_id AND inn.accept_side_id = out.request_side_id AND inn.relation_type = :ftype',
+        { ftype: RelationType.FOLLOWING },
+      )
+      .where('out.request_side_id = :uid', { uid: userId })
+      .andWhere('out.relation_type = :ftype', { ftype: RelationType.FOLLOWING })
+      .select('out.accept_side_id', 'id')
+      .getRawMany();
+    return [...new Set(rows.map((r) => r.id as string))];
+  }
+
+  /**
+   * Với tập user đích, tính quan hệ so với `me` (2 chiều) trong 1 truy vấn:
+   * `relationStatus` (me → họ), `isFollowing`, `isMutual` (2 chiều FOLLOWING).
+   */
+  private async getRelationInfoMap(
+    me: string,
+    targetIds: string[],
+  ): Promise<
+    Map<
+      string,
+      { relationStatus: RelationType; isFollowing: boolean; isMutual: boolean }
+    >
+  > {
+    const map = new Map<
+      string,
+      { relationStatus: RelationType; isFollowing: boolean; isMutual: boolean }
+    >();
+    const ids = [...new Set(targetIds.filter((id) => id && id !== me))];
+    if (ids.length === 0) return map;
+
+    const rows = await this.relationRepository
+      .createQueryBuilder('r')
+      .select('r.request_side_id', 'request_side_id')
+      .addSelect('r.accept_side_id', 'accept_side_id')
+      .addSelect('r.relation_type', 'relation_type')
+      .where(
+        '(r.request_side_id = :me AND r.accept_side_id IN (:...ids)) OR (r.accept_side_id = :me AND r.request_side_id IN (:...ids))',
+        { me, ids },
+      )
+      .getRawMany();
+
+    const forward = new Map<string, RelationType>(); // me -> họ
+    const backwardFollowing = new Set<string>(); // họ -> me (following)
+    for (const row of rows) {
+      if (row.request_side_id === me) {
+        forward.set(row.accept_side_id, row.relation_type);
+      } else if (
+        row.accept_side_id === me &&
+        row.relation_type === RelationType.FOLLOWING
+      ) {
+        backwardFollowing.add(row.request_side_id);
+      }
+    }
+    for (const id of ids) {
+      const fwd = forward.get(id) ?? RelationType.NONE;
+      const isFollowing = fwd === RelationType.FOLLOWING;
+      map.set(id, {
+        relationStatus: fwd,
+        isFollowing,
+        isMutual: isFollowing && backwardFollowing.has(id),
+      });
+    }
+    return map;
+  }
+
+  /** Gắn quan hệ vào từng user kết quả (relationStatus/isFollowing/isMutual). */
+  private async attachUserRelations<T extends { id: string }>(
+    users: T[],
+    me: string,
+  ): Promise<any[]> {
+    if (users.length === 0) return users;
+    const relMap = await this.getRelationInfoMap(
+      me,
+      users.map((u) => u.id),
+    );
+    return users.map((u) => ({
+      ...u,
+      ...(relMap.get(u.id) ?? {
+        relationStatus: RelationType.NONE,
+        isFollowing: false,
+        isMutual: false,
+      }),
+    }));
+  }
+
+  /** Gắn quan hệ của TÁC GIẢ vào từng post kết quả. */
+  private async attachAuthorRelations(
+    posts: Post[],
+    me: string,
+  ): Promise<any[]> {
+    if (posts.length === 0) return posts;
+    const authorIds = posts
+      .map((p) => p.user?.id)
+      .filter((id): id is string => !!id);
+    const relMap = await this.getRelationInfoMap(me, authorIds);
+    return posts.map((p) => ({
+      ...p,
+      user: p.user
+        ? {
+            ...p.user,
+            ...(relMap.get(p.user.id) ?? {
+              relationStatus: RelationType.NONE,
+              isFollowing: false,
+              isMutual: false,
+            }),
+          }
+        : p.user,
+    }));
+  }
+
+  /**
    * SQL khớp hashtag kiểu chuỗi con (substring), không dấu khi `ready`.
-   * Dùng tham số `:hashtagLike` (pattern `%term%`) tạo bởi {@link buildHashtagLike}.
+   * Khớp trên chuỗi nối `array_to_string(hashtags, ',')` để DÙNG ĐƯỢC GIN trigram
+   * index (`idx_post_hashtags_trgm`). Dùng tham số `:hashtagLike` (`%term%`).
    */
   private getHashtagMatchSql(ready: boolean): string {
-    const left = ready ? 'f_unaccent(lower(tag.value))' : 'lower(tag.value)';
+    // ready: dùng đúng biểu thức của index idx_post_hashtags_trgm.
+    const left = ready
+      ? 'f_unaccent(lower(imm_array_join(post.hashtags)))'
+      : "lower(array_to_string(post.hashtags, ','))";
     const right = ready ? 'f_unaccent(:hashtagLike)' : ':hashtagLike';
-    return `
-      EXISTS (
-        SELECT 1
-        FROM unnest(post.hashtags) AS tag(value)
-        WHERE ${left} ILIKE ${right}
-      )
-    `;
+    return `${left} ILIKE ${right}`;
+  }
+
+  /**
+   * Áp bộ lọc theo quan hệ (server-side) lên cột `<column>` (user.id hoặc
+   * post.user_id). `all` = không lọc. Trả về true nếu đã thêm điều kiện "rỗng"
+   * (không có kết quả) để caller có thể short-circuit nếu muốn.
+   */
+  private async applyRelationFilter(
+    qb: SelectQueryBuilder<any>,
+    relation: RelationFilter | undefined,
+    userId: string,
+    column: string,
+    followingIdsCached?: string[],
+  ): Promise<void> {
+    if (!relation || relation === 'all') return;
+
+    if (relation === 'friends') {
+      const mutualIds = await this.getMutualIds(userId);
+      if (mutualIds.length === 0) qb.andWhere('1 = 0');
+      else qb.andWhere(`${column} IN (:...mutualIds)`, { mutualIds });
+      return;
+    }
+
+    const followingIds = followingIdsCached ?? (await this.getFollowingIds(userId));
+    if (relation === 'following') {
+      if (followingIds.length === 0) qb.andWhere('1 = 0');
+      else qb.andWhere(`${column} IN (:...relFollowingIds)`, { relFollowingIds: followingIds });
+    } else if (relation === 'not_following') {
+      qb.andWhere(`${column} != :relMe`, { relMe: userId });
+      if (followingIds.length > 0) {
+        qb.andWhere(`${column} NOT IN (:...relFollowingIds)`, { relFollowingIds: followingIds });
+      }
+    }
   }
 
   /** Dựng pattern ILIKE cho hashtag (bỏ #, bỏ dấu cách, escape ký tự đặc biệt). */
@@ -178,6 +333,7 @@ export class SearchService {
     page: number = 1,
     limit: number = 10,
     userId?: string,
+    relation: RelationFilter = 'all',
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -204,6 +360,13 @@ export class SearchService {
         qb.andWhere('user.id NOT IN (:...blocked)', { blocked: blockedIds });
       }
 
+      // Loại chính mình khỏi kết quả tìm người.
+      if (userId) {
+        qb.andWhere('user.id != :selfId', { selfId: userId });
+        // Bộ lọc phân loại quan hệ (server-side).
+        await this.applyRelationFilter(qb, relation, userId, 'user.id');
+      }
+
       const [users, total] = await qb
         .select([
           'user.id',
@@ -220,8 +383,13 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
+      // Gắn quan hệ (relationStatus / isFollowing / isMutual) cho từng user.
+      const data = userId
+        ? await this.attachUserRelations(users, userId)
+        : users;
+
       return {
-        data: users,
+        data,
         meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
       };
     } catch (error) {
@@ -240,6 +408,7 @@ export class SearchService {
     userId: string,
     page: number = 1,
     limit: number = 10,
+    relation: RelationFilter = 'all',
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -276,6 +445,14 @@ export class SearchService {
         .setParameter('term', term);
 
       this.applyPostSearchVisibility(idQb, userId, blockedIds, followingIds);
+      // Bộ lọc phân loại theo TÁC GIẢ (tái dùng followingIds đã lấy).
+      await this.applyRelationFilter(
+        idQb,
+        relation,
+        userId,
+        'post.user_id',
+        followingIds,
+      );
 
       const total = await idQb.getCount();
 
@@ -301,9 +478,10 @@ export class SearchService {
         relations: ['user'],
       });
       const ordered = this.sortByPostIds(posts, ids);
+      const data = await this.attachAuthorRelations(ordered, userId);
 
       return {
-        data: ordered,
+        data,
         meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
       };
     } catch (error) {
@@ -318,6 +496,7 @@ export class SearchService {
     userId: string,
     page: number = 1,
     limit: number = 10,
+    relation: RelationFilter = 'all',
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -341,6 +520,13 @@ export class SearchService {
         .andWhere('post.shared_post_id IS NULL');
 
       this.applyPostSearchVisibility(qb, userId, blockedIds, followingIds);
+      await this.applyRelationFilter(
+        qb,
+        relation,
+        userId,
+        'post.user_id',
+        followingIds,
+      );
 
       const [posts, total] = await qb
         .orderBy('post.created_at', 'DESC')
@@ -348,8 +534,10 @@ export class SearchService {
         .take(limit)
         .getManyAndCount();
 
+      const data = await this.attachAuthorRelations(posts, userId);
+
       return {
-        data: posts,
+        data,
         meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
       };
     } catch (error) {

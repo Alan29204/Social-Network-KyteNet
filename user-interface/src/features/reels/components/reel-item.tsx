@@ -380,14 +380,16 @@ export function ReelItem({
           </button>
         )}
 
-        <button
-          onClick={() => onShare(reel)}
-          className="flex flex-col items-center gap-1"
-        >
-          <div className={chip}>
-            <Send className="w-6 h-6" />
-          </div>
-        </button>
+        {(reel.user?.privacy !== 'private' || isMe) && (
+          <button
+            onClick={() => onShare(reel)}
+            className="flex flex-col items-center gap-1"
+          >
+            <div className={chip}>
+              <Send className="w-6 h-6" />
+            </div>
+          </button>
+        )}
 
         <button
           onClick={() => {

@@ -12,6 +12,22 @@ import { io, Socket } from 'socket.io-client';
 class SocketService {
   private socket: Socket | null = null;
   private readonly URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly HEARTBEAT_MS = 30_000;
+
+  /** Gửi heartbeat định kỳ để server gia hạn presence key (giữ online). */
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.socket?.connected) this.socket.emit('heartbeat');
+    }, this.HEARTBEAT_MS);
+  }
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
 
   /** Connect to WebSocket server with authentication token */
   connect(token: string) {
@@ -30,10 +46,13 @@ class SocketService {
 
       this.socket.on('connect', () => {
         console.log('Socket connected:', this.socket?.id);
+        this.socket?.emit('heartbeat');
+        this.startHeartbeat();
       });
 
       this.socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
+        this.stopHeartbeat();
       });
 
       this.socket.on('reconnect', (attemptNumber: number) => {
@@ -48,6 +67,7 @@ class SocketService {
 
   /** Disconnect from WebSocket server */
   disconnect() {
+    this.stopHeartbeat();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;

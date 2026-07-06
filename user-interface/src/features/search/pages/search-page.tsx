@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { keepPreviousData } from '@tanstack/react-query';
 import { Search, X, Loader2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PostCard } from '@/features/home/components/post-card';
@@ -14,6 +15,14 @@ import {
 } from '@/services/apis/gen/queries';
 
 type TabValue = 'all' | 'users' | 'posts' | 'hashtag';
+type RelationFilter = 'all' | 'friends' | 'following' | 'not_following';
+
+const RELATION_CHIPS: { value: RelationFilter; label: string }[] = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'friends', label: 'Bạn bè' },
+  { value: 'following', label: 'Đang theo dõi' },
+  { value: 'not_following', label: 'Chưa theo dõi' },
+];
 
 /** Chuẩn hóa response orval (mọi cấp data) về một mảng. */
 function extractArray(res: any): any[] {
@@ -31,7 +40,10 @@ function mapPost(post: any) {
     user: {
       id: post.user?.id || '',
       username: post.user?.username || 'User',
+      full_name: post.user?.full_name,
       avatarUrl: post.user?.avatar || post.user?.profilePicture || '',
+      relationStatus: post.user?.relationStatus,
+      isFollowing: post.user?.isFollowing,
     },
     createdAt: post.created_at || post.createdAt || new Date().toISOString(),
     images: post.medias || post.mediaUrls || [],
@@ -99,26 +111,28 @@ export default function SearchPage() {
   }, [debouncedQ, addHistory]);
 
   const hasQuery = debouncedQ.length > 0;
-  const enabled = (active: boolean) => ({
-    query: { enabled: hasQuery && active },
+  const [relationFilter, setRelationFilter] = useState<RelationFilter>('all');
+  // placeholderData: giữ kết quả cũ khi đổi query key (đổi hashtag/filter) -> hết nhấp nháy.
+  const queryOpts = (active: boolean) => ({
+    query: { enabled: hasQuery && active, placeholderData: keepPreviousData },
   });
 
   // ── Queries (chỉ chạy khi tab tương ứng được chọn) ──
   const allQuery = useSearchControllerSearchAll(
     { q: debouncedQ },
-    enabled(tab === 'all'),
+    queryOpts(tab === 'all'),
   );
   const usersQuery = useSearchControllerSearchUsers(
-    { q: debouncedQ },
-    enabled(tab === 'users'),
+    { q: debouncedQ, relation: relationFilter } as any,
+    queryOpts(tab === 'users'),
   );
   const postsQuery = useSearchControllerSearchPosts(
-    { q: debouncedQ },
-    enabled(tab === 'posts'),
+    { q: debouncedQ, relation: relationFilter } as any,
+    queryOpts(tab === 'posts'),
   );
   const hashtagQuery = useSearchControllerSearchByHashtag(
     { tag: debouncedQ },
-    enabled(tab === 'hashtag'),
+    queryOpts(tab === 'hashtag'),
   );
 
   // ── Dữ liệu đã chuẩn hóa ──
@@ -178,7 +192,25 @@ export default function SearchPage() {
   const renderPostList = (list: any[]) => (
     <div className="flex flex-col items-center">
       {list.map((p: any) => (
-        <PostCard key={p.id} post={mapPost(p)} />
+        <PostCard key={p.id} post={mapPost(p)} showFollowButton />
+      ))}
+    </div>
+  );
+
+  const renderRelationChips = () => (
+    <div className="flex gap-2 flex-wrap mb-3 px-1">
+      {RELATION_CHIPS.map((c) => (
+        <button
+          key={c.value}
+          onClick={() => setRelationFilter(c.value)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+            relationFilter === c.value
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-border text-muted-foreground hover:bg-secondary'
+          }`}
+        >
+          {c.label}
+        </button>
       ))}
     </div>
   );
@@ -256,6 +288,7 @@ export default function SearchPage() {
 
             {/* Tab Mọi người */}
             <TabsContent value="users" className="mt-4">
+              {renderRelationChips()}
               {usersQuery.isLoading
                 ? renderLoader()
                 : users.length === 0
@@ -265,6 +298,7 @@ export default function SearchPage() {
 
             {/* Tab Bài viết */}
             <TabsContent value="posts" className="mt-4">
+              {renderRelationChips()}
               {postsQuery.isLoading
                 ? renderLoader()
                 : posts.length === 0

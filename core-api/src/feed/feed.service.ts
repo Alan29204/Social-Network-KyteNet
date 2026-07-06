@@ -7,6 +7,7 @@ import { Reaction } from 'src/modules/posts/reactions/entities/reaction.entity';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { RelationType } from 'src/common/enums/relation.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
+import { computeReactionStats } from 'src/common/utils/reaction-stats';
 
 /*Số lượng bài viết tối đa trong feed */
 const MAX_FEED_SIZE = 500;
@@ -987,6 +988,10 @@ export class FeedService {
       const actualPostId = post.shared_post ? post.shared_post.id : post.id;
       const is_reposted = userRepostedSet.has(actualPostId);
       const repostsCount = repostsCountMap.get(actualPostId) || 0;
+      const rstats = computeReactionStats(
+        post.shared_post ? post.shared_post.reactions : post.reactions,
+        userId,
+      );
 
       return {
         ...post,
@@ -1003,22 +1008,14 @@ export class FeedService {
           : post.shared_post,
         reposted_by: (post as any).reposted_by,
         interactions: {
-          likes:
-            (post.shared_post
-              ? post.shared_post.reactions
-              : post.reactions
-            )?.filter((r: any) => r.reaction === 'like').length || 0,
+          likes: rstats.total, // tổng mọi loại cảm xúc
+          reactionsBreakdown: rstats.breakdown,
+          my_reaction: rstats.myReaction,
           comments:
             (post.shared_post ? post.shared_post.comments : post.comments)
               ?.length || 0,
           reposts: repostsCount,
-          is_liked:
-            (post.shared_post
-              ? post.shared_post.reactions
-              : post.reactions
-            )?.some(
-              (r: any) => r.user_id === userId && r.reaction === 'like',
-            ) || false,
+          is_liked: !!rstats.myReaction,
           is_reposted: is_reposted,
         },
       };

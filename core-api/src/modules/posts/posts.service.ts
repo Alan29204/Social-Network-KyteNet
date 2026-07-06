@@ -25,6 +25,7 @@ import {
   extractHashtagsFromContent,
   normalizePostHashtags,
 } from 'src/common/utils/searchableText';
+import { computeReactionStats } from 'src/common/utils/reaction-stats';
 import { PostVisibilityService } from './post-visibility.service';
 import { SavePostsService } from './bookmarks/save-posts/save-posts.service';
 
@@ -148,9 +149,8 @@ export class PostsService {
             },
           })),
           interactions: {
-            likes:
-              postDb.reactions?.filter((r) => r.reaction === 'like').length ||
-              0,
+            likes: computeReactionStats(postDb.reactions).total,
+            reactionsBreakdown: computeReactionStats(postDb.reactions).breakdown,
             comments: postDb.comments?.length || 0,
             reposts: await this.repository.count({
               where: { shared_post_id: id },
@@ -169,13 +169,14 @@ export class PostsService {
 
       this.sortCommentsForDisplay(postData);
 
-      // Calculate is_liked runtime (after cache retrieval)
+      // Calculate reaction stats runtime (after cache retrieval, per-user).
       if (currentUser) {
         postData.interactions = postData.interactions || {};
-        postData.interactions.is_liked =
-          postData.reactions?.some(
-            (r: any) => r.user_id === currentUser.id && r.reaction === 'like',
-          ) || false;
+        const myRs = computeReactionStats(postData.reactions, currentUser.id);
+        postData.interactions.likes = myRs.total;
+        postData.interactions.reactionsBreakdown = myRs.breakdown;
+        postData.interactions.my_reaction = myRs.myReaction;
+        postData.interactions.is_liked = !!myRs.myReaction;
 
         postData.interactions.is_reposted = !!(await this.repository.findOne({
           where: { user_id: currentUser.id, shared_post_id: id },
@@ -563,23 +564,19 @@ export class PostsService {
 
       const data = posts.map((post) => {
         // Absolute Override: bỏ qua reaction/comment bị ẩn do chặn
-        const visibleReactions = (post.reactions || []).filter(
-          (r) => !r.is_hidden,
-        );
         const visibleComments = (post.comments || []).filter(
           (c) => !c.is_hidden,
         );
+        const rstats = computeReactionStats(post.reactions, currentUser?.id);
         return {
           ...post,
           interactions: {
-            likes:
-              visibleReactions.filter((r) => r.reaction === 'like').length || 0,
+            likes: rstats.total, // tổng mọi loại cảm xúc
+            reactionsBreakdown: rstats.breakdown,
+            my_reaction: rstats.myReaction,
             comments: visibleComments.length || 0,
             reposts: repostCountsMap[post.shared_post_id || post.id] || 0,
-            is_liked:
-              visibleReactions.some(
-                (r) => r.user_id === currentUser?.id && r.reaction === 'like',
-              ) || false,
+            is_liked: !!rstats.myReaction,
             is_reposted:
               userRepostsMap[post.shared_post_id || post.id] || false,
             is_saved: savedSet.has(post.shared_post_id || post.id) || false,

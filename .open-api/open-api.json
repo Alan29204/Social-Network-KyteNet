@@ -3234,7 +3234,42 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Toggle reaction result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "reaction": {
+                          "type": "string",
+                          "enum": [
+                            "like",
+                            "love",
+                            "haha",
+                            "wow",
+                            "sad",
+                            "angry"
+                          ],
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3258,7 +3293,37 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Reaction breakdown for a post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "breakdown": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "Đếm theo loại, vd { like: 10, love: 3, haha: 1 }"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3299,6 +3364,7 @@
             "name": "reaction",
             "required": false,
             "in": "query",
+            "description": "Lọc theo 1 loại; bỏ trống = tab \"Tất cả\" (mọi loại)",
             "schema": {
               "enum": [
                 "like",
@@ -3825,7 +3891,151 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "users": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string"
+                              },
+                              "full_name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "privacy": {
+                                "type": "string",
+                                "enum": [
+                                  "public",
+                                  "private",
+                                  "follower"
+                                ]
+                              },
+                              "relationStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "none",
+                                  "following",
+                                  "pending",
+                                  "block"
+                                ]
+                              },
+                              "isFollowing": {
+                                "type": "boolean"
+                              },
+                              "isMutual": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        },
+                        "posts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "content": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "medias": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "hashtags": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "privacy": {
+                                "type": "string"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "username": {
+                                    "type": "string"
+                                  },
+                                  "full_name": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatar": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "privacy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "private",
+                                      "follower"
+                                    ]
+                                  },
+                                  "relationStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "following",
+                                      "pending",
+                                      "block"
+                                    ]
+                                  },
+                                  "isFollowing": {
+                                    "type": "boolean"
+                                  },
+                                  "isMutual": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3836,7 +4046,7 @@
     "/search/users": {
       "get": {
         "operationId": "SearchController_searchUsers",
-        "summary": "Search users by username/email",
+        "summary": "Search users by username/full name",
         "parameters": [
           {
             "name": "q",
@@ -3861,11 +4071,109 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "relation",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo quan hệ: all | friends | following | not_following",
+            "schema": {
+              "enum": [
+                "all",
+                "friends",
+                "following",
+                "not_following"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string"
+                              },
+                              "full_name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "privacy": {
+                                "type": "string",
+                                "enum": [
+                                  "public",
+                                  "private",
+                                  "follower"
+                                ]
+                              },
+                              "relationStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "none",
+                                  "following",
+                                  "pending",
+                                  "block"
+                                ]
+                              },
+                              "isFollowing": {
+                                "type": "boolean"
+                              },
+                              "isMutual": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": {
+                            "page": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "total_pages": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3901,11 +4209,141 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "relation",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo quan hệ TÁC GIẢ: all | friends | following | not_following",
+            "schema": {
+              "enum": [
+                "all",
+                "friends",
+                "following",
+                "not_following"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "content": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "medias": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "hashtags": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "privacy": {
+                                "type": "string"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "username": {
+                                    "type": "string"
+                                  },
+                                  "full_name": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatar": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "privacy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "private",
+                                      "follower"
+                                    ]
+                                  },
+                                  "relationStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "following",
+                                      "pending",
+                                      "block"
+                                    ]
+                                  },
+                                  "isFollowing": {
+                                    "type": "boolean"
+                                  },
+                                  "isMutual": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": {
+                            "page": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "total_pages": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3941,11 +4379,141 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "relation",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo quan hệ TÁC GIẢ: all | friends | following | not_following",
+            "schema": {
+              "enum": [
+                "all",
+                "friends",
+                "following",
+                "not_following"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statusCode": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "content": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "medias": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "hashtags": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "privacy": {
+                                "type": "string"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "username": {
+                                    "type": "string"
+                                  },
+                                  "full_name": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "avatar": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "privacy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "private",
+                                      "follower"
+                                    ]
+                                  },
+                                  "relationStatus": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "following",
+                                      "pending",
+                                      "block"
+                                    ]
+                                  },
+                                  "isFollowing": {
+                                    "type": "boolean"
+                                  },
+                                  "isMutual": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": {
+                            "page": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            },
+                            "total_pages": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [

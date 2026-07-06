@@ -49,12 +49,12 @@ export class NotiSystemProcessor extends WorkerHost {
         notificationUser.user_id = user.id;
         notificationUser.is_sent = false;
 
-        // Check user status
+        // Check user status (presence key có TTL)
         const userStatus = await this.redisService.get(
-          `connection_number:${user.id}`,
+          `presence:${user.id}`,
         );
 
-        if (!userStatus || parseInt(userStatus) <= 0) {
+        if (!userStatus) {
           notificationUser.is_sent = false;
         } else {
           notificationUser.is_sent = true;

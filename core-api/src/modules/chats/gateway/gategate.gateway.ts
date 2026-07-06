@@ -18,6 +18,9 @@ import { WsAuthMiddleware } from './ws-auth.middleware';
 import { INotiUser } from 'src/modules/notifications/notification.interface';
 import { ChatMessagesService } from 'src/modules/chats/chat-messages.service';
 
+/** TTL (giây) cho presence key; client heartbeat mỗi ~30s để gia hạn. */
+const PRESENCE_TTL = 60;
+
 /**
  * WebSocket Gateway — Real-time messaging hub.
  *
@@ -68,7 +71,14 @@ export class GatewayGateway
     const userId = socket.data.user.id;
     // Join personal room keyed by userId — this is the broadcast target
     socket.join(userId);
-    await this.redisService.incr(`connection_number:${userId}`);
+    // Presence key có TTL: tự hết hạn khi client chết/mất mạng/server restart
+    // (không còn dựa vào bộ đếm dễ kẹt). Được heartbeat gia hạn định kỳ.
+    await this.redisService.set(
+      `presence:${userId}`,
+      Date.now().toString(),
+      PRESENCE_TTL,
+    );
+    await this.usersRepository.update(userId, { last_active: new Date() });
 
     // Broadcast user online status to all connected clients
     this.server.emit('userStatusChanged', {
@@ -77,31 +87,32 @@ export class GatewayGateway
     });
   }
 
+  /** Client gửi định kỳ (~30s) để gia hạn presence key (giữ trạng thái online). */
+  @SubscribeMessage('heartbeat')
+  async handleHeartbeat(@ConnectedSocket() socket: Socket) {
+    const userId = socket.data?.user?.id;
+    if (!userId) return;
+    await this.redisService.set(
+      `presence:${userId}`,
+      Date.now().toString(),
+      PRESENCE_TTL,
+    );
+  }
+
   /**
    * Handle socket disconnection.
-   * Decrements connection counter; if last connection, marks user offline.
+   * Nếu KHÔNG còn socket/tab nào khác của user -> đánh dấu offline ngay + last_active.
+   * Nếu còn -> giữ online (presence do heartbeat gia hạn). TTL là lưới an toàn.
    */
   async handleDisconnect(@ConnectedSocket() socket: Socket) {
     const userId = socket.data.user.id;
-    const connectionNumber = await this.redisService.get(
-      `connection_number:${userId}`,
-    );
+    // Ở event 'disconnect', socket đã rời room; loại phòng hờ chính nó.
+    const sockets = await this.server.in(userId).allSockets();
+    const remaining = [...sockets].filter((id) => id !== socket.id);
 
-    let isOffline = false;
-    if (!connectionNumber || parseInt(connectionNumber) <= 1) {
-      await this.redisService.del(`connection_number:${userId}`);
-      isOffline = true;
-
-      // Update last_active timestamp in database
-      const now = new Date();
-      await this.usersRepository.update(userId, {
-        last_active: now,
-      });
-    } else {
-      await this.redisService.decr(`connection_number:${userId}`);
-    }
-
-    if (isOffline) {
+    if (remaining.length === 0) {
+      await this.redisService.del(`presence:${userId}`);
+      await this.usersRepository.update(userId, { last_active: new Date() });
       this.server.emit('userStatusChanged', {
         user_id: userId,
         is_online: false,
