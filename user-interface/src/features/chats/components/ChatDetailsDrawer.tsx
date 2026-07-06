@@ -1,28 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Bell, 
-  BellOff, 
-  Users, 
-  Smile, 
-  ShieldAlert, 
-  Ban, 
-  Trash2, 
-  ChevronDown, 
-  ChevronUp, 
+import {
+  Bell,
+  BellOff,
+  Users,
+  Smile,
+  ShieldAlert,
+  Ban,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Unlock,
   MoreHorizontal,
   Camera,
   Crown,
-  Pencil
+  Pencil,
+  UserPlus,
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -45,9 +55,11 @@ import {
   getChatRoomsControllerGetListChatRoomQueryKey,
   useChatMembersControllerLeaveRoom,
   useRelationsControllerGetRelation,
+  useChatRoomsControllerUpdatePermissionAddMember,
 } from '@/services/apis/gen/queries';
 import { useBlockUser } from '@/features/profile/hooks/use-block-user';
 import { useChatMembersControllerRemoveMember } from '@/services/apis/gen/queries';
+import { AddMembersModal } from './AddMembersModal';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
@@ -56,6 +68,11 @@ import {
   removeChatRoomFromCaches,
   upsertChatRoomInCaches,
 } from '../utils/chat-room-cache';
+import {
+  getDisplayName,
+  getGroupAvatarUrl,
+  getUserAvatarUrl,
+} from '@/utils/user';
 
 interface ChatDetailsDrawerProps {
   roomId: string;
@@ -64,9 +81,25 @@ interface ChatDetailsDrawerProps {
   onClose?: () => void;
 }
 
-const COMMON_EMOJIS = ['👍', '❤️', '😂', '🔥', '😍', '😢', '🙌', '👏', '🎉', '🌟'];
+const COMMON_EMOJIS = [
+  '👍',
+  '❤️',
+  '😂',
+  '🔥',
+  '😍',
+  '😢',
+  '🙌',
+  '👏',
+  '🎉',
+  '🌟',
+];
 
-export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onClose }: ChatDetailsDrawerProps) {
+export default function ChatDetailsDrawer({
+  roomId,
+  activeRoom,
+  currentUser,
+  onClose,
+}: ChatDetailsDrawerProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -80,6 +113,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   const leaveRoomMutation = useChatMembersControllerLeaveRoom();
   const updateRelationMutation = useRelationsControllerUpdateRelation();
   const removeMemberMutation = useChatMembersControllerRemoveMember();
+  const updatePermissionMutation =
+    useChatRoomsControllerUpdatePermissionAddMember();
   const promoteAdminMutation = useMutation({
     mutationFn: async (targetId: string) => {
       const res = await AXIOS_INSTANCE.patch('/chat-members/promote-admin', {
@@ -87,7 +122,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
         target_user_id: targetId,
       });
       return res.data;
-    }
+    },
   });
   const { blockMutation, unblockMutation } = useBlockUser();
 
@@ -102,19 +137,61 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const isDirect = activeRoom?.type === 'direct';
-  const currentUserRole = activeRoom?.members?.find((m: any) => m.id === currentUser?.id)?.member_type;
-  const isCurrentUserAdmin = !isDirect && (currentUserRole === 'ADMIN' || currentUserRole === 'admin');
+  const currentUserRole = activeRoom?.members?.find(
+    (m: any) => m.id === currentUser?.id,
+  )?.member_type;
+  const isCurrentUserAdmin =
+    !isDirect && (currentUserRole === 'ADMIN' || currentUserRole === 'admin');
+
+  // Quyền thêm thành viên của nhóm: 'admin' | 'member' (direct = null).
+  const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const permissionAddMember =
+    (activeRoom?.permission_add_member as string | null) ?? 'admin';
+  const adminOnlyAdd = permissionAddMember === 'admin';
+  const canAddMembers = !isDirect && (isCurrentUserAdmin || !adminOnlyAdd);
+  const existingMemberIds: string[] = (activeRoom?.members || []).map(
+    (m: any) => m.id,
+  );
+
+  const handleSetAddPermission = (next: 'admin' | 'member') => {
+    updatePermissionMutation.mutate(
+      { data: { id: roomId, new_permission_add_member: next as any } },
+      {
+        onSuccess: () => {
+          patchChatRoomInCaches(queryClient, roomId, {
+            permission_add_member: next,
+          });
+          toast({
+            title: 'Thành công',
+            description:
+              next === 'admin'
+                ? 'Chỉ quản trị viên được thêm thành viên'
+                : 'Mọi thành viên đều được thêm thành viên',
+          });
+        },
+        onError: () => {
+          toast({
+            title: 'Lỗi',
+            description: 'Không thể đổi quyền thêm thành viên',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  };
 
   // Fetch relation info between currentUser and otherMember to know if we blocked them
-  const otherMember = activeRoom?.members?.find((m: any) => m.id !== currentUser?.id);
-  
+  const otherMember = activeRoom?.members?.find(
+    (m: any) => m.id !== currentUser?.id,
+  );
+
   const { data: relationRes } = useRelationsControllerGetRelation(
     otherMember?.id || '',
     {
-      query: { enabled: !!otherMember?.id }
-    }
+      query: { enabled: !!otherMember?.id },
+    },
   );
-  
+
   const blockedByMe = (relationRes as any)?.data === 'block';
 
   useEffect(() => {
@@ -126,7 +203,12 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
       lastCommittedMuteRef.current = nextMuted;
     }
     setAvatarPreview(null);
-  }, [activeRoom?.id, activeRoom?.name, activeRoom?.avatar, activeRoom?.is_muted]);
+  }, [
+    activeRoom?.id,
+    activeRoom?.name,
+    activeRoom?.avatar,
+    activeRoom?.is_muted,
+  ]);
 
   useEffect(
     () => () => {
@@ -160,7 +242,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
       updateSettingsMutation.mutate(
         {
           id: roomId,
-          data: { is_muted: checked }
+          data: { is_muted: checked },
         },
         {
           onSuccess: () => {
@@ -185,8 +267,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
               description: 'Không thể cập nhật cài đặt thông báo',
               variant: 'destructive',
             });
-          }
-        }
+          },
+        },
       );
     }, 500);
   };
@@ -219,8 +301,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           }
           setAvatarPreview(null);
           toast({
-            title: 'Thành công',
-            description: 'Đã cập nhật ảnh nhóm',
+            title: 'Cập nhật ảnh nhóm thành công',
           });
         },
         onError: () => {
@@ -233,12 +314,12 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             description: 'Không thể cập nhật ảnh nhóm',
             variant: 'destructive',
           });
-        }
-      }
+        },
+      },
     );
   };
 
-  // 2. Change Emoji handler
+  // 2. Xử lý thay đổi quick emoji
   const handleChangeEmoji = (emoji: string) => {
     const previousEmoji = currentEmoji;
     patchChatRoomInCaches(queryClient, roomId, { quick_emoji: emoji });
@@ -246,13 +327,12 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
     updateEmojiMutation.mutate(
       {
         id: roomId,
-        data: { emoji }
+        data: { emoji },
       },
       {
         onSuccess: () => {
           toast({
-            title: 'Đã đổi biểu tượng cảm xúc',
-            description: `Biểu tượng cảm xúc nhanh đã được đổi thành ${emoji}`,
+            title: `Đã đổi biểu tượng cảm xúc thành ${emoji}`,
           });
         },
         onError: () => {
@@ -260,12 +340,11 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             quick_emoji: previousEmoji,
           });
           toast({
-            title: 'Lỗi',
-            description: 'Không thể đổi biểu tượng cảm xúc',
+            title: 'Không thể đổi biểu tượng cảm xúc',
             variant: 'destructive',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -277,7 +356,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
         onSuccess: () => {
           const clearedAt = new Date().toISOString();
 
-          // ── Rule 1: Filter messages using cleared_at, never splice/pop/assign[] ──
+          // ── Quy tắc 1: Lọc tin nhắn sử dụng cleared_at, không bao giờ splice/pop/assign[] (tức là không bao giờ sửa đổi mảng gốc) ──
           queryClient.setQueryData(
             getChatMessagesControllerGetMessageHistoryQueryKey(roomId),
             (old: any) => {
@@ -288,7 +367,7 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                   ...old.data,
                   // Keep only messages created AFTER cleared_at (none for now = empty view)
                   data: (old.data?.data || []).filter(
-                    (m: any) => new Date(m.created_at) > new Date(clearedAt)
+                    (m: any) => new Date(m.created_at) > new Date(clearedAt),
                   ),
                 },
               };
@@ -297,17 +376,17 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
           removeChatRoomFromCaches(queryClient, roomId);
 
-          // ── Rule 2: Realtime safety — new messages from WebSocket will
-          //    be appended by the global handleNewMessage listener, which also
-          //    calls invalidateQueries on the room list, so the room will
-          //    re-appear in the sidebar automatically. ──
+          // ── Luật 2: Realtime safety — Tin nhắn mới từ WebSocket sẽ
+          //    được appended bởi global handleNewMessage listener, và cũng
+          //    gọi invalidateQueries trong danh sách phòng chat, do đó phòng
+          //    sẽ tự động xuất hiện lại trong sidebar. ──
 
           toast({
             title: 'Đã xóa cuộc trò chuyện',
             description: 'Lịch sử cuộc trò chuyện đã bị xóa phía bạn.',
           });
 
-          // Navigate away from deleted room
+          // - Luật 3: Sau khi xóa, điều hướng về /messages và đóng Drawer (Drawer là con của /messages, tức là cái cửa sổ chat đang mở). Nếu không, Drawer sẽ vẫn hiển thị nhưng phòng chat đã bị xóa khỏi cache, dẫn đến lỗi. -
           navigate('/messages');
           if (onClose) onClose();
         },
@@ -317,8 +396,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             description: 'Không thể xóa cuộc trò chuyện',
             variant: 'destructive',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -342,8 +421,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             description: 'Không thể thực hiện tác vụ',
             variant: 'destructive',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -353,14 +432,14 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
       unblockMutation.mutate(otherMember.id, {
         onSuccess: () => {
           if (onClose) onClose();
-        }
+        },
       });
     } else {
       blockMutation.mutate(otherMember.id, {
         onSuccess: () => {
           navigate('/messages');
           if (onClose) onClose();
-        }
+        },
       });
     }
   };
@@ -387,8 +466,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
             description: 'Không thể rời nhóm',
             variant: 'destructive',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -442,27 +521,29 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
       <div className="p-6 flex flex-col items-center border-b border-border/50 gap-3">
         <div className="relative group w-20 h-20">
           <Avatar className="w-20 h-20 shadow-md">
-            <AvatarImage 
-              src={isDirect 
-                ? (otherMember?.avatar || '/default-avatar.png') 
-                : avatarPreview || activeRoom.avatar
-              } 
+            <AvatarImage
+              src={
+                isDirect
+                  ? getUserAvatarUrl(otherMember)
+                  : avatarPreview || getGroupAvatarUrl(activeRoom.avatar)
+              }
+              className="object-cover"
             />
-            <AvatarFallback>{isDirect ? otherMember?.username?.[0]?.toUpperCase() : activeRoom.name?.[0]}</AvatarFallback>
+            <AvatarFallback className="bg-muted" />
           </Avatar>
           {!isDirect && (
             <>
-              <div 
+              <div
                 className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Camera className="w-6 h-6 text-white" />
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/jpeg,image/png,image/webp,image/gif" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleGroupPhotoChange}
               />
             </>
@@ -500,32 +581,30 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           ) : (
             <div className="flex items-center justify-center gap-2">
               <h3 className="font-bold text-lg leading-tight truncate max-w-[240px]">
-                {isDirect ? (otherMember?.username || 'Người dùng') : activeRoom.name}
+                {isDirect ? getDisplayName(otherMember) : activeRoom.name}
               </h3>
               {!isDirect && (
-              <button 
-                className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
-                onClick={() => setIsEditingName(true)}
-                title="Đổi tên nhóm"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
+                <button
+                  className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsEditingName(true)}
+                  title="Đổi tên nhóm"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
               )}
             </div>
-          )}
-          {isDirect && (
-            <p className="text-xs text-muted-foreground mt-0.5">@{otherMember?.username}</p>
           )}
         </div>
       </div>
 
       {/* Action Options List */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
-        
         {/* Section 1: Settings */}
         <div className="space-y-4">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">Cấu hình phòng</h4>
-          
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
+            Cấu hình phòng
+          </h4>
+
           {/* Mute toggle */}
           <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
@@ -536,17 +615,16 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
               )}
               <div className="text-sm font-medium">Tắt thông báo</div>
             </div>
-            <Switch 
-              checked={isMuted}
-              onCheckedChange={handleToggleMute}
-            />
+            <Switch checked={isMuted} onCheckedChange={handleToggleMute} />
           </div>
 
           {/* Quick emoji selection */}
           <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
               <Smile className="w-5 h-5 text-muted-foreground" />
-              <div className="text-sm font-medium">Biểu tượng cảm xúc nhanh</div>
+              <div className="text-sm font-medium">
+                Biểu tượng cảm xúc nhanh
+              </div>
             </div>
             <Popover>
               <PopoverTrigger asChild>
@@ -573,103 +651,178 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
         {/* Section 2: Members Accordion */}
         <div className="space-y-2">
-          <button 
+          <button
             onClick={() => setIsMembersOpen(!isMembersOpen)}
             className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/30 transition-colors text-left"
           >
             <div className="flex items-center gap-3">
               <Users className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Thành viên ({activeRoom.members?.length || 0})</span>
+              <span className="text-sm font-medium">
+                Thành viên ({activeRoom.members?.length || 0})
+              </span>
             </div>
-            {isMembersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isMembersOpen ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
           </button>
-          
+
           {isMembersOpen && (
             <div className="pl-4 space-y-2.5 flex-1 overflow-y-auto custom-scrollbar pt-1 pb-2">
+              {/* Nút thêm thành viên (khi có quyền) */}
+              {canAddMembers && (
+                <button
+                  onClick={() => setAddMembersOpen(true)}
+                  className="w-full flex items-center gap-2.5 pr-2 group text-primary hover:opacity-80 transition-opacity"
+                >
+                  <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserPlus className="w-4 h-4" />
+                  </span>
+                  <span className="text-xs font-semibold">Thêm thành viên</span>
+                </button>
+              )}
+
+              {/* Toggle quyền thêm thành viên (chỉ admin) */}
+              {isCurrentUserAdmin && (
+                <div className="flex items-center justify-between pr-2 py-1">
+                  <span className="text-xs text-muted-foreground">
+                    Chỉ quản trị viên được thêm thành viên
+                  </span>
+                  <Switch
+                    checked={adminOnlyAdd}
+                    disabled={updatePermissionMutation.isPending}
+                    onCheckedChange={(checked) =>
+                      handleSetAddPermission(checked ? 'admin' : 'member')
+                    }
+                  />
+                </div>
+              )}
+
               {activeRoom.members?.map((member: any) => (
-                <div key={member.id} className="flex items-center justify-between pr-2 group">
-                  <div 
-                    className="flex items-center gap-2.5 min-w-0 cursor-pointer" 
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between pr-2 group"
+                >
+                  <div
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer"
                     onClick={() => navigate(`/profile/${member.id}`)}
                   >
                     <Avatar className="w-7 h-7 hover:ring-2 hover:ring-primary/50 transition-all">
-                      <AvatarImage src={member.avatar || '/default-avatar.png'} />
-                      <AvatarFallback>{member.username?.[0]?.toUpperCase()}</AvatarFallback>
+                      <AvatarImage
+                        src={getUserAvatarUrl(member)}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-muted" />
                     </Avatar>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold truncate max-w-[130px] hover:underline">
-                        {member.username}
+                        {getDisplayName(member)}
                       </p>
                       {!isDirect && (
                         <p className="text-[10px] text-muted-foreground capitalize flex items-center gap-1">
-                          {(member.member_type === 'ADMIN' || member.member_type === 'admin') && <Crown className="w-3 h-3 text-amber-500" />}
-                          {member.member_type === 'admin' ? 'ADMIN' : (member.member_type || 'Thành viên')}
+                          {(member.member_type === 'ADMIN' ||
+                            member.member_type === 'admin') && (
+                            <Crown className="w-3 h-3 text-amber-500" />
+                          )}
+                          {member.member_type === 'admin'
+                            ? 'ADMIN'
+                            : member.member_type || 'Thành viên'}
                         </p>
                       )}
                     </div>
                   </div>
-                  
-                  {!isDirect && isCurrentUserAdmin && member.id !== currentUser?.id && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                        {(member.member_type !== 'ADMIN' && member.member_type !== 'admin') && (
-                          <DropdownMenuItem 
-                            className="cursor-pointer"
-                            onClick={() => {
-                              promoteAdminMutation.mutate(member.id, {
-                                onSuccess: () => {
-                                  patchChatRoomInCaches(queryClient, roomId, {
-                                    members: (activeRoom.members || []).map(
-                                      (m: any) =>
-                                        m.id === member.id
-                                          ? { ...m, member_type: 'ADMIN' }
-                                          : m,
-                                    ),
+
+                  {!isDirect &&
+                    isCurrentUserAdmin &&
+                    member.id !== currentUser?.id && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-48 rounded-xl"
+                        >
+                          {member.member_type !== 'ADMIN' &&
+                            member.member_type !== 'admin' && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  promoteAdminMutation.mutate(member.id, {
+                                    onSuccess: () => {
+                                      patchChatRoomInCaches(
+                                        queryClient,
+                                        roomId,
+                                        {
+                                          members: (
+                                            activeRoom.members || []
+                                          ).map((m: any) =>
+                                            m.id === member.id
+                                              ? { ...m, member_type: 'ADMIN' }
+                                              : m,
+                                          ),
+                                        },
+                                      );
+                                      toast({
+                                        title: 'Thành công',
+                                        description: `Đã chỉ định ${member.username} làm quản trị viên.`,
+                                      });
+                                    },
+                                    onError: () => {
+                                      toast({
+                                        title: 'Lỗi',
+                                        description:
+                                          'Không thể chỉ định quản trị viên',
+                                        variant: 'destructive',
+                                      });
+                                    },
                                   });
-                                  toast({ title: 'Thành công', description: `Đã chỉ định ${member.username} làm quản trị viên.` });
+                                }}
+                              >
+                                Chỉ định làm Quản trị viên
+                              </DropdownMenuItem>
+                            )}
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => {
+                              removeMemberMutation.mutate(
+                                {
+                                  data: {
+                                    chat_room_id: roomId,
+                                    target_user_id: member.id,
+                                  },
                                 },
-                                onError: () => {
-                                  toast({ title: 'Lỗi', description: 'Không thể chỉ định quản trị viên', variant: 'destructive' });
-                                }
-                              });
+                                {
+                                  onSuccess: () => {
+                                    patchChatRoomInCaches(queryClient, roomId, {
+                                      members: (
+                                        activeRoom.members || []
+                                      ).filter((m: any) => m.id !== member.id),
+                                    });
+                                    toast({
+                                      title: 'Thành công',
+                                      description: `Đã xóa ${member.username} khỏi nhóm.`,
+                                    });
+                                  },
+                                  onError: () => {
+                                    toast({
+                                      title: 'Lỗi',
+                                      description: 'Không thể xóa thành viên',
+                                      variant: 'destructive',
+                                    });
+                                  },
+                                },
+                              );
                             }}
                           >
-                            Chỉ định làm Quản trị viên
+                            Xóa khỏi nhóm
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem 
-                          className="cursor-pointer text-destructive focus:text-destructive"
-                          onClick={() => {
-                            removeMemberMutation.mutate({
-                              data: {
-                                chat_room_id: roomId,
-                                target_user_id: member.id
-                              }
-                            }, {
-                              onSuccess: () => {
-                                patchChatRoomInCaches(queryClient, roomId, {
-                                  members: (activeRoom.members || []).filter(
-                                    (m: any) => m.id !== member.id,
-                                  ),
-                                });
-                                toast({ title: 'Thành công', description: `Đã xóa ${member.username} khỏi nhóm.` });
-                              },
-                              onError: () => {
-                                toast({ title: 'Lỗi', description: 'Không thể xóa thành viên', variant: 'destructive' });
-                              }
-                            });
-                          }}
-                        >
-                          Xóa khỏi nhóm
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                 </div>
               ))}
             </div>
@@ -678,13 +831,12 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
 
         {/* Section 3: Safety & Actions */}
         <div className="space-y-3 pt-4 border-t border-border/50">
-          
           {/* Restrict button (Only for Direct Chats) */}
           {isDirect && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="w-full justify-start gap-3 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 rounded-xl"
                 >
                   <ShieldAlert className="w-5 h-5" />
@@ -695,12 +847,14 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                 <AlertDialogHeader>
                   <AlertDialogTitle>Hạn chế người dùng này?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Tin nhắn của người này sẽ được chuyển sang mục "Tin nhắn chờ", đồng thời họ sẽ không thấy khi bạn online hoặc đã đọc tin nhắn của họ.
+                    Tin nhắn của người này sẽ được chuyển sang mục "Tin nhắn
+                    chờ", đồng thời họ sẽ không thấy khi bạn online hoặc đã đọc
+                    tin nhắn của họ.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={handleRestrict}
                     className="bg-amber-500 hover:bg-amber-600 text-white"
                   >
@@ -715,22 +869,28 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           {isDirect && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className={`w-full justify-start gap-3 rounded-xl transition-colors ${
-                    blockedByMe 
-                      ? 'text-muted-foreground hover:text-foreground hover:bg-muted' 
+                    blockedByMe
+                      ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       : 'text-red-500 hover:text-red-600 hover:bg-red-500/10'
                   }`}
                 >
-                  {blockedByMe ? <Unlock className="w-5 h-5" /> : <Ban className="w-5 h-5" />}
+                  {blockedByMe ? (
+                    <Unlock className="w-5 h-5" />
+                  ) : (
+                    <Ban className="w-5 h-5" />
+                  )}
                   <span>{blockedByMe ? 'Bỏ chặn' : 'Chặn tài khoản'}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>
-                    {blockedByMe ? 'Bỏ chặn người dùng này?' : 'Chặn người dùng này?'}
+                    {blockedByMe
+                      ? 'Bỏ chặn người dùng này?'
+                      : 'Chặn người dùng này?'}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     {blockedByMe
@@ -740,9 +900,13 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={handleBlockUnblock}
-                    className={blockedByMe ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-red-500 hover:bg-red-600 text-white'}
+                    className={
+                      blockedByMe
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-red-500 hover:bg-red-600 text-white'
+                    }
                   >
                     {blockedByMe ? 'Xác nhận' : 'Chặn'}
                   </AlertDialogAction>
@@ -754,8 +918,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           {/* Delete chat history button */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-xl"
                 disabled={deleteHistoryMutation.isPending}
               >
@@ -767,12 +931,13 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
               <AlertDialogHeader>
                 <AlertDialogTitle>Xóa cuộc trò chuyện này?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Thao tác này sẽ xóa bản sao của cuộc trò chuyện khỏi hộp thư của bạn. Bạn không thể hoàn tác.
+                  Thao tác này sẽ xóa bản sao của cuộc trò chuyện khỏi hộp thư
+                  của bạn. Bạn không thể hoàn tác.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction 
+                <AlertDialogAction
                   onClick={handleDeleteChat}
                   className="bg-red-500 hover:bg-red-600 text-white"
                 >
@@ -786,8 +951,8 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
           {!isDirect && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-xl"
                   disabled={leaveRoomMutation.isPending}
                 >
@@ -799,12 +964,13 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
                 <AlertDialogHeader>
                   <AlertDialogTitle>Rời khỏi nhóm này?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Bạn sẽ không nhận được tin nhắn mới từ nhóm này nữa, và mọi người sẽ thấy bạn đã rời nhóm.
+                    Bạn sẽ không nhận được tin nhắn mới từ nhóm này nữa, và mọi
+                    người sẽ thấy bạn đã rời nhóm.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={handleLeaveGroup}
                     className="bg-red-500 hover:bg-red-600 text-white"
                   >
@@ -814,10 +980,15 @@ export default function ChatDetailsDrawer({ roomId, activeRoom, currentUser, onC
               </AlertDialogContent>
             </AlertDialog>
           )}
-
         </div>
-
       </div>
+
+      <AddMembersModal
+        roomId={roomId}
+        open={addMembersOpen}
+        onOpenChange={setAddMembersOpen}
+        existingMemberIds={existingMemberIds}
+      />
     </div>
   );
 }

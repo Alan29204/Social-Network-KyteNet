@@ -56,6 +56,38 @@ const relationUpdateResponseSchema = {
   },
 };
 
+const mutualFriendsResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        data: { type: 'array', items: relationUserSchema },
+        meta: {
+          type: 'object',
+          properties: {
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total: { type: 'number' },
+            total_pages: { type: 'number' },
+          },
+        },
+      },
+    },
+  },
+};
+
+const activeMutualsResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: { type: 'array', items: relationUserSchema },
+  },
+};
+
 const relationListResponseSchema = {
   type: 'object',
   properties: {
@@ -196,11 +228,34 @@ export class RelationsController {
   @ResponseMessage('Get active mutuals successfully')
   @ApiOperation({ summary: 'Get mutual-follow users who are currently online' })
   @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Get active mutuals successfully',
+    schema: activeMutualsResponseSchema,
+  })
   async getActiveMutuals(
     @User() user: IUser,
     @Query('limit') limit: number = 10,
   ) {
     return this.relationShipsService.getActiveMutuals(user.id, limit);
+  }
+
+  @Get('mutuals/:user_id')
+  @ResponseMessage('Get mutual friends successfully')
+  @ApiOperation({ summary: 'Get mutual-follow friends list (paginated)' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Get mutual friends successfully',
+    schema: mutualFriendsResponseSchema,
+  })
+  async getMutualFriends(
+    @Param('user_id', ParseUUIDPipe) user_id: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return this.relationShipsService.getMutualFriends(user_id, page, limit);
   }
 
   @Post('block')

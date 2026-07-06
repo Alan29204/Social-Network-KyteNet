@@ -896,6 +896,69 @@ export class RelationsService {
     );
   }
 
+  /**
+   * Danh sách bạn bè (mutual — theo dõi lẫn nhau) của `targetUserId`, phân trang.
+   */
+  /**
+   * Danh sách bạn bè (mutual) của `targetUserId`: những user B mà TỒN TẠI cả
+   * quan hệ target→B FOLLOWING và B→target FOLLOWING (self-join 2 chiều, không
+   * phụ thuộc cờ `is_mutual` — vốn có thể chưa set cho quan hệ cũ).
+   */
+  async getMutualFriends(targetUserId: string, page = 1, limit = 20) {
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 20)));
+    const skip = (page - 1) * limit;
+
+    // id các mutual (2 chiều FOLLOWING), sắp theo thời điểm target follow họ
+    const rows = await this.relationRepository
+      .createQueryBuilder('out')
+      .innerJoin(
+        Relation,
+        'inn',
+        'inn.request_side_id = out.accept_side_id AND inn.accept_side_id = out.request_side_id AND inn.relation_type = :ftype',
+        { ftype: RelationType.FOLLOWING },
+      )
+      .where('out.request_side_id = :uid', { uid: targetUserId })
+      .andWhere('out.relation_type = :ftype', { ftype: RelationType.FOLLOWING })
+      .select('out.accept_side_id', 'id')
+      .orderBy('out.created_at', 'DESC')
+      .getRawMany();
+
+    const allIds: string[] = [...new Set(rows.map((r) => r.id as string))];
+    const total = allIds.length;
+    const pageIds = allIds.slice(skip, skip + limit);
+
+    let users: User[] = [];
+    if (pageIds.length > 0) {
+      users = await this.relationRepository.manager.getRepository(User).find({
+        where: { id: In(pageIds) },
+        select: ['id', 'username', 'full_name', 'avatar', 'privacy'],
+      });
+      const orderMap = new Map(pageIds.map((id, i) => [id, i]));
+      users.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    }
+
+    return {
+      data: users,
+      meta: { page, limit, total, total_pages: Math.ceil(total / limit) },
+    };
+  }
+
+  /** Đếm số bạn bè (mutual 2 chiều FOLLOWING) của một user. */
+  async countMutualFriends(userId: string): Promise<number> {
+    return this.relationRepository
+      .createQueryBuilder('out')
+      .innerJoin(
+        Relation,
+        'inn',
+        'inn.request_side_id = out.accept_side_id AND inn.accept_side_id = out.request_side_id AND inn.relation_type = :ftype',
+        { ftype: RelationType.FOLLOWING },
+      )
+      .where('out.request_side_id = :uid', { uid: userId })
+      .andWhere('out.relation_type = :ftype', { ftype: RelationType.FOLLOWING })
+      .getCount();
+  }
+
   async getSuggestedUsers(userId: string, limit: number) {
     limit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 5)));
 

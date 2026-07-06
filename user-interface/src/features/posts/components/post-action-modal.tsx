@@ -52,7 +52,8 @@ export function PostActionModal({
     void,
     { snapshots: ReturnType<typeof snapshotPostSurfaces> }
   >({
-    mutationFn: () => orvalClient({ url: `/posts/${post.id}`, method: 'DELETE' }),
+    mutationFn: () =>
+      orvalClient({ url: `/posts/${post.id}`, method: 'DELETE' }),
     onMutate: () => {
       setErrorMessage('');
       const snapshots = snapshotPostSurfaces(queryClient);
@@ -83,20 +84,31 @@ export function PostActionModal({
   });
 
   const reportPostMutation = useMutation({
-    mutationFn: (reason: string) => orvalClient({ 
-      url: `/reports`, 
-      method: 'POST',
-      data: { type: 'post', reason, reported_post_id: post.id }
-    }),
+    mutationFn: (reason: string) =>
+      orvalClient({
+        url: `/reports`,
+        method: 'POST',
+        data: { type: 'post', reason, reported_post_id: post.id },
+      }),
     onSuccess: () => {
-      alert('Đã gửi báo cáo thành công!');
+      toast({
+        title: 'Đã gửi báo cáo',
+      });
       setReportReason(null);
       onOpenChange(false);
+    },
+    onError: () => {
+      toast({
+        title: 'Không thể gửi báo cáo',
+        description: 'Vui lòng thử lại sau.',
+        variant: 'destructive',
+      });
     },
   });
 
   const removeTagMutation = useMutation({
-    mutationFn: () => orvalClient({ url: `/posts/${post.id}/remove-tag`, method: 'POST' }),
+    mutationFn: () =>
+      orvalClient({ url: `/posts/${post.id}/remove-tag`, method: 'POST' }),
     onSuccess: async () => {
       await invalidatePostSurfaces(queryClient, {
         userId: getPostAuthorId(post),
@@ -109,7 +121,7 @@ export function PostActionModal({
 
   const copyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
-    alert('Đã sao chép liên kết!');
+    toast({ title: 'Đã sao chép liên kết' });
     onOpenChange(false);
   };
 
@@ -128,7 +140,8 @@ export function PostActionModal({
           <div className="p-4 text-center">
             <h3 className="font-bold text-lg mb-2">Xóa bài viết?</h3>
             <p className="text-sm text-muted-foreground">
-              Bài viết sẽ bị xóa khỏi trang cá nhân, bảng tin và kết quả tìm kiếm.
+              Bài viết sẽ bị xóa khỏi trang cá nhân, bảng tin và kết quả tìm
+              kiếm.
             </p>
             {errorMessage && (
               <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -175,9 +188,11 @@ export function PostActionModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden rounded-xl border-none">
           <DialogTitle className="sr-only">Báo cáo bài viết</DialogTitle>
-          <div className="p-4 font-bold text-center border-b border-border">Báo cáo bài viết</div>
+          <div className="p-4 font-bold text-center border-b border-border">
+            Báo cáo bài viết
+          </div>
           {reasons.map((r) => (
-            <button 
+            <button
               key={r.id}
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80 border-b border-border text-left px-6"
               onClick={() => reportPostMutation.mutate(r.id)}
@@ -185,7 +200,7 @@ export function PostActionModal({
               {r.label}
             </button>
           ))}
-          <button 
+          <button
             className="w-full p-4 text-sm font-semibold hover:bg-muted transition-colors active:bg-muted/80"
             onClick={() => setReportReason(null)}
           >
@@ -202,7 +217,7 @@ export function PostActionModal({
         <DialogTitle className="sr-only">Tùy chọn bài viết</DialogTitle>
         {isOwner ? (
           <>
-            <button 
+            <button
               className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
               onClick={() => {
                 setErrorMessage('');
@@ -212,14 +227,17 @@ export function PostActionModal({
               Xóa
             </button>
             <div className="h-[1px] w-full bg-border"></div>
-            <button 
+            <button
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
-              onClick={() => { onOpenChange(false); onEditClick(); }}
+              onClick={() => {
+                onOpenChange(false);
+                onEditClick();
+              }}
             >
               Chỉnh sửa
             </button>
             <div className="h-[1px] w-full bg-border"></div>
-            <button 
+            <button
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
               onClick={copyLink}
             >
@@ -227,7 +245,7 @@ export function PostActionModal({
             </button>
           </>
         ) : (
-          <button 
+          <button
             className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
             onClick={() => setReportReason('pending')}
           >
@@ -237,7 +255,7 @@ export function PostActionModal({
         {post?.tagged_users?.includes(currentUser?.id) && (
           <>
             <div className="h-[1px] w-full bg-border"></div>
-            <button 
+            <button
               className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
               onClick={() => removeTagMutation.mutate()}
             >
@@ -246,7 +264,7 @@ export function PostActionModal({
           </>
         )}
         <div className="h-[1px] w-full bg-border"></div>
-        <button 
+        <button
           className="w-full p-4 text-sm hover:bg-muted transition-colors active:bg-muted/80"
           onClick={() => onOpenChange(false)}
         >

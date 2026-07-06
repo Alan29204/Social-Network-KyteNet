@@ -170,10 +170,19 @@ export class UsersService {
    * Gửi mã OTP xác thực email cho luồng đăng ký.
    * Lưu OTP vào Redis (TTL 10 phút) và gửi email qua MailService.
    */
-  async sendRegisterOtp(email: string) {
+  async sendRegisterOtp(email: string, username?: string) {
     const existing = await this.usersRepository.findOne({ where: { email } });
     if (existing) {
       throw new BadRequestException('Email đã được sử dụng');
+    }
+
+    if (username) {
+      const existingUsername = await this.usersRepository.findOne({
+        where: { username },
+      });
+      if (existingUsername) {
+        throw new BadRequestException('Tên đăng nhập đã được sử dụng');
+      }
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -203,6 +212,14 @@ export class UsersService {
     });
     if (existing) {
       throw new BadRequestException('Email đã được sử dụng');
+    }
+
+    // Re-check username (chống race giữa lúc gửi OTP và lúc tạo tài khoản)
+    const existingUsername = await this.usersRepository.findOne({
+      where: { username: dto.username },
+    });
+    if (existingUsername) {
+      throw new BadRequestException('Tên đăng nhập đã được sử dụng');
     }
 
     try {
@@ -354,11 +371,13 @@ export class UsersService {
     }
 
     const postsCount = await postsQb.getCount();
+    const friendsCount = await this.relationsService.countMutualFriends(id);
 
     return {
       postsCount,
       followersCount: (stats as any)?.followersCount || 0,
       followingCount: (stats as any)?.followingCount || 0,
+      friendsCount,
     };
   }
 

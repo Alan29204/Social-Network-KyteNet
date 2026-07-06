@@ -198,9 +198,9 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
     return (
       <div
         key={comment.id}
-        className={`flex gap-3 ${isChild ? 'ml-10' : ''}`}
+        className={`flex gap-2.5 ${isChild ? 'ml-9' : ''}`}
       >
-        <Avatar className="w-8 h-8 shrink-0">
+        <Avatar className="w-7 h-7 shrink-0">
           <AvatarImage
             src={getAvatarUrl(
               comment.user?.avatar || comment.user?.profilePicture,
@@ -210,8 +210,8 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           <AvatarFallback className="bg-muted" />
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="text-sm">
-            <span className="font-semibold mr-1.5">
+          <p className="text-[13px]">
+            <span className="font-semibold mr-1">
               {getDisplayName(comment.user)}
             </span>
             <PostContentRenderer
@@ -219,7 +219,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
               taggedUsers={comment.tagged_users}
             />
           </p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground font-semibold">
+          <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-muted-foreground font-semibold">
             <span>
               {formatTimeAgo(comment.created_at || new Date().toISOString())}
             </span>
@@ -233,7 +233,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           </div>
         </div>
         <button
-          className="h-7 w-7 mt-1 flex items-center justify-center text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 mt-1 flex items-center justify-center text-muted-foreground hover:text-foreground"
           onClick={() => handleLikeComment(comment.id)}
           aria-label={isLiked ? 'Bỏ thích bình luận' : 'Thích bình luận'}
         >
@@ -248,8 +248,8 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <h3 className="font-semibold">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
+        <h3 className="font-semibold text-sm">
           Bình luận{rootComments.length > 0 && ` (${rootComments.length})`}
         </h3>
         <button
@@ -257,12 +257,12 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           className="p-1.5 rounded-full hover:bg-secondary"
           aria-label="Đóng"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-3">
         {isLoading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="w-6 h-6 animate-spin text-kyte-blue" />
@@ -302,8 +302,8 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
             </button>
           </div>
         )}
-        <div className="flex items-center gap-2 px-4 py-3">
-          <Avatar className="w-8 h-8 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <Avatar className="w-7 h-7 shrink-0">
             <AvatarImage
               src={getAvatarUrl(currentUser?.avatar)}
               className="object-cover"
@@ -326,20 +326,20 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
               style={{
                 control: {
                   backgroundColor: 'transparent',
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 'normal',
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                 },
                 highlighter: {
                   overflow: 'hidden',
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                 },
                 input: {
                   margin: 0,
                   overflow: 'auto',
                   border: 'none',
                   outline: 'none',
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                 },
                 suggestions: {
                   list: {
@@ -391,9 +391,9 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
             aria-label="Gửi"
           >
             {commentMutation.isPending ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4" />
             )}
           </button>
         </div>

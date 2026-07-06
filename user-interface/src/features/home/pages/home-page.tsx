@@ -113,6 +113,17 @@ export default function HomePage() {
     }
   };
 
+  // Cho phép nút "Trang chủ" ở sidebar làm mới đúng feed tab đang mở (khi bấm lại lúc đã ở '/').
+  const refreshRef = useRef(refreshActiveTab);
+  refreshRef.current = refreshActiveTab;
+  useEffect(() => {
+    const handler = () => {
+      void refreshRef.current();
+    };
+    window.addEventListener('kyte:refresh-home-feed', handler);
+    return () => window.removeEventListener('kyte:refresh-home-feed', handler);
+  }, []);
+
   useEffect(() => {
     if (inView && hasNextPage) {
       fetchNextPage();

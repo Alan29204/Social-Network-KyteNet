@@ -10,8 +10,8 @@ export const authApi = {
     const res = await AXIOS_INSTANCE.post('/users/signup', data);
     return res.data;
   },
-  sendRegisterOtp: async (email: string) => {
-    const res = await AXIOS_INSTANCE.post('/users/register/send-otp', { email });
+  sendRegisterOtp: async (data: { email: string; username?: string }) => {
+    const res = await AXIOS_INSTANCE.post('/users/register/send-otp', data);
     return res.data;
   },
   forgotPassword: async (email: string) => {

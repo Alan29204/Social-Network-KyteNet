@@ -1,14 +1,6 @@
 ﻿import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  CarouselDots,
-} from '@/components/ui/carousel';
-import {
   Heart,
   MessageCircle,
   Bookmark,
@@ -21,6 +13,7 @@ import { formatTimeAgo } from '@/utils/date-formatter';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PostDetailModal } from '@/features/posts/components/post-detail-modal';
+import { MediaGrid } from '@/features/home/components/media-grid';
 import { PostActionModal } from '@/features/posts/components/post-action-modal';
 import { EditPostModal } from '@/features/posts/components/edit-post-modal';
 import { SharePostModal } from '@/features/posts/components/share-post-modal';
@@ -109,7 +102,7 @@ function FeedVideo({
     <video
       ref={videoRef}
       src={url}
-      className="w-full h-auto max-h-[500px] object-cover cursor-pointer"
+      className="w-full max-h-[600px] object-cover cursor-pointer"
       loop
       muted
       playsInline
@@ -131,6 +124,7 @@ export function PostCard({
   const isMyPost = currentUser?.id === displayPost.user.id;
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [theaterOpen, setTheaterOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -299,12 +293,9 @@ export function PostCard({
       return;
     }
 
-    const params = new URLSearchParams({ start: id });
-    if (videoReelsUserId) {
-      params.set('user_id', videoReelsUserId);
-    }
-
-    navigate(`/reels?${params.toString()}`);
+    const suffix = videoReelsUserId ? `?user_id=${videoReelsUserId}` : '';
+    // state.unmute: tự bật tiếng vì đây là cú click có user-gesture.
+    navigate(`/reels/${id}${suffix}`, { state: { unmute: true } });
   };
 
   const renderRepostedBy = () => {
@@ -418,42 +409,13 @@ export function PostCard({
 
         {/* Media (Images/Videos) with rounded corners */}
         {displayPost.images && displayPost.images.length > 0 && (
-          <div className="relative w-full overflow-hidden">
+          <div className="w-full overflow-hidden">
             {displayPost.images.length > 1 ? (
-              <Carousel className="w-full">
-                <CarouselContent>
-                  {displayPost.images.map((url: string, index: number) => {
-                    const isVideo =
-                      url.match(/\.(mp4|webm|mov|mkv)$/i) ||
-                      url.includes('video');
-                    return (
-                      <CarouselItem
-                        key={index}
-                        className="flex items-center justify-center"
-                      >
-                        {isVideo ? (
-                          <FeedVideo
-                            url={url}
-                            postId={displayPost.id}
-                            onOpenReels={handleOpenVideo}
-                          />
-                        ) : (
-                          <img
-                            src={url}
-                            alt={`Post media ${index + 1}`}
-                            className="w-full h-auto max-h-[500px] object-cover cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
-                            onClick={() => setIsDetailOpen(true)}
-                            loading="lazy"
-                          />
-                        )}
-                      </CarouselItem>
-                    );
-                  })}
-                </CarouselContent>
-                <CarouselPrevious className="left-3 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-background border-none shadow-lg" />
-                <CarouselNext className="right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-background border-none shadow-lg" />
-                <CarouselDots className="absolute bottom-3 left-1/2 -translate-x-1/2" />
-              </Carousel>
+              // Lưới ảnh/video (tối đa 3 ô, +N nếu nhiều hơn) — bấm mở theater
+              <MediaGrid
+                medias={displayPost.images}
+                onOpen={() => setTheaterOpen(true)}
+              />
             ) : (
               (() => {
                 const url = displayPost.images[0];
@@ -471,7 +433,7 @@ export function PostCard({
                       src={url}
                       alt="Post media"
                       className="w-full h-auto max-h-[500px] object-cover cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
-                      onClick={() => setIsDetailOpen(true)}
+                      onClick={() => setTheaterOpen(true)}
                       loading="lazy"
                     />
                   </div>
@@ -620,6 +582,16 @@ export function PostCard({
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
       />
+
+      {/* Theater chia đôi khi bấm ảnh/video */}
+      {theaterOpen && (
+        <PostDetailModal
+          post={displayPost}
+          open={theaterOpen}
+          onOpenChange={setTheaterOpen}
+          variant="theater"
+        />
+      )}
 
       {actionOpen && (
         <PostActionModal

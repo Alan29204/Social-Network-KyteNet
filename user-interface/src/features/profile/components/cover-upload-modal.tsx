@@ -1,4 +1,9 @@
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useRef, useState, useCallback } from 'react';
 import { orvalClient } from '@/services/apis/axios-client';
@@ -112,8 +117,7 @@ export function CoverUploadModal({
       handleClose();
 
       toast({
-        title: 'Thành công',
-        description: 'Đã cập nhật ảnh bìa thành công!',
+        title: 'Đã cập nhật ảnh bìa!',
       });
     } catch (error) {
       console.error('Lỗi khi tải ảnh lên:', error);
@@ -161,9 +165,14 @@ export function CoverUploadModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-[800px] p-0 overflow-hidden bg-card border-none rounded-xl gap-0" aria-describedby={undefined}>
+        <DialogContent
+          className="max-w-[800px] p-0 overflow-hidden bg-card border-none rounded-xl gap-0"
+          aria-describedby={undefined}
+        >
           <DialogTitle className="sr-only">Thay đổi ảnh bìa</DialogTitle>
-          <DialogDescription className="sr-only">Cập nhật ảnh bìa</DialogDescription>
+          <DialogDescription className="sr-only">
+            Cập nhật ảnh bìa
+          </DialogDescription>
 
           {imageSrc ? (
             // Cropper UI
@@ -176,7 +185,9 @@ export function CoverUploadModal({
                 >
                   Hủy
                 </Button>
-                <h2 className="text-lg font-semibold">Kéo để điều chỉnh ảnh bìa</h2>
+                <h2 className="text-lg font-semibold">
+                  Kéo để điều chỉnh ảnh bìa
+                </h2>
                 <Button
                   variant="ghost"
                   className="text-primary font-bold"
@@ -237,7 +248,11 @@ export function CoverUploadModal({
                 variant="ghost"
                 className="w-full rounded-none py-4 h-auto text-destructive font-bold border-b border-border"
                 onClick={() => setShowRemoveConfirm(true)}
-                disabled={isLoading || !currentCover || currentCover.includes('cafe.jpg')}
+                disabled={
+                  isLoading ||
+                  !currentCover ||
+                  currentCover.includes('cafe.jpg')
+                }
               >
                 Gỡ ảnh hiện tại
               </Button>

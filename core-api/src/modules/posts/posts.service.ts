@@ -227,6 +227,14 @@ export class PostsService {
     if (!dto.content && (!file || file.length === 0))
       throw new BadRequestException('Content and medias are required');
 
+    // Giới hạn: tối đa 5 video mỗi bài (video nặng)
+    const videoCount = (file || []).filter((f) =>
+      f?.mimetype?.startsWith('video/'),
+    ).length;
+    if (videoCount > 5) {
+      throw new BadRequestException('Mỗi bài viết chỉ được tối đa 5 video');
+    }
+
     try {
       // Upload files to SeaweedFS (S3)
       const medias = await this.mediaService.uploadFiles(
@@ -483,9 +491,17 @@ export class PostsService {
 
       if (media_type) {
         if (media_type === 'video') {
+          // Reel = bài có ĐÚNG 1 media và media đó là video.
+          qb.andWhere('cardinality(post.medias) = 1');
           qb.andWhere(
-            `array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%'])`,
+            `(post.medias)[1] ILIKE ANY (ARRAY['%.mp4%', '%.mov%', '%.webm%', '%.ogg%', '%.m4v%', '%.mkv%'])`,
           );
+          // Feed reels tổng (không scope theo user_id): ẩn video của chính người xem.
+          if (!user_id && currentUser?.id) {
+            qb.andWhere('post.user_id != :viewerId', {
+              viewerId: currentUser.id,
+            });
+          }
         } else if (media_type === 'image') {
           qb.andWhere(
             `array_to_string(post.medias, ',') ILIKE ANY (ARRAY['%.jpg%', '%.jpeg%', '%.png%', '%.webp%', '%.gif%'])`,

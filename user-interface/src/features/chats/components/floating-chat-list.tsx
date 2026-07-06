@@ -5,6 +5,7 @@ import { Loader2, Maximize, X } from 'lucide-react';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
+import { getDisplayName, getGroupAvatarUrl, getUserAvatarUrl } from '@/utils/user';
 
 type FloatingChatMember = {
   id: string;
@@ -25,9 +26,12 @@ type FloatingChatRoomSummary = {
     message?: string;
     content?: string;
     type?: string;
+    message_type?: string;
+    message_status?: string;
     medias?: string[];
     created_by?: string;
     created_at?: string;
+    user?: FloatingChatMember;
   };
 };
 
@@ -92,20 +96,31 @@ export function FloatingChatList() {
 
               const roomName = isGroup 
                 ? (room.name || 'Group Chat')
-                : (otherUser?.username || otherUser?.full_name || 'Người dùng');
+                : getDisplayName(otherUser);
                 
               const roomAvatar = isGroup 
-                ? room.avatar 
-                : (otherUser?.profile_picture_url || otherUser?.avatar || '/default-avatar.png');
+                ? getGroupAvatarUrl(room.avatar)
+                : getUserAvatarUrl(otherUser);
 
               const lastMessage = room.last_message;
               const isUnread = (room.unread_count || 0) > 0;
-              const lastMessageText =
+              const lastMessageActor =
+                lastMessage?.user ||
+                room.members?.find((member) => member.id === lastMessage?.created_by);
+              const isSystemLastMessage =
+                (lastMessage?.message_type || lastMessage?.message_status || lastMessage?.type || '')
+                  .toLowerCase() === 'system';
+              const rawLastMessageText =
                 lastMessage?.message ||
                 lastMessage?.content ||
                 (lastMessage?.medias?.length
                   ? 'Đã gửi một tệp'
                   : 'Đã gửi một tin nhắn');
+              const lastMessageText =
+                isSystemLastMessage &&
+                rawLastMessageText.trim().toLowerCase() === 'đã tạo nhóm'
+                  ? `${getDisplayName(lastMessageActor)} đã tạo nhóm`
+                  : rawLastMessageText;
 
               return (
                 <button
@@ -117,9 +132,7 @@ export function FloatingChatList() {
                 >
                   <Avatar className="w-12 h-12 shrink-0">
                     <AvatarImage src={roomAvatar} className="object-cover" />
-                    <AvatarFallback className="bg-muted text-sm">
-                      {roomName?.[0]?.toUpperCase()}
-                    </AvatarFallback>
+                    <AvatarFallback className="bg-muted text-sm" />
                   </Avatar>
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className={`text-sm truncate ${isUnread ? 'font-bold' : 'font-medium'}`}>
@@ -133,7 +146,7 @@ export function FloatingChatList() {
                             : 'text-muted-foreground'
                         }`}
                       >
-                        {lastMessage.created_by === user?.id && 'Bạn: '}
+                        {!isSystemLastMessage && lastMessage.created_by === user?.id && 'Bạn: '}
                         {lastMessageText}
                         <span className="mx-1">·</span>
                         {lastMessage.created_at

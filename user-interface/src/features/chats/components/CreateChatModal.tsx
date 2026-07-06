@@ -32,6 +32,8 @@ export function CreateChatModal({
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  // Quyền thêm thành viên cho nhóm mới (chỉ áp dụng khi tạo nhóm >=2 người).
+  const [addPermission, setAddPermission] = useState<'admin' | 'member'>('admin');
 
   // Debounce search
   useEffect(() => {
@@ -91,7 +93,8 @@ export function CreateChatModal({
         const res = await createGroup({
           data: {
             members: selectedUsers.map((u) => u.id),
-          },
+            permission_add_member: addPermission,
+          } as any,
         }) as any;
         // Response: { statusCode, message, data: { message, room_id } }
         newRoomId = res?.data?.room_id || res?.room_id;
@@ -157,6 +160,38 @@ export function CreateChatModal({
             />
           </div>
         </div>
+
+        {selectedUsers.length > 1 && (
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/50">
+            <span className="text-[13px] text-muted-foreground">
+              Ai được thêm thành viên?
+            </span>
+            <div className="flex rounded-full bg-secondary/60 p-0.5 text-[13px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setAddPermission('admin')}
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  addPermission === 'admin'
+                    ? 'bg-background shadow text-foreground'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                Chỉ admin
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddPermission('member')}
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  addPermission === 'member'
+                    ? 'bg-background shadow text-foreground'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                Mọi người
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="h-[300px] overflow-y-auto p-2">
           {isSearching ? (

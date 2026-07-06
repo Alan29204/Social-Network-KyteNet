@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NotificationType } from 'src/common/enums/notification.enum';
+import { RoleType } from 'src/common/enums/role.enum';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -325,7 +326,7 @@ export class CommentsService {
 
   /**
    * Delete a comment.
-   * Only the comment owner can delete.
+   * Allowed: the comment owner, the post owner, or an admin.
    */
   async remove(commentId: string, user: IUser) {
     try {
@@ -337,7 +338,15 @@ export class CommentsService {
         throw new NotFoundException('Comment not found');
       }
 
-      if (comment.user_id !== user.id) {
+      const post = await this.postRepository.findOne({
+        where: { id: comment.post_id },
+        select: ['id', 'user_id'],
+      });
+      const isCommentOwner = comment.user_id === user.id;
+      const isPostOwner = !!post && post.user_id === user.id;
+      const isAdmin = user.role === RoleType.ADMIN;
+
+      if (!isCommentOwner && !isPostOwner && !isAdmin) {
         throw new BadRequestException(
           'You are not authorized to delete this comment',
         );

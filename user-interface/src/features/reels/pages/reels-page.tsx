@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { Loader2, Film, ArrowLeft } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+  useLocation,
+} from 'react-router-dom';
 import { usePostsControllerFindAllInfinite } from '@/services/apis/gen/queries';
 import { ReelItem, type ReelData } from '../components/reel-item';
 import { ReelCommentPanel } from '../components/reel-comment-panel';
@@ -24,11 +29,15 @@ function pickVideoUrl(medias: any[]): string | null {
 
 export default function ReelsPage() {
   const navigate = useNavigate();
+  const { id: routeId } = useParams();
   const [searchParams] = useSearchParams();
-  const startId = searchParams.get('start');
+  const location = useLocation();
   const scopedUserId = searchParams.get('user_id');
   const { ref, inView } = useInView();
-  const [muted, setMuted] = useState(true);
+  // Tự bật tiếng khi vào reels từ cú click video (state.unmute); mặc định im lặng.
+  const [muted, setMuted] = useState(
+    () => !(location.state as { unmute?: boolean } | null)?.unmute,
+  );
 
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
@@ -76,7 +85,10 @@ export default function ReelsPage() {
         ? page
         : page.data?.data || page.data || [];
       for (const post of posts) {
-        const videoUrl = pickVideoUrl(post.medias || post.mediaUrls || []);
+        // Phòng thủ tầng 2: reel chỉ nhận bài có ĐÚNG 1 media và là video.
+        const medias = post.medias || post.mediaUrls || [];
+        if (!Array.isArray(medias) || medias.length !== 1) continue;
+        const videoUrl = pickVideoUrl(medias);
         if (!videoUrl) continue;
         result.push({
           id: post.id,
@@ -86,11 +98,14 @@ export default function ReelsPage() {
             id: post.user?.id || '',
             username: post.user?.username || 'User',
             avatarUrl: post.user?.avatar || post.user?.profilePicture || '',
+            privacy: post.user?.privacy,
           },
           likesCount: post.likesCount || post.interactions?.likes || 0,
           commentsCount: post.commentsCount || post.interactions?.comments || 0,
           isLiked: post.isLiked || post.interactions?.is_liked || false,
-          isSaved: post.isSaved || false,
+          isSaved: post.isSaved || post.interactions?.is_saved || false,
+          isReposted: post.isReposted || post.interactions?.is_reposted || false,
+          repostsCount: post.repostsCount || post.interactions?.reposts || 0,
         });
       }
     }
@@ -102,53 +117,60 @@ export default function ReelsPage() {
     setIsCommentOpen(false);
     setActiveReelId(null);
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [startId, scopedUserId]);
+  }, [routeId, scopedUserId]);
 
-  // Cuộn tới reel được mở từ feed (?start=:id)
+  // Cuộn tới reel mục tiêu (/reels/:id) — dùng cả khi mở từ feed lẫn khi reload.
   useEffect(() => {
-    if (scrolledToStart.current || !startId || reels.length === 0) return;
-    const el = document.getElementById(`reel-${startId}`);
+    if (scrolledToStart.current || !routeId || reels.length === 0) return;
+    const el = document.getElementById(`reel-${routeId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
       scrolledToStart.current = true;
       return;
     }
 
+    // Chưa tải tới reel mục tiêu -> phân trang tiếp cho đến khi tìm thấy.
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [
-    startId,
-    reels,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
-  ]);
+  }, [routeId, reels, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Đồng bộ URL sống theo reel đang xem để reload giữ nguyên vị trí.
+  // Dùng replaceState thô: không trigger React Router re-render/refetch,
+  // không tạo lịch sử Back thừa (useParams không đổi -> các effect trên không chạy lại).
+  useEffect(() => {
+    if (!activeReelId) return;
+    const qs = scopedUserId ? `?user_id=${scopedUserId}` : '';
+    const url = `/reels/${activeReelId}${qs}`;
+    if (window.location.pathname + window.location.search !== url) {
+      window.history.replaceState(null, '', url);
+    }
+  }, [activeReelId, scopedUserId]);
 
   return (
-    <div className="fixed inset-0 z-40 bg-black flex">
+    <div className="relative h-[100dvh] w-full bg-background flex overflow-hidden">
       {/* Khu vực video */}
       <div className="relative flex-1 h-full">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-3 p-4 pointer-events-none">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-white/10 text-white pointer-events-auto"
+            className="p-2 rounded-full hover:bg-foreground/10 text-foreground pointer-events-auto"
             aria-label="Quay lại"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-white text-lg font-semibold flex items-center gap-2">
+          <h1 className="text-foreground text-lg font-semibold flex items-center gap-2">
             <Film className="w-5 h-5" /> Reels
           </h1>
         </div>
 
         {status === 'pending' ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-white" />
+            <Loader2 className="w-8 h-8 animate-spin text-foreground" />
           </div>
         ) : reels.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-white/80 gap-3 px-6 text-center">
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 px-6 text-center">
             <Film className="w-12 h-12 opacity-50" />
             <p className="text-sm">
               Chưa có video nào. Hãy đăng bài viết kèm video để tạo Reel!
@@ -180,16 +202,16 @@ export default function ReelsPage() {
             {/* Sentinel tải thêm */}
             <div ref={ref} className="h-20 flex items-center justify-center">
               {isFetchingNextPage && (
-                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                <Loader2 className="w-6 h-6 animate-spin text-foreground" />
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Cột bình luận (desktop: cột bên / mobile: phủ toàn màn) */}
+      {/* Bình luận: desktop = thẻ nổi bên phải (không xê dịch video) / mobile = phủ toàn màn */}
       {isCommentOpen && activeReelId && (
-        <div className="absolute inset-0 sm:static sm:inset-auto sm:w-[400px] sm:h-full sm:border-l sm:border-border z-30 bg-background">
+        <div className="absolute z-30 inset-0 bg-background sm:inset-auto sm:right-4 sm:top-4 sm:bottom-4 sm:w-[340px] sm:rounded-2xl sm:border sm:border-border sm:shadow-2xl sm:overflow-hidden">
           <ReelCommentPanel
             key={activeReelId}
             postId={activeReelId}

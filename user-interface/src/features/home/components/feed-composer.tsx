@@ -28,7 +28,7 @@ export function FeedComposer() {
 
         {/* Lời mời */}
         <span className="flex-1 text-left text-sm text-muted-foreground truncate">
-          {name} ơi, bạn đang nghĩ gì thế?
+          Tạo bài viết mới ...
         </span>
 
         {/* Icon gợi ý đính kèm / emoji */}

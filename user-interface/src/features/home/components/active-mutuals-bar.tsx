@@ -70,7 +70,6 @@ export function ActiveMutualsBar() {
                     </Avatar>
                   </div>
                 </div>
-                {/* Chấm xanh online */}
                 <span className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-background" />
               </div>
               <span className="text-[10px] text-muted-foreground max-w-[72px] truncate px-1">

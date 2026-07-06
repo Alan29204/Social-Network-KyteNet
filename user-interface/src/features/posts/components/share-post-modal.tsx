@@ -22,6 +22,7 @@ import {
   isChatRoomsQueryKey,
   upsertChatRoomInCaches,
 } from '@/features/chats/utils/chat-room-cache';
+import { getAvatarUrl, getDisplayName } from '@/utils/user';
 
 interface SharePostModalProps {
   post: any;
@@ -29,7 +30,11 @@ interface SharePostModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps) {
+export function SharePostModal({
+  post,
+  open,
+  onOpenChange,
+}: SharePostModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [messageText, setMessageText] = useState('');
@@ -38,14 +43,16 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const { data: usersResponse, isLoading } = useUsersControllerSearchUsersForMessage(
-    { q: searchTerm },
-    { query: { enabled: open } }
-  );
-  
+  const { data: usersResponse, isLoading } =
+    useUsersControllerSearchUsersForMessage(
+      { q: searchTerm },
+      { query: { enabled: open } },
+    );
+
   const users: any[] = (usersResponse as any)?.data?.data || [];
 
-  const createDirectChatMutation = useChatRoomsControllerGetOrCreateDirectChat();
+  const createDirectChatMutation =
+    useChatRoomsControllerGetOrCreateDirectChat();
 
   const appendMessageToOpenCaches = (roomId: string, message: any) => {
     if (!message?.id) return;
@@ -114,7 +121,7 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
     setSelectedUserIds((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+        : [...prev, userId],
     );
   };
 
@@ -133,14 +140,12 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
 
         if (!roomId) throw new Error('Không thể tạo phòng chat');
 
-        const sentPostMessageRes: any = await chatMessagesControllerCreateMessage(
-          {
+        const sentPostMessageRes: any =
+          await chatMessagesControllerCreateMessage({
             chat_room_id: roomId,
             shared_post_id: post.id,
-          } as any,
-        );
-        const sentPostMessage =
-          sentPostMessageRes?.data || sentPostMessageRes;
+          } as any);
+        const sentPostMessage = sentPostMessageRes?.data || sentPostMessageRes;
         appendMessageToOpenCaches(roomId, sentPostMessage);
 
         let lastMessage = sentPostMessage;
@@ -150,7 +155,8 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
               chat_room_id: roomId,
               message: messageText.trim(),
             } as any);
-          const sentTextMessage = sentTextMessageRes?.data || sentTextMessageRes;
+          const sentTextMessage =
+            sentTextMessageRes?.data || sentTextMessageRes;
           appendMessageToOpenCaches(roomId, sentTextMessage);
           lastMessage = sentTextMessage;
         }
@@ -174,10 +180,9 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
       });
 
       toast({
-        title: 'Đã gửi thành công',
-        description: `Đã chia sẻ bài viết tới ${selectedUserIds.length} người.`,
+        title: 'Đã gửi thành công tới ' + selectedUserIds.length + ' người',
       });
-      
+
       // Reset state and close
       setSearchTerm('');
       setSelectedUserIds([]);
@@ -231,12 +236,21 @@ export function SharePostModal({ post, open, onOpenChange }: SharePostModalProps
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={u.avatar} />
-                    <AvatarFallback>{u.username?.[0]?.toUpperCase()}</AvatarFallback>
+                    <AvatarImage
+                      src={getAvatarUrl(u.avatar || u.profile_picture_url)}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-muted" />
                   </Avatar>
                   <div className="flex flex-col">
-                    <span className="font-semibold text-sm">{u.full_name || u.username}</span>
-                    <span className="text-xs text-muted-foreground">{u.username}</span>
+                    <span className="font-semibold text-sm">
+                      {getDisplayName(u)}
+                    </span>
+                    {u.username && (
+                      <span className="text-xs text-muted-foreground">
+                        @{u.username}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <input

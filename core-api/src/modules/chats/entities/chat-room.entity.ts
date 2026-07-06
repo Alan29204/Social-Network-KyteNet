@@ -1,5 +1,4 @@
 import { ChatMember } from 'src/modules/chats/entities/chat-member.entity';
-import { WaitingMembers } from 'src/modules/chats/entities/waiting-members.entity';
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
 import { MemberType } from 'src/common/enums/member.enum';
 import { ReactionType } from 'src/common/enums/reaction.enum';
@@ -38,8 +37,9 @@ export class ChatRoom {
   @Column({ type: 'uuid' })
   created_by: string;
 
-  @Column({ type: 'enum', enum: MemberType, default: MemberType.MEMBER })
-  permission_add_member: MemberType;
+  // null cho direct chat (không có khái niệm "quyền thêm"); nhóm: 'admin' | 'member'.
+  @Column({ type: 'enum', enum: MemberType, nullable: true })
+  permission_add_member: MemberType | null;
 
   @CreateDateColumn()
   created_at: Date;
@@ -72,7 +72,4 @@ export class ChatRoom {
 
   @OneToMany(() => PinChat, (pinChat) => pinChat.chat_room)
   pin_chats: PinChat[];
-
-  @OneToMany(() => WaitingMembers, (waitingMembers) => waitingMembers.chat_room)
-  waiting_members: WaitingMembers[];
 }

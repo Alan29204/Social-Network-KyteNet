@@ -35,6 +35,36 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RoleType } from 'src/common/enums/role.enum';
 
+const profileResponseSchema = {
+  type: 'object',
+  properties: {
+    statusCode: { type: 'number' },
+    message: { type: 'string' },
+    data: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        email: { type: 'string' },
+        username: { type: 'string' },
+        full_name: { type: 'string', nullable: true },
+        avatar: { type: 'string', nullable: true },
+        cover_photo: { type: 'string', nullable: true },
+        bio: { type: 'string', nullable: true },
+        privacy: { type: 'string', enum: ['public', 'private', 'follower'] },
+        isFollowing: { type: 'boolean' },
+        relationStatus: {
+          type: 'string',
+          enum: ['none', 'following', 'pending', 'block'],
+        },
+        postsCount: { type: 'number' },
+        followersCount: { type: 'number' },
+        followingCount: { type: 'number' },
+        friendsCount: { type: 'number' },
+      },
+    },
+  },
+};
+
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
@@ -92,6 +122,10 @@ export class UsersController {
   @Get(':user_id')
   @ResponseMessage('Find user by ID successfully')
   @ApiOperation({ summary: 'Find user by ID' })
+  @ApiOkResponse({
+    description: 'Find user by ID successfully',
+    schema: profileResponseSchema,
+  })
   async getProfile(
     @Param('user_id', ParseUUIDPipe) user_id: string,
     @User() user: IUser,
@@ -184,7 +218,7 @@ export class UsersController {
   @ResponseMessage('OTP sent successfully')
   @ApiOperation({ summary: 'Gửi mã OTP xác thực email khi đăng ký' })
   sendRegisterOtp(@Body() dto: SendRegisterOtpDto) {
-    return this.usersService.sendRegisterOtp(dto.email);
+    return this.usersService.sendRegisterOtp(dto.email, dto.username);
   }
 
   @Post('/signup')

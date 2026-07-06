@@ -1,7 +1,6 @@
 import { MaxLength, MinLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ChatMember } from 'src/modules/chats/entities/chat-member.entity';
-import { WaitingMembers } from 'src/modules/chats/entities/waiting-members.entity';
 import { ChatMessage } from 'src/modules/chats/entities/chat-message.entity';
 import { ChatRoom } from 'src/modules/chats/entities/chat-room.entity';
 import { Comment } from 'src/modules/posts/comments/entities/comment.entity';
@@ -138,9 +137,6 @@ export class User {
 
   @OneToMany(() => PinChat, (pinChat) => pinChat.user)
   pin_chats: PinChat[];
-
-  @OneToMany(() => WaitingMembers, (waitingMembers) => waitingMembers.user)
-  waiting_members: WaitingMembers[];
 
   @ApiPropertyOptional({
     description: 'Viewer relation status to this user in feed/post responses',

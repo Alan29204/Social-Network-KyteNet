@@ -316,6 +316,8 @@ export class ChatRoomsService {
         name: roomName || 'Group Chat',
         type: 'group',
         created_by: user.id,
+        // Mặc định nhóm mới: chỉ admin được thêm thành viên (đổi được sau).
+        permission_add_member: dto.permission_add_member ?? MemberType.ADMIN,
       });
 
       const membersToSave = [
@@ -461,6 +463,8 @@ export class ChatRoomsService {
         name: 'Direct Chat',
         type: 'direct',
         created_by: userId,
+        // Direct chat (1-1) không có khái niệm "quyền thêm thành viên".
+        permission_add_member: null,
       });
 
       // Add both users as members

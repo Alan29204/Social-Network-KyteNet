@@ -33,6 +33,7 @@ import {
   upsertChatRoomInCaches,
 } from '@/features/chats/utils/chat-room-cache';
 import { MessagePostCard } from './message-post-card';
+import { getDisplayName, getGroupAvatarUrl, getUserAvatarUrl } from '@/utils/user';
 
 type FloatingRoomMember = {
   id: string;
@@ -152,7 +153,7 @@ export function FloatingChatRoom({
     return {
       id: 'virtual',
       type: 'direct',
-      name: virtualRecipient.full_name || virtualRecipient.username,
+      name: getDisplayName(virtualRecipient),
       quick_emoji: '👍',
       members: [
         {
@@ -195,12 +196,24 @@ export function FloatingChatRoom({
   const isGroup = activeRoom?.type === 'group';
   const roomName = isGroup
     ? activeRoom?.name || 'Group Chat'
-    : otherUser?.full_name || otherUser?.username || 'Người dùng';
+    : getDisplayName(otherUser);
   const roomAvatar = isGroup
-    ? activeRoom?.avatar
-    : otherUser?.profile_picture_url ||
-      otherUser?.avatar ||
-      '/default-avatar.png';
+    ? getGroupAvatarUrl(activeRoom?.avatar)
+    : getUserAvatarUrl(otherUser);
+
+  const getMessageActor = (msg: FloatingMessage) =>
+    msg.user ||
+    activeRoom?.members?.find(
+      (member) => member.id === msg.created_by || (member as any).user_id === msg.created_by,
+    );
+
+  const getSystemMessageText = (msg: FloatingMessage) => {
+    const messageText = msg.message || '';
+    if (messageText.trim().toLowerCase() === 'đã tạo nhóm') {
+      return `${getDisplayName(getMessageActor(msg))} đã tạo nhóm`;
+    }
+    return messageText;
+  };
   // Kiểm tra chặn 2 chiều cho cả chat thật lẫn chat ảo (virtualRecipient).
   const otherUserId = !isGroup
     ? otherUser?.id || virtualRecipient?.id
@@ -336,11 +349,35 @@ export function FloatingChatRoom({
     }
   }, [displayMessages.length, roomId]);
 
+  // Chỉ đánh dấu đã đọc khi tab đang hiển thị + cửa sổ focus (tránh "Đã xem" sai).
   useEffect(() => {
-    if (roomId) {
+    if (
+      roomId &&
+      document.visibilityState === 'visible' &&
+      document.hasFocus()
+    ) {
       chatRoomsControllerMarkRoomAsRead(roomId).catch(() => {});
     }
   }, [roomId, displayMessages.length]);
+
+  // Khi tab quay lại hiển thị / được focus, đánh dấu đã đọc phòng đang mở.
+  useEffect(() => {
+    const onActive = () => {
+      if (
+        roomId &&
+        document.visibilityState === 'visible' &&
+        document.hasFocus()
+      ) {
+        chatRoomsControllerMarkRoomAsRead(roomId).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onActive);
+    window.addEventListener('focus', onActive);
+    return () => {
+      document.removeEventListener('visibilitychange', onActive);
+      window.removeEventListener('focus', onActive);
+    };
+  }, [roomId]);
 
   useEffect(() => {
     const socket = socketService.getSocket();
@@ -349,7 +386,11 @@ export function FloatingChatRoom({
     const handleNewMessage = (newMsg: FloatingMessage) => {
       if (newMsg.chat_room_id === roomId) {
         appendMessage(newMsg);
-        if (newMsg.created_by !== user?.id) {
+        if (
+          newMsg.created_by !== user?.id &&
+          document.visibilityState === 'visible' &&
+          document.hasFocus()
+        ) {
           chatRoomsControllerMarkRoomAsRead(newMsg.chat_room_id).catch(() => {});
         }
       } else {
@@ -435,9 +476,20 @@ export function FloatingChatRoom({
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setSelectedFiles((prev) => [...prev, ...files]);
+    const picked = Array.from(e.target.files || []);
+    const valid = picked.filter(
+      (f) =>
+        (f.type.startsWith('image/') || f.type.startsWith('video/')) &&
+        f.size <= 1024 * 1024 * 100,
+    );
+    if (valid.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...valid]);
+    }
+    if (valid.length < picked.length) {
+      toast({
+        description: 'Chỉ gửi được ảnh/video, mỗi tệp ≤100MB.',
+        variant: 'destructive',
+      });
     }
     e.target.value = '';
   };
@@ -531,9 +583,7 @@ export function FloatingChatRoom({
           </button>
           <Avatar className="h-8 w-8 shrink-0">
             <AvatarImage src={roomAvatar} className="object-cover" />
-            <AvatarFallback className="bg-muted text-xs">
-              {roomName?.[0]?.toUpperCase() || 'U'}
-            </AvatarFallback>
+            <AvatarFallback className="bg-muted text-xs" />
           </Avatar>
           <span className="max-w-[140px] truncate text-sm font-bold">
             {roomName}
@@ -614,7 +664,7 @@ export function FloatingChatRoom({
               return (
                 <div key={msg.id} className="flex justify-center py-2">
                   <span className="rounded-full bg-muted/50 px-3 py-1 text-xs text-muted-foreground">
-                    {msg.message}
+                    {getSystemMessageText(msg)}
                   </span>
                 </div>
               );
@@ -629,16 +679,8 @@ export function FloatingChatRoom({
                 {!isMine &&
                   (showAvatar ? (
                     <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarImage
-                        src={
-                          sender?.profile_picture_url ||
-                          sender?.avatar ||
-                          '/default-avatar.png'
-                        }
-                      />
-                      <AvatarFallback className="text-xs">
-                        {sender?.username?.[0]?.toUpperCase() || 'U'}
-                      </AvatarFallback>
+                      <AvatarImage src={getUserAvatarUrl(sender)} className="object-cover" />
+                      <AvatarFallback className="bg-muted text-xs" />
                     </Avatar>
                   ) : (
                     <div className="h-7 w-7 shrink-0" />

@@ -10,6 +10,7 @@ import {
 import { useState, useEffect } from 'react';
 import { FollowersModal } from './followers-modal';
 import { FollowingModal } from './following-modal';
+import { FriendsModal } from './friends-modal';
 import { AvatarUploadModal } from './avatar-upload-modal';
 import { CoverUploadModal } from './cover-upload-modal';
 import { BlockUserDialog } from './block-user-dialog';
@@ -49,6 +50,8 @@ interface ProfileHeaderProps {
     postsCount?: number;
     followersCount?: number;
     followingCount?: number;
+    friendsCount?: number;
+    privacy?: string;
     isFollowing?: boolean;
     relationStatus?: string;
   };
@@ -59,6 +62,10 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   const isMe = authUser?.id === user.id;
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  // Tài khoản riêng tư mình chưa follow -> chặn xem follower/following ở UI
+  const listsLocked =
+    user.privacy === 'private' && !isMe && !user.isFollowing;
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
@@ -277,25 +284,56 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
             </div>
           </div>
 
-          <div className="flex gap-6 justify-center md:justify-start">
+          <div className="flex gap-6 justify-center md:justify-start flex-wrap">
             <div className="text-center md:text-left">
               <span className="font-semibold">{user.postsCount || 0}</span> bài
               viết
             </div>
-            <button
-              className="text-center md:text-left hover:underline"
-              onClick={() => setShowFollowers(true)}
-            >
-              <span className="font-semibold">{user.followersCount || 0}</span>{' '}
-              người theo dõi
-            </button>
-            <button
-              className="text-center md:text-left hover:underline"
-              onClick={() => setShowFollowing(true)}
-            >
-              <span className="font-semibold">{user.followingCount || 0}</span>{' '}
-              đang theo dõi
-            </button>
+            {listsLocked ? (
+              <span className="text-center md:text-left text-muted-foreground cursor-default">
+                <span className="font-semibold text-foreground">
+                  {user.followersCount || 0}
+                </span>{' '}
+                người theo dõi
+              </span>
+            ) : (
+              <button
+                className="text-center md:text-left hover:underline"
+                onClick={() => setShowFollowers(true)}
+              >
+                <span className="font-semibold">
+                  {user.followersCount || 0}
+                </span>{' '}
+                người theo dõi
+              </button>
+            )}
+            {listsLocked ? (
+              <span className="text-center md:text-left text-muted-foreground cursor-default">
+                <span className="font-semibold text-foreground">
+                  {user.followingCount || 0}
+                </span>{' '}
+                đang theo dõi
+              </span>
+            ) : (
+              <button
+                className="text-center md:text-left hover:underline"
+                onClick={() => setShowFollowing(true)}
+              >
+                <span className="font-semibold">
+                  {user.followingCount || 0}
+                </span>{' '}
+                đang theo dõi
+              </button>
+            )}
+            {isMe && (
+              <button
+                className="text-center md:text-left hover:underline"
+                onClick={() => setShowFriends(true)}
+              >
+                <span className="font-semibold">{user.friendsCount || 0}</span>{' '}
+                người bạn
+              </button>
+            )}
           </div>
 
           <div>
@@ -315,6 +353,13 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         isOpen={showFollowing}
         onClose={() => setShowFollowing(false)}
       />
+      {isMe && (
+        <FriendsModal
+          userId={user.id}
+          isOpen={showFriends}
+          onClose={() => setShowFriends(false)}
+        />
+      )}
 
       <AvatarUploadModal
         isOpen={showAvatarModal}

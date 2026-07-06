@@ -2,7 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ChatMember } from './entities/chat-member.entity';
-import { WaitingMembers } from './entities/waiting-members.entity';
 
 import { RedisModule } from 'src/infra/redis/redis.module';
 import { UsersModule } from 'src/modules/users/users.module';
@@ -23,7 +22,6 @@ import { RelationsModule } from 'src/modules/users/relations/relations.module';
     TypeOrmModule.forFeature([
       ChatRoom,
       ChatMember,
-      WaitingMembers,
       ChatMessage,
       MessageReaction,
     ]),

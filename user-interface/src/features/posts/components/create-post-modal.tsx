@@ -42,7 +42,10 @@ interface CreatePostModalProps {
   // TODO: Add current user info prop or fetch from store
 }
 
-const MAX_MEDIA = 10;
+const MAX_MEDIA = 15;
+const MAX_VIDEOS = 5;
+const IMG_MAX_SIZE = 1024 * 1024 * 10; // 10MB
+const VID_MAX_SIZE = 1024 * 1024 * 100; // 100MB
 
 export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const { toast } = useToast();
@@ -109,30 +112,56 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   }, [mediaPreviews]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      let newFiles = Array.from(e.target.files);
-      const remaining = MAX_MEDIA - images.length;
-      if (remaining <= 0) {
+    const picked = e.target.files ? Array.from(e.target.files) : [];
+    if (picked.length > 0) {
+      const accepted: File[] = [];
+      const errors = new Set<string>();
+
+      let totalCount = images.length;
+      let videoCount = images.filter((f) => f.type.startsWith('video/')).length;
+
+      for (const file of picked) {
+        const isImg = file.type.startsWith('image/');
+        const isVid = file.type.startsWith('video/');
+        if (!isImg && !isVid) {
+          errors.add('Chỉ chấp nhận ảnh hoặc video.');
+          continue;
+        }
+        if (file.size > (isVid ? VID_MAX_SIZE : IMG_MAX_SIZE)) {
+          errors.add(
+            isVid ? 'Video vượt 100MB.' : 'Ảnh vượt 10MB.',
+          );
+          continue;
+        }
+        if (totalCount >= MAX_MEDIA) {
+          errors.add(`Tối đa ${MAX_MEDIA} ảnh/video mỗi bài viết.`);
+          break;
+        }
+        if (isVid && videoCount >= MAX_VIDEOS) {
+          errors.add(`Tối đa ${MAX_VIDEOS} video mỗi bài viết.`);
+          continue;
+        }
+        accepted.push(file);
+        totalCount += 1;
+        if (isVid) videoCount += 1;
+      }
+
+      if (accepted.length > 0) {
+        setImages((prev) => [...prev, ...accepted]);
+        setMediaPreviews((prev) => [
+          ...prev,
+          ...accepted.map((file) => ({
+            url: URL.createObjectURL(file),
+            type: file.type,
+          })),
+        ]);
+      }
+      if (errors.size > 0) {
         toast({
-          description: `Mỗi bài viết chỉ được tối đa ${MAX_MEDIA} ảnh/video.`,
+          description: Array.from(errors).join(' '),
           variant: 'destructive',
         });
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
       }
-      if (newFiles.length > remaining) {
-        newFiles = newFiles.slice(0, remaining);
-        toast({
-          description: `Chỉ thêm tối đa ${MAX_MEDIA} ảnh/video mỗi bài viết.`,
-        });
-      }
-      setImages((prev) => [...prev, ...newFiles]);
-
-      const newPreviews = newFiles.map((file) => ({
-        url: URL.createObjectURL(file),
-        type: file.type
-      }));
-      setMediaPreviews((prev) => [...prev, ...newPreviews]);
     }
     // Reset input so the same file can be selected again if needed
     if (fileInputRef.current) {
@@ -325,7 +354,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
               <MentionsInput
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder="Bạn đang nghĩ gì?"
+                placeholder="Nhập nội dung bài viết...?"
                 className="mentions-input min-h-[150px] border-none focus-visible:ring-0 resize-none px-0 text-base shadow-none bg-transparent w-full"
                 style={{
                   control: { fontSize: '1rem', fontWeight: 'normal', outline: 'none', border: 'none' },

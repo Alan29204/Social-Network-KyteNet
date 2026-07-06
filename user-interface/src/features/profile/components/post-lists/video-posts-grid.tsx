@@ -38,11 +38,10 @@ export function VideoPostsGrid({ userId }: { userId: string }) {
   const posts = data?.pages.flatMap((page: any) => page.data?.data || []) || [];
 
   const openProfileReels = (postId: string) => {
-    const params = new URLSearchParams({
-      start: postId,
-      user_id: userId,
+    // state.unmute: tự bật tiếng vì đây là cú click có user-gesture.
+    navigate(`/reels/${postId}?user_id=${userId}`, {
+      state: { unmute: true },
     });
-    navigate(`/reels?${params.toString()}`);
   };
 
   if (status === 'pending') {

@@ -61,6 +61,7 @@ import {
   updateChatRoomCaches,
   upsertChatRoomInCaches,
 } from '../utils/chat-room-cache';
+import { getDisplayName, getGroupAvatarUrl, getUserAvatarUrl } from '@/utils/user';
 
 /** 6 fixed reaction emojis (Messenger-style) */
 const REACTION_EMOJIS: Record<string, string> = {
@@ -265,6 +266,10 @@ export default function MessagesPage() {
   const markRoomAsRead = useCallback(
     (roomId?: string) => {
       if (!roomId || !userIdRef.current) return;
+      // Chỉ đánh dấu "đã đọc" khi người dùng ĐANG thực sự xem (tab hiển thị + cửa sổ focus).
+      // Tránh báo "Đã xem" sai khi tab ẩn/không focus. Khi user quay lại (visibilitychange/focus)
+      // sẽ có listener gọi lại hàm này để đánh dấu đúng lúc.
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
 
       clearRoomUnread(roomId, userIdRef.current, true);
       orvalClient({
@@ -274,6 +279,21 @@ export default function MessagesPage() {
     },
     [clearRoomUnread],
   );
+
+  // Khi tab quay lại hiển thị / cửa sổ được focus, đánh dấu đã đọc phòng đang mở.
+  useEffect(() => {
+    const onActive = () => {
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        markRoomAsRead(selectedRoomIdRef.current || undefined);
+      }
+    };
+    document.addEventListener('visibilitychange', onActive);
+    window.addEventListener('focus', onActive);
+    return () => {
+      document.removeEventListener('visibilitychange', onActive);
+      window.removeEventListener('focus', onActive);
+    };
+  }, [markRoomAsRead]);
 
   const updateSidebarWithMessage = useCallback(
     (roomId: string, msg: any) => {
@@ -842,8 +862,21 @@ export default function MessagesPage() {
   // Image & Video Upload handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...filesArray]);
+      const picked = Array.from(e.target.files);
+      const valid = picked.filter(
+        (f) =>
+          (f.type.startsWith('image/') || f.type.startsWith('video/')) &&
+          f.size <= 1024 * 1024 * 100,
+      );
+      if (valid.length > 0) {
+        setSelectedFiles((prev) => [...prev, ...valid]);
+      }
+      if (valid.length < picked.length) {
+        toast({
+          description: 'Chỉ gửi được ảnh/video, mỗi tệp ≤100MB.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -884,43 +917,41 @@ export default function MessagesPage() {
         if (newRoomId) {
           targetRoomId = newRoomId;
 
-          const optimisticRoom =
-            roomView ||
-            {
-              id: newRoomId,
-              type: 'direct',
-              name: virtualRecipient.username,
-              avatar: virtualRecipient.avatar,
-              unread_count: 0,
-              is_muted: false,
-              quick_emoji: '👍',
-              is_blocked: false,
-              is_request: false,
-              last_message: null,
-              last_message_at: new Date().toISOString(),
-              created_at: new Date().toISOString(),
-              members: [
-                {
-                  id: user?.id,
-                  username: user?.username,
-                  full_name: user?.full_name,
-                  avatar: user?.avatar,
-                  member_type: 'ADMIN',
-                  status: 'accepted',
-                  is_online: true,
-                },
-                {
-                  id: virtualRecipient.id,
-                  username: virtualRecipient.username,
-                  full_name: virtualRecipient.full_name,
-                  avatar: virtualRecipient.avatar,
-                  member_type: 'ADMIN',
-                  status: 'pending',
-                  is_online: virtualRecipient.is_online,
-                  last_active: virtualRecipient.last_active,
-                },
-              ],
-            };
+          const optimisticRoom = roomView || {
+            id: newRoomId,
+            type: 'direct',
+            name: getDisplayName(virtualRecipient),
+            avatar: virtualRecipient.avatar,
+            unread_count: 0,
+            is_muted: false,
+            quick_emoji: '👍',
+            is_blocked: false,
+            is_request: false,
+            last_message: null,
+            last_message_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            members: [
+              {
+                id: user?.id,
+                username: user?.username,
+                full_name: user?.full_name,
+                avatar: user?.avatar,
+                member_type: 'ADMIN',
+                status: 'accepted',
+                is_online: true,
+              },
+              {
+                id: virtualRecipient.id,
+                username: virtualRecipient.username,
+                full_name: virtualRecipient.full_name,
+                avatar: virtualRecipient.avatar,
+                member_type: 'ADMIN',
+                status: 'pending',
+                is_online: virtualRecipient.is_online,
+                last_active: virtualRecipient.last_active,
+              },
+            ],
+          };
 
           upsertChatRoomInCaches(queryClient, optimisticRoom, user?.id);
 
@@ -1245,22 +1276,25 @@ export default function MessagesPage() {
   );
 
   // Selecting a Suggested/Search User — Virtual Room pattern
-  const handleSelectUser = useCallback((targetUser: any) => {
-    const existingRoom = findDirectRoomForUser(targetUser.id);
+  const handleSelectUser = useCallback(
+    (targetUser: any) => {
+      const existingRoom = findDirectRoomForUser(targetUser.id);
 
-    if (existingRoom) {
-      // Room exists → just navigate to it
-      navigate(`/messages/${existingRoom.id}`);
-      setVirtualRecipient(null);
-    } else {
-      // No room yet → enter virtual chat mode (no DB call, clear URL roomId)
-      navigate('/messages');
-      setVirtualRecipient(targetUser);
-    }
-    setSearchTerm('');
-    setIsSearchFocused(false);
-    setShowCreateChatModal(false);
-  }, [findDirectRoomForUser, navigate]);
+      if (existingRoom) {
+        // Room exists → just navigate to it
+        navigate(`/messages/${existingRoom.id}`);
+        setVirtualRecipient(null);
+      } else {
+        // No room yet → enter virtual chat mode (no DB call, clear URL roomId)
+        navigate('/messages');
+        setVirtualRecipient(targetUser);
+      }
+      setSearchTerm('');
+      setIsSearchFocused(false);
+      setShowCreateChatModal(false);
+    },
+    [findDirectRoomForUser, navigate],
+  );
 
   const activeRoom = chatRooms.find((r: any) => r.id === selectedRoomId);
   const otherUser =
@@ -1331,6 +1365,21 @@ export default function MessagesPage() {
     return 'Ngoại tuyến';
   };
 
+  const getMessageActor = (msg: any, room: any = activeRoom) =>
+    msg?.user ||
+    room?.members?.find(
+      (member: any) =>
+        member.id === msg?.created_by || member.user_id === msg?.created_by,
+    );
+
+  const getSystemMessageText = (msg: any, room: any = activeRoom) => {
+    const messageText = msg?.message || '';
+    if (messageText.trim().toLowerCase() === 'đã tạo nhóm') {
+      return `${getDisplayName(getMessageActor(msg, room))} đã tạo nhóm`;
+    }
+    return messageText;
+  };
+
   // Helper check for video URLs
   const isVideo = (fileOrUrl: string | File) => {
     const url =
@@ -1351,7 +1400,7 @@ export default function MessagesPage() {
           {/* Header */}
           <div className="h-20 flex items-center justify-between px-6 shrink-0 pt-4">
             <div className="flex items-center gap-2 font-bold text-xl cursor-pointer">
-              {user?.username} <span className="text-sm">⌄</span>
+              {user?.username || 'Người dùng'}
             </div>
             <button
               onClick={() => setShowCreateChatModal(true)}
@@ -1409,12 +1458,9 @@ export default function MessagesPage() {
                   );
                   const isGroup = room.type === 'group';
                   const isActive = room.id === selectedRoomId;
-                  const displayMembers = room.members.filter(
-                    (m: any) => m.id !== user?.id,
-                  );
                   const chatName = isGroup
                     ? room.name
-                    : targetUser?.username || 'Người dùng';
+                    : getDisplayName(targetUser);
 
                   return (
                     <div
@@ -1423,52 +1469,17 @@ export default function MessagesPage() {
                       className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${isActive ? 'bg-muted/80' : 'hover:bg-muted/50'}`}
                     >
                       <div className="relative shrink-0">
-                        {isGroup &&
-                        (!room.avatar || room.avatar === 'chat-room.png') ? (
-                          <div className="relative w-14 h-14">
-                            <Avatar className="w-10 h-10 absolute top-0 left-0 border-2 border-background">
-                              <AvatarImage
-                                src={
-                                  displayMembers[0]?.profile_picture_url ||
-                                  displayMembers[0]?.avatar ||
-                                  '/default-avatar.png'
-                                }
-                              />
-                              <AvatarFallback>
-                                {displayMembers[0]?.username?.[0]?.toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            {displayMembers.length > 1 && (
-                              <Avatar className="w-10 h-10 absolute bottom-0 right-0 border-2 border-background">
-                                <AvatarImage
-                                  src={
-                                    displayMembers[1]?.profile_picture_url ||
-                                    displayMembers[1]?.avatar ||
-                                    '/default-avatar.png'
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {displayMembers[1]?.username?.[0]?.toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                          </div>
-                        ) : (
-                          <Avatar className="w-14 h-14">
-                            <AvatarImage
-                              src={
-                                isGroup
-                                  ? room.avatar
-                                  : targetUser?.profile_picture_url ||
-                                    targetUser?.avatar ||
-                                    '/default-avatar.png'
-                              }
-                            />
-                            <AvatarFallback>
-                              {chatName[0]?.toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
+                        <Avatar className="w-14 h-14">
+                          <AvatarImage
+                            src={
+                              isGroup
+                                ? getGroupAvatarUrl(room.avatar)
+                                : getUserAvatarUrl(targetUser)
+                            }
+                            className="object-cover"
+                          />
+                          <AvatarFallback className="bg-muted" />
+                        </Avatar>
                         {!isGroup &&
                           targetUser?.is_online &&
                           !room.is_blocked && (
@@ -1483,8 +1494,13 @@ export default function MessagesPage() {
                           className={`text-sm truncate ${room.unread_count > 0 ? 'text-foreground font-bold' : 'text-muted-foreground'}`}
                         >
                           {room.last_message
-                            ? room.last_message.message_type === 'system'
-                              ? room.last_message.message
+                            ? (
+                                room.last_message.message_type ||
+                                room.last_message.message_status ||
+                                room.last_message.type ||
+                                ''
+                              ).toLowerCase() === 'system'
+                              ? getSystemMessageText(room.last_message, room)
                               : `${room.last_message.created_by === user?.id ? 'Bạn: ' : ''}${room.last_message.message_status === 'deleted' || room.last_message.message_status === 'DELETED' ? 'đã thu hồi một tin nhắn' : room.last_message.message} · ${formatRelativeTime(room.last_message_at)}`
                             : 'Bắt đầu cuộc trò chuyện'}
                         </p>
@@ -1512,12 +1528,8 @@ export default function MessagesPage() {
                     >
                       <div className="relative shrink-0">
                         <Avatar className="w-14 h-14">
-                          <AvatarImage
-                            src={u.avatar || '/default-avatar.png'}
-                          />
-                          <AvatarFallback>
-                            {u.username?.[0]?.toUpperCase()}
-                          </AvatarFallback>
+                          <AvatarImage src={getUserAvatarUrl(u)} className="object-cover" />
+                          <AvatarFallback className="bg-muted" />
                         </Avatar>
                         {u.is_online && (
                           <span className="absolute bottom-0.5 right-0.5 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
@@ -1525,10 +1537,7 @@ export default function MessagesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[15px] truncate">
-                          {u.username || 'Người dùng'}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          @{u.username}
+                          {getDisplayName(u)}
                         </p>
                       </div>
                     </div>
@@ -1567,63 +1576,17 @@ export default function MessagesPage() {
                     }}
                   >
                     <div className="relative">
-                      {activeRoom?.type === 'group' &&
-                      (!activeRoom.avatar ||
-                        activeRoom.avatar === 'chat-room.png') ? (
-                        (() => {
-                          const displayMembers =
-                            activeRoom.members?.filter(
-                              (m: any) => m.id !== user?.id,
-                            ) || [];
-                          return (
-                            <div className="relative w-11 h-11">
-                              <Avatar className="w-8 h-8 absolute top-0 left-0 border-2 border-background">
-                                <AvatarImage
-                                  src={
-                                    displayMembers[0]?.profile_picture_url ||
-                                    displayMembers[0]?.avatar ||
-                                    '/default-avatar.png'
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {displayMembers[0]?.username?.[0]?.toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              {displayMembers.length > 1 && (
-                                <Avatar className="w-8 h-8 absolute bottom-0 right-0 border-2 border-background">
-                                  <AvatarImage
-                                    src={
-                                      displayMembers[1]?.profile_picture_url ||
-                                      displayMembers[1]?.avatar ||
-                                      '/default-avatar.png'
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {displayMembers[1]?.username?.[0]?.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <Avatar className="w-11 h-11">
-                          <AvatarImage
-                            src={
-                              activeRoom?.type === 'group'
-                                ? activeRoom.avatar
-                                : otherUser?.profile_picture_url ||
-                                  otherUser?.avatar ||
-                                  '/default-avatar.png'
-                            }
-                          />
-                          <AvatarFallback>
-                            {(activeRoom?.type === 'group'
-                              ? activeRoom.name
-                              : otherUser?.username)?.[0]?.toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
+                      <Avatar className="w-11 h-11">
+                        <AvatarImage
+                          src={
+                            activeRoom?.type === 'group'
+                              ? getGroupAvatarUrl(activeRoom.avatar)
+                              : getUserAvatarUrl(otherUser)
+                          }
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-muted" />
+                      </Avatar>
                       {activeRoom?.type !== 'group' &&
                         otherUser?.is_online &&
                         !activeRoom?.is_blocked && (
@@ -1634,7 +1597,7 @@ export default function MessagesPage() {
                       <p className="font-bold text-base">
                         {activeRoom?.type === 'group'
                           ? activeRoom.name
-                          : otherUser?.username || 'Người dùng'}
+                          : getDisplayName(otherUser)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {activeRoom?.type === 'group'
@@ -1763,7 +1726,7 @@ export default function MessagesPage() {
                               <div className="w-1 h-full bg-amber-500 rounded-full" />
                               <div className="text-xs truncate flex-1 flex items-center gap-1">
                                 <span className="font-semibold text-muted-foreground mr-1 shrink-0">
-                                  {m.user?.username || 'User'}:
+                                  {getDisplayName(m.user, 'Người dùng')}:
                                 </span>
                                 {isMediaOnly ? (
                                   <>
@@ -1805,58 +1768,13 @@ export default function MessagesPage() {
                     <div className="flex flex-col items-center justify-center pt-8 pb-12 gap-3">
                       {activeRoom?.type === 'group' ? (
                         <>
-                          {!activeRoom.avatar ||
-                          activeRoom.avatar === 'chat-room.png' ? (
-                            <div className="relative w-24 h-24">
-                              <Avatar className="w-16 h-16 absolute top-0 left-0 border-4 border-background">
-                                <AvatarImage
-                                  src={
-                                    activeRoom.members?.filter(
-                                      (m: any) => m.id !== user?.id,
-                                    )[0]?.profile_picture_url ||
-                                    activeRoom.members?.filter(
-                                      (m: any) => m.id !== user?.id,
-                                    )[0]?.avatar ||
-                                    '/default-avatar.png'
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {activeRoom.members
-                                    ?.filter((m: any) => m.id !== user?.id)[0]
-                                    ?.username?.[0]?.toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              {activeRoom.members?.filter(
-                                (m: any) => m.id !== user?.id,
-                              ).length > 1 && (
-                                <Avatar className="w-16 h-16 absolute bottom-0 right-0 border-4 border-background">
-                                  <AvatarImage
-                                    src={
-                                      activeRoom.members?.filter(
-                                        (m: any) => m.id !== user?.id,
-                                      )[1]?.profile_picture_url ||
-                                      activeRoom.members?.filter(
-                                        (m: any) => m.id !== user?.id,
-                                      )[1]?.avatar ||
-                                      '/default-avatar.png'
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {activeRoom.members
-                                      ?.filter((m: any) => m.id !== user?.id)[1]
-                                      ?.username?.[0]?.toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          ) : (
-                            <Avatar className="w-24 h-24">
-                              <AvatarImage src={activeRoom.avatar} />
-                              <AvatarFallback>
-                                {activeRoom.name?.[0]?.toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
+                          <Avatar className="w-24 h-24">
+                            <AvatarImage
+                              src={getGroupAvatarUrl(activeRoom.avatar)}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="bg-muted" />
+                          </Avatar>
                           <h2 className="text-xl font-bold">
                             {activeRoom.name}
                           </h2>
@@ -1868,18 +1786,13 @@ export default function MessagesPage() {
                         <>
                           <Avatar className="w-24 h-24">
                             <AvatarImage
-                              src={
-                                otherUser.profile_picture_url ||
-                                otherUser.avatar ||
-                                '/default-avatar.png'
-                              }
+                              src={getUserAvatarUrl(otherUser)}
+                              className="object-cover"
                             />
-                            <AvatarFallback>
-                              {otherUser.username?.[0]?.toUpperCase()}
-                            </AvatarFallback>
+                            <AvatarFallback className="bg-muted" />
                           </Avatar>
                           <h2 className="text-xl font-bold">
-                            {otherUser.username}
+                            {getDisplayName(otherUser)}
                           </h2>
                           <button
                             className="px-4 py-1.5 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm hover:bg-secondary/80 transition-colors mt-2"
@@ -2032,7 +1945,7 @@ export default function MessagesPage() {
                             )}
                             <div className="flex justify-center py-2">
                               <span className="text-[12px] text-muted-foreground font-medium px-4 py-1 rounded-full bg-muted/40 text-center">
-                                {msg.message}
+                                {getSystemMessageText(msg)}
                               </span>
                             </div>
                           </div>
@@ -2070,17 +1983,8 @@ export default function MessagesPage() {
                               {!isMine &&
                                 (showAvatar ? (
                                   <Avatar className="w-7 h-7 shrink-0 opacity-50">
-                                    <AvatarImage
-                                      src={
-                                        sender?.profile_picture_url ||
-                                        sender?.avatar ||
-                                        '/default-avatar.png'
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {sender?.username?.[0]?.toUpperCase() ||
-                                        'U'}
-                                    </AvatarFallback>
+                                    <AvatarImage src={getUserAvatarUrl(sender)} className="object-cover" />
+                                    <AvatarFallback className="bg-muted" />
                                   </Avatar>
                                 ) : (
                                   <div className="w-7 shrink-0" />
@@ -2088,7 +1992,7 @@ export default function MessagesPage() {
                               <div className="px-3 py-1.5 text-[14px] italic border border-border/80 text-muted-foreground rounded-2xl bg-transparent select-none">
                                 {isMine
                                   ? 'Bạn đã thu hồi một tin nhắn'
-                                  : `${sender?.username || 'Người dùng'} đã thu hồi một tin nhắn`}
+                                  : `${getDisplayName(sender)} đã thu hồi một tin nhắn`}
                               </div>
                             </div>
                           </div>
@@ -2128,17 +2032,8 @@ export default function MessagesPage() {
                             {!isMine &&
                               (showAvatar ? (
                                 <Avatar className="w-7 h-7 shrink-0">
-                                  <AvatarImage
-                                    src={
-                                      sender?.profile_picture_url ||
-                                      sender?.avatar ||
-                                      '/default-avatar.png'
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {sender?.username?.[0]?.toUpperCase() ||
-                                      'U'}
-                                  </AvatarFallback>
+                                  <AvatarImage src={getUserAvatarUrl(sender)} className="object-cover" />
+                                  <AvatarFallback className="bg-muted" />
                                 </Avatar>
                               ) : (
                                 <div className="w-7 shrink-0" />
@@ -2335,12 +2230,11 @@ export default function MessagesPage() {
                                     {isMine
                                       ? msg.reply_to.created_by === user?.id
                                         ? 'Bạn đã trả lời chính bạn'
-                                        : `Bạn đã trả lời ${msg.reply_to.user?.username || 'người dùng'}`
-                                      : `${msg.user?.username || 'Người dùng'} đã trả lời ${
+                                        : `Bạn đã trả lời ${getDisplayName(msg.reply_to.user, 'người dùng')}`
+                                      : `${getDisplayName(msg.user)} đã trả lời ${
                                           msg.reply_to.created_by === user?.id
                                             ? 'bạn'
-                                            : msg.reply_to.user?.username ||
-                                              'người dùng'
+                                            : getDisplayName(msg.reply_to.user, 'người dùng')
                                         }`}
                                   </span>
                                   {/* Quoted Bubble */}
@@ -2379,7 +2273,8 @@ export default function MessagesPage() {
                                         <span className="truncate">
                                           Bài viết của{' '}
                                           {msg.reply_to.shared_post?.user
-                                            ?.username || 'người dùng'}
+                                            ? getDisplayName(msg.reply_to.shared_post.user, 'người dùng')
+                                            : 'người dùng'}
                                         </span>
                                         {msg.reply_to.shared_post
                                           ?.medias?.[0] && (
@@ -2770,15 +2665,16 @@ export default function MessagesPage() {
                           Đang trả lời{' '}
                           {replyingTo.user?.id === user?.id
                             ? 'chính bạn'
-                            : replyingTo.user?.username || 'người dùng'}
+                            : getDisplayName(replyingTo.user, 'người dùng')}
                         </p>
                         {replyingTo.shared_post_id ? (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <ImageIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                             <span className="text-xs text-muted-foreground truncate">
                               Bài viết của{' '}
-                              {replyingTo.shared_post?.user?.username ||
-                                'người dùng'}
+                              {replyingTo.shared_post?.user
+                                ? getDisplayName(replyingTo.shared_post.user, 'người dùng')
+                                : 'người dùng'}
                             </span>
                           </div>
                         ) : replyingTo.medias &&
@@ -2866,7 +2762,7 @@ export default function MessagesPage() {
                       <div className="p-4 shrink-0 bg-background border-t border-border/10">
                         <div className="flex flex-col gap-4 text-center pb-4">
                           <p className="text-[15px] text-muted-foreground font-semibold px-4">
-                            {targetUser?.username} muốn gửi tin nhắn cho bạn. Họ
+                            {getDisplayName(targetUser)} muốn gửi tin nhắn cho bạn. Họ
                             sẽ không biết bạn đã xem cho đến khi bạn chấp nhận.
                           </p>
                           <div className="flex justify-center gap-3">
@@ -3173,7 +3069,7 @@ export default function MessagesPage() {
                     key={roomId}
                     className="inline-flex items-center gap-1 bg-[#0084ff]/10 text-[#0084ff] text-xs font-semibold px-2 py-1 rounded-full"
                   >
-                    {tgtUser?.username || 'Người dùng'}
+                    {getDisplayName(tgtUser)}
                     <button
                       onClick={() =>
                         setForwardTargets((prev) =>
@@ -3203,8 +3099,11 @@ export default function MessagesPage() {
                   const tgtUser = room.members?.find(
                     (m: any) => m.id !== user?.id,
                   );
-                  const name = (tgtUser?.username || '').toLowerCase();
-                  return name.includes(forwardSearch.toLowerCase());
+                  const keyword = forwardSearch.toLowerCase();
+                  return (
+                    (tgtUser?.username || '').toLowerCase().includes(keyword) ||
+                    getDisplayName(tgtUser, '').toLowerCase().includes(keyword)
+                  );
                 })
                 .map((room: any) => {
                   const tgtUser = room.members?.find(
@@ -3224,23 +3123,12 @@ export default function MessagesPage() {
                       }}
                     >
                       <Avatar className="w-10 h-10">
-                        <AvatarImage
-                          src={
-                            tgtUser?.profile_picture_url ||
-                            tgtUser?.avatar ||
-                            '/default-avatar.png'
-                          }
-                        />
-                        <AvatarFallback>
-                          {tgtUser?.username?.[0]?.toUpperCase()}
-                        </AvatarFallback>
+                          <AvatarImage src={getUserAvatarUrl(tgtUser)} className="object-cover" />
+                          <AvatarFallback className="bg-muted" />
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm truncate">
-                          {tgtUser?.username || 'Người dùng'}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {tgtUser?.username}
+                          {getDisplayName(tgtUser)}
                         </p>
                       </div>
                       <div
@@ -3366,7 +3254,7 @@ export default function MessagesPage() {
             </DialogTitle>
             <DialogDescription className="text-muted-foreground mb-6">
               Nhóm này có{' '}
-              <strong>{groupBlockedUser?.username || 'một người dùng'}</strong>{' '}
+              <strong>{getDisplayName(groupBlockedUser, 'một người dùng')}</strong>{' '}
               là người bạn đã chặn.
             </DialogDescription>
             <div className="flex flex-col w-full gap-2">

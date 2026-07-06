@@ -56,6 +56,7 @@ function App() {
               {/* Add other routes like /explore here later */}
               <Route path="search" element={<SearchPage />} />
               <Route path="reels" element={<ReelsPage />} />
+              <Route path="reels/:id" element={<ReelsPage />} />
               <Route path="saved" element={<SavedPage />} />
               {/* /explore (feed) đã bỏ — trang chủ đã có tab "Khám phá" */}
               <Route path="explore/people" element={<SuggestedPeoplePage />} />

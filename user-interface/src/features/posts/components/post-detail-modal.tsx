@@ -72,6 +72,8 @@ interface PostDetailModalProps {
   onOpenChange: (open: boolean) => void;
   defaultCommentId?: string | null;
   syncUrl?: boolean;
+  /** 'theater' = bố cục chia đôi (media trái, nội dung+bình luận phải) khi bấm ảnh/video */
+  variant?: 'default' | 'theater';
   canNavigatePrevious?: boolean;
   canNavigateNext?: boolean;
   isNavigatingNext?: boolean;
@@ -103,6 +105,7 @@ export function PostDetailModal({
   onOpenChange,
   defaultCommentId,
   syncUrl = false,
+  variant = 'default',
   canNavigatePrevious,
   canNavigateNext,
   isNavigatingNext,
@@ -199,6 +202,68 @@ export function PostDetailModal({
   ).map((url: string) => normalizePostMediaUrl(url));
   const isRepost = !!post?.shared_post;
   const isMyPost = currentUser?.id === (post?.user?.id || initialPost.user.id);
+  // Bố cục chia đôi khi mở dạng theater và bài có media
+  const isTheater = variant === 'theater' && mediaUrls.length > 0;
+
+  // Khối media dùng chung (inline ở bố cục thường / cột trái ở theater)
+  const mediaBlock =
+    mediaUrls.length > 0 ? (
+      mediaUrls.length > 1 ? (
+        <Carousel className="w-full">
+          <div className="relative w-full bg-muted flex items-center justify-center">
+            <CarouselContent>
+              {mediaUrls.map((img: string, index: number) => (
+                <CarouselItem
+                  key={index}
+                  className="flex items-center justify-center"
+                >
+                  {(() => {
+                    const isVideo = isVideoPostMedia(img);
+                    return isVideo ? (
+                      <video
+                        src={img}
+                        controls
+                        className="max-w-full max-h-[92vh] object-contain rounded-lg"
+                      />
+                    ) : (
+                      <img
+                        src={img}
+                        alt={`Media ${index + 1}`}
+                        className="max-w-full max-h-[92vh] object-contain rounded-lg"
+                      />
+                    );
+                  })()}
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
+            <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
+          </div>
+          {/* Dots dưới media, trên nền card để dễ thấy */}
+          <CarouselDots className="py-2.5" />
+        </Carousel>
+      ) : (
+        <div className="w-full bg-muted flex items-center justify-center">
+          {(() => {
+            const url = mediaUrls[0];
+            const isVideo = isVideoPostMedia(url);
+            return isVideo ? (
+              <video
+                src={url}
+                controls
+                className="max-w-full h-auto object-contain rounded-lg max-h-[92vh] mx-auto"
+              />
+            ) : (
+              <img
+                src={url}
+                alt="Post media"
+                className="max-w-full max-h-[92vh] object-contain mx-auto"
+              />
+            );
+          })()}
+        </div>
+      )
+    ) : null;
 
   // Xây dựng cây bình luận
   const rootComments = comments.filter((c: any) => !c.parent_id);
@@ -279,7 +344,10 @@ export function PostDetailModal({
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
       setCommentAction(null);
+      toast({ description: 'Đã xóa bình luận' });
     },
+    onError: () =>
+      toast({ description: 'Không thể xóa bình luận.', variant: 'destructive' }),
   });
 
   const editCommentMutation = useMutation({
@@ -562,7 +630,8 @@ export function PostDetailModal({
                   isOwner: currentUser?.id === c.user.id,
                   canDelete:
                     currentUser?.id === c.user.id ||
-                    currentUser?.id === post?.user?.id,
+                    currentUser?.id === post?.user?.id ||
+                    (currentUser as any)?.role === 'admin',
                 })
               }
             >
@@ -669,9 +738,30 @@ export function PostDetailModal({
           </div>,
           document.body,
         )}
-      <DialogContent className="max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0">
+      <DialogContent
+        className={
+          isTheater
+            ? 'max-w-[1100px] w-[95vw] h-[96vh] p-0 flex flex-row overflow-hidden bg-card border-none rounded-2xl gap-0'
+            : 'max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0'
+        }
+      >
         <DialogTitle className="sr-only">Chi tiết bài viết</DialogTitle>
 
+        {/* Cột trái: media lớn (chỉ ở theater) */}
+        {isTheater && (
+          <div className="hidden md:flex flex-1 min-w-0 bg-muted items-center justify-center">
+            <div className="w-full">{mediaBlock}</div>
+          </div>
+        )}
+
+        {/* Cột phải (hoặc toàn bộ ở bố cục thường): nội dung + tương tác + bình luận */}
+        <div
+          className={
+            isTheater
+              ? 'flex flex-col w-full md:w-[440px] shrink-0 h-full min-w-0 border-l border-border'
+              : 'flex flex-col h-full min-h-0 w-full'
+          }
+        >
         {/* Header (Cố định ở trên) */}
         {isRepost && (
           <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
@@ -740,63 +830,8 @@ export function PostDetailModal({
             </div>
           )}
 
-          {/* Media bài viết */}
-          {mediaUrls.length > 0 && (
-            <div className="w-full bg-black flex items-center justify-center">
-              {mediaUrls.length > 1 ? (
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {mediaUrls.map(
-                      (img: string, index: number) => (
-                        <CarouselItem
-                          key={index}
-                          className="flex items-center justify-center"
-                        >
-                          {(() => {
-                            const isVideo = isVideoPostMedia(img);
-                            return isVideo ? (
-                              <video
-                                src={img}
-                                controls
-                                className="max-w-full max-h-[85vh] object-contain rounded-lg"
-                              />
-                            ) : (
-                              <img
-                                src={img}
-                                alt={`Media ${index + 1}`}
-                                className="max-w-full max-h-[85vh] object-contain rounded-lg"
-                              />
-                            );
-                          })()}
-                        </CarouselItem>
-                      ),
-                    )}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
-                  <CarouselNext className="right-4 opacity-50 hover:opacity-100 hidden sm:flex bg-background/50 border-none" />
-                  <CarouselDots className="absolute bottom-3 left-1/2 -translate-x-1/2" />
-                </Carousel>
-              ) : (
-                (() => {
-                  const url = mediaUrls[0];
-                  const isVideo = isVideoPostMedia(url);
-                  return isVideo ? (
-                    <video
-                      src={url}
-                      controls
-                      className="w-full h-auto object-contain rounded-lg max-h-[85vh]"
-                    />
-                  ) : (
-                    <img
-                      src={url}
-                      alt="Post media"
-                      className="w-full h-auto object-contain"
-                    />
-                  );
-                })()
-              )}
-            </div>
-          )}
+          {/* Media bài viết (chỉ inline ở bố cục thường; theater đưa sang cột trái) */}
+          {!isTheater && mediaBlock}
 
           {/* Actions Bài viết */}
           <div className="p-4 flex flex-col gap-3">
@@ -1017,6 +1052,7 @@ export function PostDetailModal({
               {commentMutation.isPending ? 'Đang gửi...' : 'Đăng'}
             </button>
           </div>
+        </div>
         </div>
       </DialogContent>
 

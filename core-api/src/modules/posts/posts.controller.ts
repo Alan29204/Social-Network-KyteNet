@@ -138,6 +138,8 @@ export class PostsController {
         },
         'medias-posts': {
           type: 'array',
+          description:
+            'Ảnh/video đính kèm. Tối đa 15 tệp (trong đó tối đa 5 video). Chỉ nhận image/* hoặc video/*. Ảnh ≤10MB, video ≤100MB.',
           items: {
             type: 'string',
             format: 'binary',
@@ -152,17 +154,17 @@ export class PostsController {
       bodyType: 'FORM_DATA',
     },
   })
-  @UseInterceptors(FilesInterceptor('medias-posts', 10))
+  @UseInterceptors(FilesInterceptor('medias-posts', 15))
   create(
     @User() user: IUser,
     @Body() createPostDto: CreatePostDto,
     @UploadedFiles(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
-          fileType: /(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/,
+          fileType: /^(image|video)\/(jpg|jpeg|png|gif|webp|mp4|mov|quicktime|webm)$/,
         })
         .addMaxSizeValidator({
-          maxSize: 1024 * 1024 * 10, // 10MB
+          maxSize: 1024 * 1024 * 100, // 100MB (đủ cho video; ảnh do FE chặn 10MB)
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,

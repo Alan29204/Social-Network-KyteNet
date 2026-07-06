@@ -3,8 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Inject,
   Param,
+  ParseFilePipeBuilder,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -54,6 +56,8 @@ export class ChatMessagesController {
         shared_post_id: { type: 'string' },
         'medias-messages': {
           type: 'array',
+          description:
+            'Ảnh/video đính kèm. Tối đa 5 tệp. Chỉ nhận image/* hoặc video/*. Mỗi tệp ≤100MB.',
           items: {
             type: 'string',
             format: 'binary',
@@ -66,7 +70,17 @@ export class ChatMessagesController {
   async createMessage(
     @Body() dto: CreateChatMessageDto,
     @User() user: IUser,
-    @UploadedFiles()
+    @UploadedFiles(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: /^(image|video)\/(jpg|jpeg|png|gif|webp|mp4|mov|quicktime|webm)$/,
+        })
+        .addMaxSizeValidator({ maxSize: 1024 * 1024 * 100 }) // 100MB
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          fileIsRequired: false,
+        }),
+    )
     files: Express.Multer.File[],
   ) {
     console.log('--- RECEIVED DTO IN createMessage ---', dto);

@@ -25,15 +25,13 @@ import {
   User,
   Menu,
   Settings,
-  Activity,
   Bookmark,
   Sun,
   Moon,
-  MessageSquareWarning,
-  RefreshCw,
   LogOut,
   Ban,
   UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   getChatRoomsControllerGetListChatRoomQueryKey,
@@ -312,7 +310,7 @@ export function SidebarLeft() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     // Determine which queries to invalidate based on route
                     if (href === '/')
-                      queryClient.invalidateQueries({ queryKey: ['feed'] });
+                      window.dispatchEvent(new Event('kyte:refresh-home-feed'));
                     if (href.startsWith('/profile'))
                       queryClient.invalidateQueries({ queryKey: ['profile'] });
                   }
@@ -393,10 +391,6 @@ export function SidebarLeft() {
                   <span>Cài đặt</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
-                <Activity className="mr-3 h-5 w-5" />
-                <span>Hoạt động của bạn</span>
-              </DropdownMenuItem>
               <DropdownMenuItem
                 asChild
                 className="p-3 cursor-pointer rounded-lg text-[15px]"
@@ -431,18 +425,21 @@ export function SidebarLeft() {
                 )}
                 <span>Chuyển chế độ</span>
               </DropdownMenuItem>
-              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
-                <MessageSquareWarning className="mr-3 h-5 w-5" />
-                <span>Báo cáo sự cố</span>
-              </DropdownMenuItem>
 
-              <DropdownMenuSeparator className="my-1" />
-
-              <DropdownMenuItem disabled className="p-3 rounded-lg text-[15px]">
-                <RefreshCw className="mr-3 h-5 w-5" />
-                <span>Chuyển tài khoản</span>
-              </DropdownMenuItem>
-
+              {user?.role === 'admin' && (
+                <>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem
+                    asChild
+                    className="p-3 cursor-pointer rounded-lg text-[15px]"
+                  >
+                    <Link to="/admin">
+                      <ShieldCheck className="mr-3 h-5 w-5" />
+                      <span>Dành cho Quản trị viên</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator className="my-1" />
 
               <DropdownMenuItem

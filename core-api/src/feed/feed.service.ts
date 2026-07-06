@@ -8,30 +8,40 @@ import { RedisService } from 'src/infra/redis/redis.service';
 import { RelationType } from 'src/common/enums/relation.enum';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 
-/** Maximum number of posts stored in each user's Redis feed */
+/*Số lượng bài viết tối đa trong feed */
 const MAX_FEED_SIZE = 500;
-/** Follower count threshold to classify a user as "celebrity" (Fan-out on Read) */
+
+/*Ngưỡng số lượng follower để phân loại user là celebrity */
 const CELEBRITY_THRESHOLD = 1000;
-/** TTL (seconds) for cached following/blocked relation ID lists */
+
+/*TTL (giây) cho cache các danh sách theo dõi/ chặn */
 const RELATION_CACHE_TTL = 60;
-/** Redis key for the globally-cached Explore candidate ranking */
+
+/*Khóa cache cho các bài viết tiềm năng trong Explore */
 const EXPLORE_CANDIDATES_KEY = 'explore:candidates';
-/** TTL (seconds) for the Explore candidate cache */
+
+/** TTL cho cache các bài viết tiềm năng */
 const EXPLORE_CANDIDATES_TTL = 300;
-/** Max number of candidate posts ranked for the Explore feed pool */
+
+/*Số lượng bài viết tối đa trong pool Explore */
 const EXPLORE_CANDIDATES_LIMIT = 200;
-/** Only rank posts from the last N days in the Explore feed */
+
+/*Số ngày để xem xét các bài viết trong Explore */
 const EXPLORE_WINDOW_DAYS = 30;
 
-// ── Personalized Explore ranking ──
-/** TTL (seconds) for a user's cached hashtag interest profile */
+// ---------- Xếp hạng cá nhân hóa cho trang Khám Phá ---------
+/*TTL cho cache hồ sơ sở thích của người dùng */
 const INTEREST_CACHE_TTL = 1800;
-/** History window (days) for building the interest profile */
+
+/*Cửa sổ thời gian (ngày) để xây dựng hồ sơ sở thích*/
 const INTEREST_WINDOW_DAYS = 60;
-/** Number of top interest hashtags kept per user */
+
+/* Số lượng hashtag sở thích cho mỗi user */
 const INTEREST_TOP_K = 20;
-/** Max posts per author allowed near the top of the Explore feed (diversity) */
-const MAX_POSTS_PER_AUTHOR = 2;
+
+/* Số bài viết tối đa trên mỗi tác giả trong feed Khám Phá ( Tăng độ đa dạng nội dung) */
+const MAX_POSTS_PER_AUTHOR = 6;
+
 /** TTL (seconds) for a user's cached personalized Explore ranking */
 const EXPLORE_RANKED_TTL = 120;
 /** Ranking weights: engagement, topic affinity, social proof */
@@ -205,7 +215,10 @@ export class FeedService {
         `explore:seen:${userId}`,
         ...pageIds.flatMap((id) => [now, id]),
       );
-      await this.redisService.expire(`explore:seen:${userId}`, SEEN_TTL_SECONDS);
+      await this.redisService.expire(
+        `explore:seen:${userId}`,
+        SEEN_TTL_SECONDS,
+      );
       await this.redisService.zRemRangeByRank(
         `explore:seen:${userId}`,
         0,
@@ -273,7 +286,11 @@ export class FeedService {
     );
 
     if (visible.length === 0) {
-      await this.redisService.set(cacheKey, JSON.stringify([]), EXPLORE_RANKED_TTL);
+      await this.redisService.set(
+        cacheKey,
+        JSON.stringify([]),
+        EXPLORE_RANKED_TTL,
+      );
       return [];
     }
 
@@ -291,9 +308,15 @@ export class FeedService {
     const engRange = maxScore - minScore || 1;
 
     const topicRawOf = (c: ExploreCandidate) =>
-      c.hashtags.reduce((sum, tag) => sum + (interest[tag.toLowerCase()] || 0), 0);
+      c.hashtags.reduce(
+        (sum, tag) => sum + (interest[tag.toLowerCase()] || 0),
+        0,
+      );
     const maxTopic = Math.max(1, ...visible.map(topicRawOf));
-    const maxSocial = Math.max(1, ...visible.map((c) => socialMap.get(c.id) || 0));
+    const maxSocial = Math.max(
+      1,
+      ...visible.map((c) => socialMap.get(c.id) || 0),
+    );
 
     // Điểm cá nhân hóa (tất định) cho từng ứng viên
     const scoreMap = new Map<string, number>();
@@ -574,13 +597,9 @@ export class FeedService {
       await pipeline.exec();
     }
 
-    // Always add to author's own feed
-    await this.redisService.zAdd(`feed:${authorId}`, timestamp, postId);
-    await this.redisService.zRemRangeByRank(
-      `feed:${authorId}`,
-      0,
-      -(MAX_FEED_SIZE + 1),
-    );
+    // Cố ý KHÔNG thêm bài của tác giả vào feed "Đang theo dõi" của chính họ.
+    // Bài của mình chỉ hiện ở trang cá nhân; feed "Đang theo dõi" chỉ gồm bài của
+    // người mình theo dõi (kể cả khi họ chia sẻ lại bài của mình).
   }
 
   /**
@@ -713,7 +732,11 @@ export class FeedService {
     });
 
     const ids = [...new Set(relations.map((r) => r.accept_side_id))];
-    await this.redisService.set(cacheKey, JSON.stringify(ids), RELATION_CACHE_TTL);
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(ids),
+      RELATION_CACHE_TTL,
+    );
     return ids;
   }
 
@@ -744,7 +767,11 @@ export class FeedService {
         ),
       ),
     ];
-    await this.redisService.set(cacheKey, JSON.stringify(ids), RELATION_CACHE_TTL);
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(ids),
+      RELATION_CACHE_TTL,
+    );
     return ids;
   }
 
@@ -818,7 +845,11 @@ export class FeedService {
     return posts.filter((post) => {
       // Skip blocked users
       if (blockedUserIds.includes(post.user_id)) return false;
-      if (post.shared_post && blockedUserIds.includes(post.shared_post.user?.id)) return false;
+      if (
+        post.shared_post &&
+        blockedUserIds.includes(post.shared_post.user?.id)
+      )
+        return false;
 
       // Owner can always see their own posts
       if (post.user_id === userId) return true;
@@ -830,8 +861,14 @@ export class FeedService {
       }
 
       // Hide reposts of private accounts if not following the original author
-      if (post.shared_post && post.shared_post.user?.privacy === PrivacyType.PRIVATE) {
-        if (post.shared_post.user.id !== userId && !followingIds.includes(post.shared_post.user.id)) {
+      if (
+        post.shared_post &&
+        post.shared_post.user?.privacy === PrivacyType.PRIVATE
+      ) {
+        if (
+          post.shared_post.user.id !== userId &&
+          !followingIds.includes(post.shared_post.user.id)
+        ) {
           return false;
         }
       }
@@ -952,43 +989,39 @@ export class FeedService {
       const repostsCount = repostsCountMap.get(actualPostId) || 0;
 
       return {
-          ...post,
-          user: this.withViewerRelation(
-            post.user,
-            relationStatusMap,
-            userId,
-          ),
-          shared_post: post.shared_post
-            ? {
-                ...post.shared_post,
-                user: this.withViewerRelation(
-                  post.shared_post.user,
-                  relationStatusMap,
-                  userId,
-                ),
-              }
-            : post.shared_post,
-          reposted_by: (post as any).reposted_by,
-          interactions: {
-            likes:
-              (post.shared_post
-                ? post.shared_post.reactions
-                : post.reactions
-              )?.filter((r: any) => r.reaction === 'like').length || 0,
-            comments:
-              (post.shared_post ? post.shared_post.comments : post.comments)
-                ?.length || 0,
-            reposts: repostsCount,
-            is_liked:
-              (post.shared_post
-                ? post.shared_post.reactions
-                : post.reactions
-              )?.some(
-                (r: any) => r.user_id === userId && r.reaction === 'like',
-              ) || false,
-            is_reposted: is_reposted,
-          },
-        };
+        ...post,
+        user: this.withViewerRelation(post.user, relationStatusMap, userId),
+        shared_post: post.shared_post
+          ? {
+              ...post.shared_post,
+              user: this.withViewerRelation(
+                post.shared_post.user,
+                relationStatusMap,
+                userId,
+              ),
+            }
+          : post.shared_post,
+        reposted_by: (post as any).reposted_by,
+        interactions: {
+          likes:
+            (post.shared_post
+              ? post.shared_post.reactions
+              : post.reactions
+            )?.filter((r: any) => r.reaction === 'like').length || 0,
+          comments:
+            (post.shared_post ? post.shared_post.comments : post.comments)
+              ?.length || 0,
+          reposts: repostsCount,
+          is_liked:
+            (post.shared_post
+              ? post.shared_post.reactions
+              : post.reactions
+            )?.some(
+              (r: any) => r.user_id === userId && r.reaction === 'like',
+            ) || false,
+          is_reposted: is_reposted,
+        },
+      };
     });
   }
 }

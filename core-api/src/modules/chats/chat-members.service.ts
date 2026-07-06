@@ -14,7 +14,6 @@ import { UsersService } from 'src/modules/users/users.service';
 import { RequestJoinChatRoomDto } from './dto/request-join-chat-room.dto';
 import { MemberType } from 'src/common/enums/member.enum';
 import { ChatMember } from './entities/chat-member.entity';
-import { WaitingMembers } from './entities/waiting-members.entity';
 import { ChatRoomsService } from './chat-rooms.service';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { ChatMessage } from './entities/chat-message.entity';
@@ -27,8 +26,6 @@ export class ChatMembersService {
   constructor(
     @InjectRepository(ChatMember)
     private chatMembersRepository: Repository<ChatMember>,
-    @InjectRepository(WaitingMembers)
-    private readonly waitingMembersRepository: Repository<WaitingMembers>,
     private readonly redisService: RedisService,
     @Inject(forwardRef(() => ChatRoomsService))
     private readonly chatRoomService: ChatRoomsService,
@@ -54,18 +51,18 @@ export class ChatMembersService {
       if (member)
         throw new BadRequestException('You already in this chat room');
 
+      // Nhóm yêu cầu admin duyệt: người dùng không tự vào được (phải do admin thêm).
       if (room.permission_add_member === MemberType.ADMIN) {
-        await this.waitingMembersRepository.save({
-          chat_room_id: dto.chat_room_id,
-          user_id: user.id,
-        });
-      } else {
-        await this.chatMembersRepository.save({
-          chat_room_id: dto.chat_room_id,
-          user_id: user.id,
-          member_type: MemberType.MEMBER,
-        });
+        throw new BadRequestException(
+          'Chỉ quản trị viên mới thêm được thành viên vào nhóm này',
+        );
       }
+
+      await this.chatMembersRepository.save({
+        chat_room_id: dto.chat_room_id,
+        user_id: user.id,
+        member_type: MemberType.MEMBER,
+      });
 
       return;
     } catch (error) {
@@ -143,6 +140,13 @@ export class ChatMembersService {
   async addMembers(chat_room_id: string, user_ids: string[], user: IUser) {
     const room = await this.chatRoomService.findChatRoomByID(chat_room_id);
     if (!room) throw new NotFoundException('Chat room not found');
+
+    // Không thể thêm người vào cuộc trò chuyện 1-1 (muốn thêm người thứ 3 -> tạo nhóm mới).
+    if (room.type === 'direct') {
+      throw new BadRequestException(
+        'Không thể thêm thành viên vào cuộc trò chuyện 1-1',
+      );
+    }
 
     const currentUserMember = await this.findMemberInChatRoom(
       chat_room_id,

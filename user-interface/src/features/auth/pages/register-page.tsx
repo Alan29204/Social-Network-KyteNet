@@ -74,7 +74,9 @@ export default function RegisterPage() {
   const onSubmitForm = (data: RegisterFormValues) => {
     const { confirmPassword, ...rest } = data;
     void confirmPassword;
-    sendOtpMutation.mutate(data.email, {
+    sendOtpMutation.mutate(
+      { email: data.email, username: data.username },
+      {
       onSuccess: (res: any) => {
         setPayload(rest);
         setStep('otp');
@@ -126,7 +128,9 @@ export default function RegisterPage() {
 
   const handleResendOtp = () => {
     if (!payload) return;
-    sendOtpMutation.mutate(payload.email, {
+    sendOtpMutation.mutate(
+      { email: payload.email, username: payload.username },
+      {
       onSuccess: (res: any) => {
         const devOtp = res?.data?.dev_otp || res?.dev_otp;
         toast({

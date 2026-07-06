@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, UserPlus } from 'lucide-react';
 import { orvalClient } from '@/services/apis/axios-client';
 import { getAvatarUrl } from '@/utils/user';
+import { useToast } from '@/hooks/use-toast';
 
 interface FollowRequestsModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ interface FollowRequestsModalProps {
 export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const { data: requestsData, isLoading, isError } = useRelationsControllerGetPendingRequests(
     undefined,
@@ -117,11 +119,13 @@ export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalP
     },
     onError: (_error, _userId, context) => {
       restoreRequests(context?.snapshots);
+      toast({ description: 'Không thể chấp nhận yêu cầu. Thử lại sau.', variant: 'destructive' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
       });
+      toast({ description: 'Đã chấp nhận yêu cầu theo dõi' });
     },
   });
 
@@ -135,11 +139,13 @@ export function FollowRequestsModal({ open, onOpenChange }: FollowRequestsModalP
     },
     onError: (_error, _userId, context) => {
       restoreRequests(context?.snapshots);
+      toast({ description: 'Không thể xóa yêu cầu. Thử lại sau.', variant: 'destructive' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: getRelationsControllerGetPendingRequestsQueryKey(),
       });
+      toast({ description: 'Đã xóa yêu cầu theo dõi' });
     },
   });
 
