@@ -204,19 +204,16 @@ export function SidebarLeft() {
           isNotificationOpen ? 'w-[88px]' : 'w-[88px] hover:w-[244px]',
         )}
       >
-        {/* Logo */}
-        <div className="px-4 h-[72px] flex items-center group-hover:px-6 transition-all mt-4 mb-4">
+        {/* Logo — vị trí cố định (tâm trùng với icon nav), không xê dịch khi mở/thu */}
+        <div className="pl-5 h-[72px] flex items-center mt-4 mb-4">
           <img
             src="/kytenet-logo.png"
             alt="KyteNet"
-            className={cn(
-              'w-12 h-12 shrink-0 mx-auto select-none',
-              !isNotificationOpen && 'group-hover:mx-0',
-            )}
+            className="w-12 h-12 shrink-0 select-none"
           />
           <span
             className={cn(
-              'hidden text-xl font-bold select-none tracking-tight text-kyte-blue font-heading ml-2',
+              'hidden text-xl font-bold select-none tracking-tight text-kyte-blue font-heading ml-2 whitespace-nowrap',
               !isNotificationOpen && 'group-hover:block',
             )}
           >
@@ -232,9 +229,9 @@ export function SidebarLeft() {
                 <button
                   key={item.label}
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none"
+                  className="flex items-center gap-4 pl-[18px] pr-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none"
                 >
-                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
+                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7">
                     <item.icon
                       strokeWidth={2}
                       className="w-7 h-7 text-foreground/80"
@@ -259,11 +256,11 @@ export function SidebarLeft() {
                   key={item.label}
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                   className={cn(
-                    'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none',
+                    'flex items-center gap-4 pl-[18px] pr-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium text-left outline-none',
                     isNotificationOpen && 'font-bold',
                   )}
                 >
-                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
+                  <div className="relative shrink-0 flex items-center justify-center w-7 h-7">
                     <item.icon
                       strokeWidth={isNotificationOpen ? 2.5 : 2}
                       className={cn(
@@ -317,14 +314,14 @@ export function SidebarLeft() {
                 }}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all',
+                    'flex items-center gap-4 pl-[18px] pr-3 py-3 rounded-lg hover:bg-secondary transition-all',
                     isActive ? 'font-bold' : 'font-medium',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
+                    <div className="relative shrink-0 flex items-center justify-center w-7 h-7">
                       <item.icon
                         strokeWidth={isActive ? 2.5 : 2}
                         className={cn(
@@ -358,8 +355,8 @@ export function SidebarLeft() {
         <div className="px-3 pb-6 mt-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-4 px-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium outline-none">
-                <div className="relative shrink-0 flex items-center justify-center w-7 h-7 mx-auto group-hover:mx-0 transition-all">
+              <button className="flex w-full items-center gap-4 pl-[18px] pr-3 py-3 rounded-lg hover:bg-secondary transition-all font-medium outline-none">
+                <div className="relative shrink-0 flex items-center justify-center w-7 h-7">
                   <Menu
                     strokeWidth={2}
                     className="w-7 h-7 text-foreground/80"

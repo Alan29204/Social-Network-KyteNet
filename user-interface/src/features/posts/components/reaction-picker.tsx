@@ -25,7 +25,7 @@ interface ReactionPickerProps {
   current?: string | null;
   /** Gọi khi chọn 1 loại (backend tự toggle nếu chọn lại cùng loại). */
   onReact: (type: string) => void;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   /** Hiển thị nhãn chữ cạnh icon (dùng ở post detail). */
   showLabel?: boolean;
 }
@@ -41,8 +41,10 @@ export function ReactionPicker({
   showLabel = false,
 }: ReactionPickerProps) {
   const active = getReactionMeta(current);
-  const iconCls = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6';
-  const emojiCls = size === 'sm' ? 'text-[18px]' : 'text-[22px]';
+  const iconCls =
+    size === 'sm' ? 'w-5 h-5' : size === 'lg' ? 'w-[26px] h-[26px]' : 'w-6 h-6';
+  const emojiCls =
+    size === 'sm' ? 'text-[18px]' : size === 'lg' ? 'text-[24px]' : 'text-[22px]';
 
   return (
     <div className="relative group inline-flex">

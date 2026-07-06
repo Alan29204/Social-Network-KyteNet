@@ -149,7 +149,9 @@ export function PostCard({
     setLocalReposted(post.isReposted);
     setLocalRepostsCount(post.repostsCount);
     setLocalLikesCount(post.likesCount);
-    setLocalReaction((post as any).myReaction ?? (post.isLiked ? 'like' : null));
+    setLocalReaction(
+      (post as any).myReaction ?? (post.isLiked ? 'like' : null),
+    );
     setLocalSaved(post.isSaved);
   }, [
     post.isReposted,
@@ -216,7 +218,10 @@ export function PostCard({
         // hoàn tác optimistic nếu lỗi
         setLocalReposted(false);
         setLocalRepostsCount((prev) => Math.max(0, (prev || 1) - 1));
-        toast({ description: 'Không thể đăng lại. Thử lại sau.', variant: 'destructive' });
+        toast({
+          description: 'Không thể đăng lại. Thử lại sau.',
+          variant: 'destructive',
+        });
       },
     });
   };
@@ -230,7 +235,10 @@ export function PostCard({
       onError: () => {
         setLocalReposted(true);
         setLocalRepostsCount((prev) => (prev || 0) + 1);
-        toast({ description: 'Không thể hủy đăng lại. Thử lại sau.', variant: 'destructive' });
+        toast({
+          description: 'Không thể hủy đăng lại. Thử lại sau.',
+          variant: 'destructive',
+        });
       },
     });
   };
@@ -395,7 +403,9 @@ export function PostCard({
         </div>
 
         {/* Caption (Text Content) */}
-        {(displayPost.caption || displayPost.content || (displayPost.hashtags && displayPost.hashtags.length > 0)) && (
+        {(displayPost.caption ||
+          displayPost.content ||
+          (displayPost.hashtags && displayPost.hashtags.length > 0)) && (
           <div className="px-4 pb-3">
             <PostContentRenderer
               content={displayPost.caption || displayPost.content}
@@ -445,11 +455,11 @@ export function PostCard({
 
         {/* Actions Row */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3">
             <ReactionPicker
               current={localReaction}
               onReact={handleReact}
-              size="sm"
+              size="lg"
             />
             {localLikesCount > 0 && (
               <button
@@ -464,7 +474,7 @@ export function PostCard({
               className="flex items-center gap-1.5 group transition-all"
               onClick={() => setIsDetailOpen(true)}
             >
-              <MessageCircle className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
+              <MessageCircle className="w-[26px] h-[26px] text-foreground/70 group-hover:text-kyte-blue transition-colors" />
               {post.commentsCount > 0 && (
                 <span className="text-xs font-semibold text-foreground/70">
                   {post.commentsCount}
@@ -480,7 +490,7 @@ export function PostCard({
               >
                 <div className="relative inline-flex items-center justify-center">
                   <Share2
-                    className={`w-5 h-5 transition-colors ${
+                    className={`w-[26px] h-[26px] transition-colors ${
                       localReposted
                         ? 'text-green-500'
                         : 'text-foreground/70 group-hover:text-green-400'
@@ -509,7 +519,7 @@ export function PostCard({
                 className="group transition-all"
                 onClick={() => setShareOpen(true)}
               >
-                <Send className="w-5 h-5 text-foreground/70 group-hover:text-kyte-blue transition-colors" />
+                <Send className="w-[26px] h-[26px] text-foreground/70 group-hover:text-kyte-blue transition-colors" />
               </button>
             )}
           </div>
@@ -519,7 +529,7 @@ export function PostCard({
             aria-label={localSaved ? 'Bỏ lưu' : 'Lưu bài viết'}
           >
             <Bookmark
-              className={`w-5 h-5 transition-colors ${
+              className={`w-[26px] h-[26px] transition-colors ${
                 localSaved
                   ? 'fill-kyte-blue text-kyte-blue'
                   : 'text-foreground/70 group-hover:text-kyte-blue'
