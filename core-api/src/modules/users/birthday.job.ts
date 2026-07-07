@@ -14,7 +14,11 @@ export class BirthdayJob {
     @InjectQueue('noti-birthday') private notiQueue: Queue,
   ) {}
 
-  @Cron('0 0 * * *') // Running every day at 00h00
+  // DISABLED — queue 'noti-birthday' hiện chưa có worker tiêu thụ
+  // (NotiBirthdayProcessor chưa được đăng ký provider), nên tắt cron để job
+  // không bị dồn lại vô ích trong Redis. Bật lại: bỏ comment @Cron bên dưới
+  // SAU KHI đã đăng ký NotiBirthdayProcessor vào providers.
+  // @Cron('0 0 * * *') // Running every day at 00h00
   // @Cron('* * * * *') // Running every minute
   async checkBirthdays() {
     console.log('Checking birthdays...');
