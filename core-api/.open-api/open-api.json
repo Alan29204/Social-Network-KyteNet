@@ -4987,18 +4987,6 @@
               "block"
             ]
           },
-          "company": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "education": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "role": {
             "type": "string",
             "enum": [
@@ -5100,8 +5088,6 @@
           "mention_privacy",
           "last_active",
           "user_category",
-          "company",
-          "education",
           "role",
           "created_at",
           "updated_at",

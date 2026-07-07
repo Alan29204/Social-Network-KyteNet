@@ -620,8 +620,6 @@ export type User = {
   mention_privacy: UserMentionPrivacy;
   last_active: string;
   user_category: UserUserCategory;
-  company: string[];
-  education: string[];
   role: UserRole;
   created_at: string;
   updated_at: string;

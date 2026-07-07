@@ -90,12 +90,6 @@ export class User {
   })
   user_category: UserCategoryType;
 
-  @Column({ type: 'text', array: true, default: () => "'{}'" })
-  company: string[];
-
-  @Column({ type: 'text', array: true, default: () => "'{}'" })
-  education: string[];
-
   @Column({ type: 'enum', enum: RoleType, default: RoleType.USER })
   role: RoleType;
 
