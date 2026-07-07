@@ -2,9 +2,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { orvalClient } from '@/services/apis/axios-client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, Loader2, Send, X } from 'lucide-react';
+import { Heart, Loader2, Send, X, MoreHorizontal } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { formatTimeAgo } from '@/utils/date-formatter';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
+import { useToast } from '@/hooks/use-toast';
 import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
@@ -37,12 +39,25 @@ const sortCommentsForDisplay = (comments: any[]) => {
 export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
+  const { toast } = useToast();
   const [text, setText] = useState('');
   const [replyingTo, setReplyingTo] = useState<{
     id: string;
     username: string;
     parentId: string;
   } | null>(null);
+  // Menu tùy chọn (sửa/xóa) + trạng thái đang sửa 1 bình luận.
+  const [commentAction, setCommentAction] = useState<{
+    id: string;
+    content: string;
+    isOwner: boolean;
+    canDelete: boolean;
+  } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+  const [editText, setEditText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
@@ -89,15 +104,60 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
     },
   });
 
-  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+  // Sửa / Xóa bình luận
+  const deleteCommentMutation = useMutation({
+    mutationFn: (id: string) =>
+      orvalClient({ url: `/comments/${id}`, method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
+      invalidatePostSurfaces(queryClient, { postId });
+      setCommentAction(null);
+      toast({ description: 'Đã xóa bình luận' });
+    },
+    onError: () =>
+      toast({
+        description: 'Không thể xóa bình luận.',
+        variant: 'destructive',
+      }),
+  });
+
+  const editCommentMutation = useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      orvalClient({
+        url: `/comments/${id}`,
+        method: 'PATCH',
+        data: { content },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
+      invalidatePostSurfaces(queryClient, { postId });
+      setEditingComment(null);
+      toast({ description: 'Đã cập nhật bình luận' });
+    },
+    onError: () =>
+      toast({
+        description: 'Không thể sửa bình luận.',
+        variant: 'destructive',
+      }),
+  });
+
+  const fetchUsers = async (
+    query: string,
+    callback: (data: SuggestionDataItem[]) => void,
+  ) => {
     if (!query) return;
     try {
-      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
-      const suggestions = (res as any).data?.data?.map((u: any) => ({
-        id: u.id,
-        display: getDisplayName(u),
-        avatarUrl: u.avatar
-      })) || [];
+      const res = await searchControllerSearchUsers({
+        q: query,
+        page: 1,
+        limit: 10,
+      });
+      const suggestions =
+        (res as any).data?.data?.map((u: any) => ({
+          id: u.id,
+          display: getDisplayName(u),
+          avatarUrl: u.avatar,
+        })) || [];
       callback(suggestions);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -171,7 +231,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
       content: text,
       post_id: postId,
       parent_id: replyingTo?.parentId,
-      tagged_users: taggedUserIds
+      tagged_users: taggedUserIds,
     });
   };
 
@@ -194,12 +254,15 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
   const renderComment = (comment: any, isChild = false) => {
     const isLiked = comment.interactions?.is_liked;
     const likesCount = comment.interactions?.likes || 0;
+    const isEditing = editingComment?.id === comment.id;
+    const isOwner = currentUser?.id === comment.user?.id;
+    const canDelete =
+      isOwner ||
+      currentUser?.id === (post?.user_id || post?.user?.id) ||
+      (currentUser as any)?.role === 'admin';
 
     return (
-      <div
-        key={comment.id}
-        className={`flex gap-2.5 ${isChild ? 'ml-9' : ''}`}
-      >
+      <div key={comment.id} className={`flex gap-2.5 ${isChild ? 'ml-9' : ''}`}>
         <Avatar className="w-7 h-7 shrink-0">
           <AvatarImage
             src={getAvatarUrl(
@@ -210,37 +273,91 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           <AvatarFallback className="bg-muted" />
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px]">
-            <span className="font-semibold mr-1">
-              {getDisplayName(comment.user)}
-            </span>
-            <PostContentRenderer
-              content={comment.content}
-              taggedUsers={comment.tagged_users}
-            />
-          </p>
-          <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-muted-foreground font-semibold">
-            <span>
-              {formatTimeAgo(comment.created_at || new Date().toISOString())}
-            </span>
-            {likesCount > 0 && <span>{likesCount} lượt thích</span>}
-            <button
-              className="hover:text-foreground transition-colors"
-              onClick={() => handleReplyClick(comment)}
-            >
-              Trả lời
-            </button>
-          </div>
+          {isEditing ? (
+            <div className="flex flex-col gap-1.5">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                autoFocus
+                rows={2}
+                className="w-full bg-secondary rounded-lg px-3 py-1.5 text-[13px] outline-none resize-none"
+              />
+              <div className="flex items-center gap-3 text-[12px] font-semibold">
+                <button
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditingComment(null)}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="text-kyte-blue disabled:opacity-40"
+                  disabled={!editText.trim() || editCommentMutation.isPending}
+                  onClick={() =>
+                    editCommentMutation.mutate({
+                      id: comment.id,
+                      content: editText.trim(),
+                    })
+                  }
+                >
+                  Lưu
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px]">
+                <span className="font-semibold mr-1">
+                  {getDisplayName(comment.user)}
+                </span>
+                <PostContentRenderer
+                  content={comment.content}
+                  taggedUsers={comment.tagged_users}
+                />
+              </p>
+              <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-muted-foreground font-semibold">
+                <span>
+                  {formatTimeAgo(
+                    comment.created_at || new Date().toISOString(),
+                  )}
+                </span>
+                {likesCount > 0 && <span>{likesCount} lượt thích</span>}
+                <button
+                  className="hover:text-foreground transition-colors"
+                  onClick={() => handleReplyClick(comment)}
+                >
+                  Trả lời
+                </button>
+                {canDelete && (
+                  <button
+                    className="hover:text-foreground transition-colors"
+                    aria-label="Tùy chọn"
+                    onClick={() =>
+                      setCommentAction({
+                        id: comment.id,
+                        content: comment.content,
+                        isOwner,
+                        canDelete,
+                      })
+                    }
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
-        <button
-          className="h-6 w-6 mt-1 flex items-center justify-center text-muted-foreground hover:text-foreground"
-          onClick={() => handleLikeComment(comment.id)}
-          aria-label={isLiked ? 'Bỏ thích bình luận' : 'Thích bình luận'}
-        >
-          <Heart
-            className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`}
-          />
-        </button>
+        {!isEditing && (
+          <button
+            className="h-6 w-6 mt-1 flex items-center justify-center text-muted-foreground hover:text-foreground"
+            onClick={() => handleLikeComment(comment.id)}
+            aria-label={isLiked ? 'Bỏ thích bình luận' : 'Thích bình luận'}
+          >
+            <Heart
+              className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`}
+            />
+          </button>
+        )}
       </div>
     );
   };
@@ -310,7 +427,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
             />
             <AvatarFallback className="bg-muted" />
           </Avatar>
-          <div className="flex-1 bg-secondary rounded-xl">
+          <div className="flex-1 bg-secondary rounded-xl px-3 py-1.5">
             <MentionsInput
               inputRef={inputRef as any}
               value={text}
@@ -321,25 +438,25 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
                   handleSend();
                 }
               }}
-              placeholder={replyingTo ? 'Viết câu trả lời...' : 'Thêm bình luận...'}
+              placeholder={
+                replyingTo ? 'Viết câu trả lời...' : 'Thêm bình luận...'
+              }
               className="mentions-input-reel"
               style={{
                 control: {
                   backgroundColor: 'transparent',
                   fontSize: 13,
                   fontWeight: 'normal',
-                  padding: '6px 12px',
                 },
                 highlighter: {
                   overflow: 'hidden',
-                  padding: '6px 12px',
                 },
                 input: {
                   margin: 0,
                   overflow: 'auto',
                   border: 'none',
                   outline: 'none',
-                  padding: '6px 12px',
+                  padding: 0,
                 },
                 suggestions: {
                   list: {
@@ -398,6 +515,54 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
           </button>
         </div>
       </div>
+
+      {/* Menu tùy chọn: Sửa / Xóa / Hủy */}
+      {commentAction && (
+        <Dialog
+          open={!!commentAction}
+          onOpenChange={(o) => !o && setCommentAction(null)}
+        >
+          <DialogContent className="sm:max-w-xs p-0 gap-0 overflow-hidden rounded-xl border-none">
+            <DialogTitle className="sr-only">Tùy chọn bình luận</DialogTitle>
+            {commentAction.isOwner && (
+              <>
+                <button
+                  className="w-full p-4 text-sm font-semibold hover:bg-muted transition-colors"
+                  onClick={() => {
+                    setEditingComment({
+                      id: commentAction.id,
+                      content: commentAction.content,
+                    });
+                    setEditText(commentAction.content);
+                    setCommentAction(null);
+                  }}
+                >
+                  Chỉnh sửa
+                </button>
+                <div className="h-[1px] w-full bg-border" />
+              </>
+            )}
+            {commentAction.canDelete && (
+              <>
+                <button
+                  className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors disabled:opacity-50"
+                  disabled={deleteCommentMutation.isPending}
+                  onClick={() => deleteCommentMutation.mutate(commentAction.id)}
+                >
+                  Xóa
+                </button>
+                <div className="h-[1px] w-full bg-border" />
+              </>
+            )}
+            <button
+              className="w-full p-4 text-sm hover:bg-muted transition-colors"
+              onClick={() => setCommentAction(null)}
+            >
+              Hủy
+            </button>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

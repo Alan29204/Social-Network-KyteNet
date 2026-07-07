@@ -147,7 +147,11 @@ export function PostDetailModal({
   const [reportReason, setReportReason] = useState<string>('spam');
 
   // Lấy chi tiết bài viết (bao gồm comments mới nhất)
-  const { data: queryData, isLoading, isError } = useQuery({
+  const {
+    data: queryData,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['postDetail', initialPost.id],
     queryFn: () =>
       orvalClient<any>({ url: `/posts/${initialPost.id}`, method: 'GET' }),
@@ -169,38 +173,42 @@ export function PostDetailModal({
 
   useEffect(() => {
     if (open && syncUrl) {
-      const isAlreadyOnRoute = window.location.pathname.startsWith(`/post/${initialPost.id}`);
-      
+      const isAlreadyOnRoute = window.location.pathname.startsWith(
+        `/post/${initialPost.id}`,
+      );
+
       if (!isAlreadyOnRoute) {
-        window.history.pushState({ isModal: true }, '', `/post/${initialPost.id}`);
+        window.history.pushState(
+          { isModal: true },
+          '',
+          `/post/${initialPost.id}`,
+        );
       }
-      
+
       const handlePopState = () => {
-         onOpenChangeRef.current(false);
+        onOpenChangeRef.current(false);
       };
       window.addEventListener('popstate', handlePopState);
-      
+
       return () => {
-         window.removeEventListener('popstate', handlePopState);
-         if (!isAlreadyOnRoute && window.history.state?.isModal) {
-            window.history.back();
-         }
+        window.removeEventListener('popstate', handlePopState);
+        if (!isAlreadyOnRoute && window.history.state?.isModal) {
+          window.history.back();
+        }
       };
     }
   }, [open, initialPost.id, syncUrl]);
 
-
-  const isPostUnavailable = isError || (!isLoading && queryData && !queryData?.data);
+  const isPostUnavailable =
+    isError || (!isLoading && queryData && !queryData?.data);
   const post = queryData?.data || initialPost;
   const comments = sortCommentsForDisplay(post?.comments || []).filter(
     (comment: any) => comment?.id && comment?.user?.id,
   );
   const displayPost = post?.shared_post || post;
-  const mediaUrls = (
-    displayPost?.images ||
-    displayPost?.medias ||
-    []
-  ).map((url: string) => normalizePostMediaUrl(url));
+  const mediaUrls = (displayPost?.images || displayPost?.medias || []).map(
+    (url: string) => normalizePostMediaUrl(url),
+  );
   const isRepost = !!post?.shared_post;
   const isMyPost = currentUser?.id === (post?.user?.id || initialPost.user.id);
   // Bố cục chia đôi khi mở dạng theater và bài có media
@@ -283,7 +291,7 @@ export function PostDetailModal({
             element.classList.remove('bg-blue-500/20', 'dark:bg-blue-500/30');
           }, 1500);
         } else {
-          toast({ title: "Bình luận này đã bị xóa" });
+          toast({ title: 'Bình luận này đã bị xóa' });
         }
       }, 300);
       return () => clearTimeout(timer);
@@ -306,8 +314,12 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/following'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/explore'],
+      });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -325,8 +337,12 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/following'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/explore'],
+      });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -340,20 +356,31 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/following'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/explore'],
+      });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
       setCommentAction(null);
       toast({ description: 'Đã xóa bình luận' });
     },
     onError: () =>
-      toast({ description: 'Không thể xóa bình luận.', variant: 'destructive' }),
+      toast({
+        description: 'Không thể xóa bình luận.',
+        variant: 'destructive',
+      }),
   });
 
   const editCommentMutation = useMutation({
     mutationFn: ({ id, content }: { id: string; content: string }) =>
-      orvalClient({ url: `/comments/${id}`, method: 'PATCH', data: { content } }),
+      orvalClient({
+        url: `/comments/${id}`,
+        method: 'PATCH',
+        data: { content },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['postDetail', initialPost.id],
@@ -362,7 +389,10 @@ export function PostDetailModal({
       toast({ description: 'Đã cập nhật bình luận' });
     },
     onError: () =>
-      toast({ description: 'Không thể sửa bình luận.', variant: 'destructive' }),
+      toast({
+        description: 'Không thể sửa bình luận.',
+        variant: 'destructive',
+      }),
   });
 
   const reportCommentMutation = useMutation({
@@ -401,23 +431,39 @@ export function PostDetailModal({
     });
   };
 
-  const handleReplyClick = (commentId: string, displayName: string, userId: string) => {
-    setReplyingTo({ id: commentId, username: displayName, parentId: commentId });
+  const handleReplyClick = (
+    commentId: string,
+    displayName: string,
+    userId: string,
+  ) => {
+    setReplyingTo({
+      id: commentId,
+      username: displayName,
+      parentId: commentId,
+    });
     setCommentText(`@[${displayName}](${userId}) `);
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
   };
 
-  const fetchUsers = async (query: string, callback: (data: SuggestionDataItem[]) => void) => {
+  const fetchUsers = async (
+    query: string,
+    callback: (data: SuggestionDataItem[]) => void,
+  ) => {
     if (!query) return;
     try {
-      const res = await searchControllerSearchUsers({ q: query, page: 1, limit: 10 });
-      const suggestions = (res as any).data?.data?.map((u: any) => ({
-        id: u.id,
-        display: getDisplayName(u),
-        avatarUrl: u.avatar
-      })) || [];
+      const res = await searchControllerSearchUsers({
+        q: query,
+        page: 1,
+        limit: 10,
+      });
+      const suggestions =
+        (res as any).data?.data?.map((u: any) => ({
+          id: u.id,
+          display: getDisplayName(u),
+          avatarUrl: u.avatar,
+        })) || [];
       callback(suggestions);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -444,17 +490,20 @@ export function PostDetailModal({
     pendingToggles.current = {};
   }, []);
 
-  const queueToggle = useCallback((id: string, isComment: boolean) => {
-    const key = isComment ? `comment_${id}` : `post_${id}`;
-    pendingToggles.current[key] = (pendingToggles.current[key] || 0) + 1;
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      flushToggles();
-    }, 500);
-  }, [flushToggles]);
+  const queueToggle = useCallback(
+    (id: string, isComment: boolean) => {
+      const key = isComment ? `comment_${id}` : `post_${id}`;
+      pendingToggles.current[key] = (pendingToggles.current[key] || 0) + 1;
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        flushToggles();
+      }, 500);
+    },
+    [flushToggles],
+  );
 
   // Thả/đổi/gỡ cảm xúc (6 loại) cho BÀI VIẾT — optimistic + gọi thẳng /reactions.
   const handleReactPost = (type: string) => {
@@ -515,7 +564,7 @@ export function PostDetailModal({
             }
             return c;
           }),
-        }
+        },
       };
     });
     queueToggle(commentId, true);
@@ -533,8 +582,12 @@ export function PostDetailModal({
         queryKey: ['postDetail', initialPost.id],
       });
       queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/following'] });
-      queryClient.invalidateQueries({ queryKey: ['infinite', '/feed/explore'] });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/following'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infinite', '/feed/explore'],
+      });
       queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
       queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
@@ -554,7 +607,11 @@ export function PostDetailModal({
       editingComment && editingComment.id === c.id ? editingComment : null;
 
     return (
-      <div key={c.id} id={`comment-${c.id}`} className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''} transition-colors duration-1000 p-1 -m-1 rounded-lg`}>
+      <div
+        key={c.id}
+        id={`comment-${c.id}`}
+        className={`flex gap-3 mt-4 ${isChild ? 'ml-10' : ''} transition-colors duration-1000 p-1 -m-1 rounded-lg`}
+      >
         <Link to={`/profile/${c.user.id}`} onClick={() => onOpenChange(false)}>
           <Avatar className="w-8 h-8 shrink-0 ring-1 ring-border">
             <AvatarImage
@@ -615,7 +672,10 @@ export function PostDetailModal({
               </span>
             ) : (
               <span className="text-sm whitespace-pre-wrap">
-                <PostContentRenderer content={c.content} taggedUsers={c.tagged_users} />
+                <PostContentRenderer
+                  content={c.content}
+                  taggedUsers={c.tagged_users}
+                />
               </span>
             )}
           </div>
@@ -628,7 +688,7 @@ export function PostDetailModal({
                 handleReplyClick(
                   c.parent_id ? c.parent_id : c.id,
                   getDisplayName(c.user),
-                  c.user.id
+                  c.user.id,
                 )
               }
             >
@@ -776,295 +836,306 @@ export function PostDetailModal({
               : 'flex flex-col h-full min-h-0 w-full'
           }
         >
-        {/* Header (Cố định ở trên) */}
-        {isRepost && (
-          <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
-            <Share2 className="w-4 h-4" />
-            <span className="text-xs font-semibold">
-              {getDisplayName(post.user || initialPost.user)} đã đăng lại
-            </span>
-          </div>
-        )}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
-          <div className="flex items-center gap-3">
-            <Link
-              to={`/profile/${displayPost?.user?.id}`}
-              onClick={() => onOpenChange(false)}
-            >
-              <Avatar className="w-8 h-8 cursor-pointer">
-                <AvatarImage
-                  src={getAvatarUrl(
-                    displayPost?.user?.avatarUrl ||
-                      displayPost?.user?.avatar ||
-                      displayPost?.user?.profilePicture,
-                  )}
-                  alt="Avatar"
-                  className="object-cover"
-                />
-                <AvatarFallback />
-              </Avatar>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setActionOpen(true)}
-              >
-                <MoreHorizontal className="w-5 h-5" />
-              </Button>
+          {/* Header (Cố định ở trên) */}
+          {isRepost && (
+            <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-muted-foreground bg-card">
+              <Share2 className="w-4 h-4" />
+              <span className="text-xs font-semibold">
+                {getDisplayName(post.user || initialPost.user)} đã đăng lại
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
+            <div className="flex items-center gap-3">
               <Link
                 to={`/profile/${displayPost?.user?.id}`}
                 onClick={() => onOpenChange(false)}
               >
-                <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
-                  {getDisplayName(displayPost?.user)}
-                </span>
+                <Avatar className="w-8 h-8 cursor-pointer">
+                  <AvatarImage
+                    src={getAvatarUrl(
+                      displayPost?.user?.avatarUrl ||
+                        displayPost?.user?.avatar ||
+                        displayPost?.user?.profilePicture,
+                    )}
+                    alt="Avatar"
+                    className="object-cover"
+                  />
+                  <AvatarFallback />
+                </Avatar>
               </Link>
-              <span className="text-muted-foreground text-xs">•</span>
-              <span className="text-muted-foreground text-xs">
-                {formatTimeAgo(
-                  displayPost?.createdAt ||
-                    displayPost?.created_at ||
-                    new Date().toISOString(),
-                )}
-              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setActionOpen(true)}
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </Button>
+                <Link
+                  to={`/profile/${displayPost?.user?.id}`}
+                  onClick={() => onOpenChange(false)}
+                >
+                  <span className="font-semibold text-sm cursor-pointer hover:text-muted-foreground transition-colors">
+                    {getDisplayName(displayPost?.user)}
+                  </span>
+                </Link>
+                <span className="text-muted-foreground text-xs">•</span>
+                <span className="text-muted-foreground text-xs">
+                  {formatTimeAgo(
+                    displayPost?.createdAt ||
+                      displayPost?.created_at ||
+                      new Date().toISOString(),
+                  )}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Nội dung bài viết + Hình ảnh + Bình luận (Scrollable) */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
-          {/* Nội dung Text bài viết */}
-          {(displayPost?.caption || displayPost?.content) && (
-            <div className="px-4 pt-3 pb-2 text-sm">
-              <PostContentRenderer
-                content={displayPost?.caption || displayPost?.content}
-                taggedUsers={(displayPost as any)?.tagged_users || (initialPost as any)?.tagged_users}
-              />
-            </div>
-          )}
-
-          {/* Media bài viết (chỉ inline ở bố cục thường; theater đưa sang cột trái) */}
-          {!isTheater && mediaBlock}
-
-          {/* Actions Bài viết */}
-          <div className="p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <ReactionPicker
-                  current={
-                    post?.interactions?.my_reaction ??
-                    (post?.interactions?.is_liked || initialPost.isLiked
-                      ? 'like'
-                      : null)
+          {/* Nội dung bài viết + Hình ảnh + Bình luận (Scrollable) */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
+            {/* Nội dung Text bài viết */}
+            {(displayPost?.caption || displayPost?.content) && (
+              <div className="px-4 pt-3 pb-2 text-sm">
+                <PostContentRenderer
+                  content={displayPost?.caption || displayPost?.content}
+                  taggedUsers={
+                    (displayPost as any)?.tagged_users ||
+                    (initialPost as any)?.tagged_users
                   }
-                  onReact={handleReactPost}
                 />
-                {((post?.interactions?.likes ?? initialPost.likesCount) ||
-                  0) > 0 && (
-                  <button
-                    className="text-sm font-semibold hover:underline"
-                    onClick={() => setLikesOpen(true)}
-                  >
-                    {(post?.interactions?.likes ?? initialPost.likesCount) || 0}
-                  </button>
-                )}
-                <button
-                  className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
-                  onClick={() => inputRef.current?.focus()}
-                >
-                  <MessageCircle className="w-6 h-6" />
-                  {((post?.interactions?.comments ??
-                    initialPost.commentsCount) ||
+              </div>
+            )}
+
+            {/* Media bài viết (chỉ inline ở bố cục thường; theater đưa sang cột trái) */}
+            {!isTheater && mediaBlock}
+
+            {/* Actions Bài viết */}
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <ReactionPicker
+                    current={
+                      post?.interactions?.my_reaction ??
+                      (post?.interactions?.is_liked || initialPost.isLiked
+                        ? 'like'
+                        : null)
+                    }
+                    onReact={handleReactPost}
+                  />
+                  {((post?.interactions?.likes ?? initialPost.likesCount) ||
                     0) > 0 && (
-                    <span className="text-sm font-semibold">
-                      {(post?.interactions?.comments ??
-                        initialPost.commentsCount) ||
+                    <button
+                      className="text-sm font-semibold hover:underline"
+                      onClick={() => setLikesOpen(true)}
+                    >
+                      {(post?.interactions?.likes ?? initialPost.likesCount) ||
                         0}
-                    </span>
+                    </button>
                   )}
-                </button>
-                {displayPost?.user?.privacy !== 'private' && (
                   <button
-                    className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50"
-                    disabled={repostMutation.isPending || isMyPost}
-                    onClick={handleRepost}
+                    className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
+                    onClick={() => inputRef.current?.focus()}
                   >
-                    <div className="relative inline-flex items-center justify-center">
-                      <Share2
-                        className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
-                      />
-                    </div>
-                    {((post?.interactions?.reposts ?? initialPost.repostsCount) ||
+                    <MessageCircle className="w-6 h-6" />
+                    {((post?.interactions?.comments ??
+                      initialPost.commentsCount) ||
                       0) > 0 && (
-                      <span
-                        className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
-                      >
-                        {(post?.interactions?.reposts ??
-                          initialPost.repostsCount) ||
+                      <span className="text-sm font-semibold">
+                        {(post?.interactions?.comments ??
+                          initialPost.commentsCount) ||
                           0}
                       </span>
                     )}
                   </button>
-                )}
-                {displayPost?.user?.privacy !== 'private' && (
-                  <button className="hover:text-muted-foreground transition-colors">
-                    <Send className="w-6 h-6" />
-                  </button>
-                )}
-              </div>
-              <button className="hover:text-muted-foreground transition-colors">
-                <Bookmark
-                  className={`w-6 h-6 ${post?.isSaved || initialPost.isSaved ? 'fill-current' : ''}`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full h-[1px] bg-border my-2"></div>
-
-          {/* Danh sách Comments */}
-          <div className="p-4 pt-0">
-            {isLoading ? (
-              <div className="text-center text-sm text-muted-foreground py-4">
-                Đang tải bình luận...
-              </div>
-            ) : rootComments.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-4">
-                Chưa có bình luận nào. Hãy là người đầu tiên!
-              </div>
-            ) : (
-              rootComments.map((rootComment: any) => (
-                <div key={rootComment.id}>
-                  {renderComment(rootComment)}
-                  {/* Hiển thị các comment con của root comment */}
-                  {getChildComments(rootComment.id).map((childComment: any) =>
-                    renderComment(childComment, true),
+                  {displayPost?.user?.privacy !== 'private' && (
+                    <button
+                      className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors disabled:opacity-50"
+                      disabled={repostMutation.isPending || isMyPost}
+                      onClick={handleRepost}
+                    >
+                      <div className="relative inline-flex items-center justify-center">
+                        <Share2
+                          className={`w-6 h-6 ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                        />
+                      </div>
+                      {((post?.interactions?.reposts ??
+                        initialPost.repostsCount) ||
+                        0) > 0 && (
+                        <span
+                          className={`text-sm font-semibold ${post?.interactions?.is_reposted || initialPost.isReposted ? 'text-green-500' : ''}`}
+                        >
+                          {(post?.interactions?.reposts ??
+                            initialPost.repostsCount) ||
+                            0}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {displayPost?.user?.privacy !== 'private' && (
+                    <button className="hover:text-muted-foreground transition-colors">
+                      <Send className="w-6 h-6" />
+                    </button>
                   )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+                <button className="hover:text-muted-foreground transition-colors">
+                  <Bookmark
+                    className={`w-6 h-6 ${post?.isSaved || initialPost.isSaved ? 'fill-current' : ''}`}
+                  />
+                </button>
+              </div>
+            </div>
 
-        {/* Thanh nhập Bình luận (Cố định ở dưới cùng) */}
-        <div className="border-t border-border bg-card shrink-0 p-3 relative">
-          {replyingTo && (
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 bg-muted/30">
-              <span>
-                Trả lời {replyingTo.username}
-              </span>
+            <div className="w-full h-[1px] bg-border my-2"></div>
+
+            {/* Danh sách Comments */}
+            <div className="p-4 pt-0">
+              {isLoading ? (
+                <div className="text-center text-sm text-muted-foreground py-4">
+                  Đang tải bình luận...
+                </div>
+              ) : rootComments.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-4">
+                  Chưa có bình luận nào. Hãy là người đầu tiên !
+                </div>
+              ) : (
+                rootComments.map((rootComment: any) => (
+                  <div key={rootComment.id}>
+                    {renderComment(rootComment)}
+                    {/* Hiển thị các comment con của root comment */}
+                    {getChildComments(rootComment.id).map((childComment: any) =>
+                      renderComment(childComment, true),
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Thanh nhập Bình luận (Cố định ở dưới cùng) */}
+          <div className="border-t border-border bg-card shrink-0 p-3 relative">
+            {replyingTo && (
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 bg-muted/30">
+                <span>Trả lời {replyingTo.username}</span>
+                <button
+                  onClick={() => {
+                    setReplyingTo(null);
+                    setCommentText('');
+                  }}
+                  className="hover:text-foreground"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            {showEmoji && (
+              <div className="absolute bottom-[60px] left-2 z-50 shadow-xl">
+                <EmojiPicker
+                  onEmojiClick={(emoji) =>
+                    setCommentText((prev) => prev + emoji.emoji)
+                  }
+                  autoFocusSearch={false}
+                />
+              </div>
+            )}
+
+            <div
+              className={`flex items-center gap-3 bg-transparent border border-border rounded-full px-4 py-2 ${replyingTo ? 'rounded-tl-none rounded-tr-none border-t-0' : ''}`}
+            >
               <button
-                onClick={() => {
-                  setReplyingTo(null);
-                  setCommentText('');
-                }}
-                className="hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                onClick={() => setShowEmoji(!showEmoji)}
               >
-                <X className="w-3 h-3" />
+                <Smile className="w-5 h-5" />
+              </button>
+              <div className="flex-1">
+                <MentionsInput
+                  inputRef={inputRef as any}
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Thêm bình luận..."
+                  className="mentions-input-comment"
+                  onKeyDown={(e: any) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handlePostComment();
+                    }
+                  }}
+                  style={{
+                    control: {
+                      backgroundColor: 'transparent',
+                      fontSize: 14,
+                      fontWeight: 'normal',
+                    },
+                    highlighter: {
+                      overflow: 'hidden',
+                    },
+                    input: {
+                      margin: 0,
+                      overflow: 'auto',
+                      border: 'none',
+                      outline: 'none',
+                      padding: 0,
+                    },
+                    suggestions: {
+                      list: {
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '0.375rem',
+                        boxShadow: '0 -4px 6px -1px rgb(0 0 0 / 0.1)',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 50,
+                        bottom: '100%',
+                        marginBottom: '10px',
+                      },
+                      item: {
+                        padding: '8px 12px',
+                        borderBottom: '1px solid hsl(var(--border))',
+                      },
+                    },
+                  }}
+                >
+                  <Mention
+                    trigger="@"
+                    data={fetchUsers}
+                    displayTransform={(_id, display) => display}
+                    appendSpaceOnAdd={true}
+                    style={{
+                      color: '#3b82f6',
+                      position: 'relative',
+                      zIndex: 1,
+                    }}
+                    renderSuggestion={(
+                      suggestion,
+                      _search,
+                      highlightedDisplay,
+                    ) => (
+                      <div className="flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors cursor-pointer text-sm">
+                        <Avatar className="w-6 h-6">
+                          <AvatarImage
+                            src={getAvatarUrl((suggestion as any).avatarUrl)}
+                          />
+                          <AvatarFallback className="bg-muted" />
+                        </Avatar>
+                        <span className="font-medium">
+                          {highlightedDisplay}
+                        </span>
+                      </div>
+                    )}
+                  />
+                </MentionsInput>
+              </div>
+              <button
+                className="text-primary font-semibold text-sm disabled:opacity-50 shrink-0"
+                disabled={!commentText.trim() || commentMutation.isPending}
+                onClick={handlePostComment}
+              >
+                {commentMutation.isPending ? 'Đang gửi...' : 'Đăng'}
               </button>
             </div>
-          )}
-
-          {showEmoji && (
-            <div className="absolute bottom-[60px] left-2 z-50 shadow-xl">
-              <EmojiPicker
-                onEmojiClick={(emoji) =>
-                  setCommentText((prev) => prev + emoji.emoji)
-                }
-                autoFocusSearch={false}
-              />
-            </div>
-          )}
-
-          <div
-            className={`flex items-center gap-3 bg-transparent border border-border rounded-full px-4 py-2 ${replyingTo ? 'rounded-tl-none rounded-tr-none border-t-0' : ''}`}
-          >
-            <button
-              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              onClick={() => setShowEmoji(!showEmoji)}
-            >
-              <Smile className="w-5 h-5" />
-            </button>
-            <div className="flex-1">
-              <MentionsInput
-                inputRef={inputRef as any}
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Thêm bình luận..."
-                className="mentions-input-comment"
-                onKeyDown={(e: any) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handlePostComment();
-                  }
-                }}
-                style={{
-                  control: {
-                    backgroundColor: 'transparent',
-                    fontSize: 14,
-                    fontWeight: 'normal',
-                  },
-                  highlighter: {
-                    overflow: 'hidden',
-                  },
-                  input: {
-                    margin: 0,
-                    overflow: 'auto',
-                    border: 'none',
-                    outline: 'none',
-                    padding: 0,
-                  },
-                  suggestions: {
-                    list: {
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '0.375rem',
-                      boxShadow: '0 -4px 6px -1px rgb(0 0 0 / 0.1)',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      zIndex: 50,
-                      bottom: '100%',
-                      marginBottom: '10px'
-                    },
-                    item: {
-                      padding: '8px 12px',
-                      borderBottom: '1px solid hsl(var(--border))',
-                    },
-                  },
-                }}
-              >
-                <Mention
-                  trigger="@"
-                  data={fetchUsers}
-                  displayTransform={(_id, display) => display}
-                  appendSpaceOnAdd={true}
-                  style={{
-                    color: '#3b82f6',
-                    position: 'relative',
-                    zIndex: 1
-                  }}
-                  renderSuggestion={(suggestion, _search, highlightedDisplay) => (
-                    <div className="flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors cursor-pointer text-sm">
-                      <Avatar className="w-6 h-6">
-                        <AvatarImage src={getAvatarUrl((suggestion as any).avatarUrl)} />
-                        <AvatarFallback className="bg-muted" />
-                      </Avatar>
-                      <span className="font-medium">{highlightedDisplay}</span>
-                    </div>
-                  )}
-                />
-              </MentionsInput>
-            </div>
-            <button
-              className="text-primary font-semibold text-sm disabled:opacity-50 shrink-0"
-              disabled={!commentText.trim() || commentMutation.isPending}
-              onClick={handlePostComment}
-            >
-              {commentMutation.isPending ? 'Đang gửi...' : 'Đăng'}
-            </button>
           </div>
-        </div>
         </div>
       </DialogContent>
 
@@ -1126,9 +1197,7 @@ export function PostDetailModal({
               <>
                 <button
                   className="w-full p-4 text-sm font-bold text-red-500 hover:bg-muted transition-colors active:bg-muted/80"
-                  onClick={() =>
-                    deleteCommentMutation.mutate(commentAction.id)
-                  }
+                  onClick={() => deleteCommentMutation.mutate(commentAction.id)}
                 >
                   Xóa
                 </button>
