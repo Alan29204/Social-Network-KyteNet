@@ -44,7 +44,10 @@ export default function AdminDashboardPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-6">
+            <div
+              key={i}
+              className="rounded-xl border border-border bg-card p-6"
+            >
               <div className="flex items-center gap-4">
                 <Skeleton className="w-12 h-12 rounded-lg" />
                 <div className="space-y-2">
@@ -57,11 +60,36 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <StatCard icon={Users} label="Tổng người dùng" value={stats?.total_users ?? 0} color="purple" />
-          <StatCard icon={UserPlus} label="User mới 7 ngày" value={stats?.new_users_7d ?? 0} color="blue" />
-          <StatCard icon={FileText} label="Tổng bài viết" value={stats?.total_posts ?? 0} color="green" />
-          <StatCard icon={FileText} label="Bài viết 7 ngày" value={stats?.new_posts_7d ?? stats?.recent_posts_7d ?? 0} color="blue" />
-          <StatCard icon={AlertTriangle} label="Báo cáo chờ xử lý" value={stats?.pending_reports ?? 0} color="amber" />
+          <StatCard
+            icon={Users}
+            label="Tổng người dùng"
+            value={stats?.total_users ?? 0}
+            color="purple"
+          />
+          <StatCard
+            icon={UserPlus}
+            label="User mới 7 ngày qua"
+            value={stats?.new_users_7d ?? 0}
+            color="blue"
+          />
+          <StatCard
+            icon={FileText}
+            label="Tổng bài viết"
+            value={stats?.total_posts ?? 0}
+            color="green"
+          />
+          <StatCard
+            icon={FileText}
+            label="Bài viết 7 ngày qua"
+            value={stats?.new_posts_7d ?? stats?.recent_posts_7d ?? 0}
+            color="blue"
+          />
+          <StatCard
+            icon={AlertTriangle}
+            label="Báo cáo chờ xử lý"
+            value={stats?.pending_reports ?? 0}
+            color="amber"
+          />
         </div>
       )}
 
@@ -79,14 +107,23 @@ export default function AdminDashboardPage() {
                 </div>
               ))
             ) : newUsers.length === 0 ? (
-              <p className="p-5 text-sm text-muted-foreground">Chưa có người dùng mới.</p>
+              <p className="p-5 text-sm text-muted-foreground">
+                Chưa có người dùng mới.
+              </p>
             ) : (
               newUsers.map((user: any) => (
-                <div key={user.id} className="p-4 flex items-center justify-between gap-4">
+                <div
+                  key={user.id}
+                  className="p-4 flex items-center justify-between gap-4"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-muted overflow-hidden shrink-0">
                       {user.avatar ? (
-                        <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={user.avatar}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <span className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
                           {user.username?.charAt(0)?.toUpperCase() || '?'}
@@ -94,12 +131,20 @@ export default function AdminDashboardPage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{user.full_name || user.username}</p>
-                      <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                      <p className="text-sm font-medium truncate">
+                        {user.full_name || user.username}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        @{user.username}
+                      </p>
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">
-                    {user.created_at ? format(new Date(user.created_at), 'dd/MM', { locale: vi }) : ''}
+                    {user.created_at
+                      ? format(new Date(user.created_at), 'dd/MM', {
+                          locale: vi,
+                        })
+                      : ''}
                   </span>
                 </div>
               ))
@@ -120,16 +165,26 @@ export default function AdminDashboardPage() {
                 </div>
               ))
             ) : newPosts.length === 0 ? (
-              <p className="p-5 text-sm text-muted-foreground">Chưa có bài viết mới.</p>
+              <p className="p-5 text-sm text-muted-foreground">
+                Chưa có bài viết mới.
+              </p>
             ) : (
               newPosts.map((post: any) => (
                 <div key={post.id} className="p-4 space-y-1">
                   <p className="text-sm line-clamp-2">
-                    {post.content || <span className="text-muted-foreground italic">Bài viết media/hashtag</span>}
+                    {post.content || (
+                      <span className="text-muted-foreground italic">
+                        Bài viết media/hashtag
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     @{post.user?.username || 'unknown'} ·{' '}
-                    {post.created_at ? format(new Date(post.created_at), 'dd/MM HH:mm', { locale: vi }) : ''}
+                    {post.created_at
+                      ? format(new Date(post.created_at), 'dd/MM HH:mm', {
+                          locale: vi,
+                        })
+                      : ''}
                   </p>
                 </div>
               ))

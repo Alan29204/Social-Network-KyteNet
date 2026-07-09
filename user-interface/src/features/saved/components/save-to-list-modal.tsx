@@ -110,7 +110,7 @@ export function SaveToListModal({
             </div>
           ) : (lists?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Bạn chưa có bộ sưu tập nào. Hãy tạo một bộ sưu tập mới bên dưới.
+              Bạn chưa có danh sách nào. Hãy tạo một bộ sưu tập mới.
             </p>
           ) : (
             lists!.map((list) => (

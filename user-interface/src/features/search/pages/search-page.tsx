@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData } from '@tanstack/react-query';
+import { useInView } from 'react-intersection-observer';
 import { Search, X, Loader2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PostCard } from '@/features/home/components/post-card';
@@ -9,9 +10,9 @@ import { SearchRecent } from '@/features/search/components/search-recent';
 import { useSearchHistory } from '@/features/search/hooks/use-search-history';
 import {
   useSearchControllerSearchAll,
-  useSearchControllerSearchUsers,
-  useSearchControllerSearchPosts,
-  useSearchControllerSearchByHashtag,
+  useSearchControllerSearchUsersInfinite,
+  useSearchControllerSearchPostsInfinite,
+  useSearchControllerSearchByHashtagInfinite,
 } from '@/services/apis/gen/queries';
 
 type TabValue = 'all' | 'users' | 'posts' | 'hashtag';
@@ -65,42 +66,49 @@ export default function SearchPage() {
   const { history, addHistory, removeHistory, clearHistory } =
     useSearchHistory();
 
-  const initialQ = searchParams.get('q') || '';
-  const [inputValue, setInputValue] = useState(initialQ);
-  const [debouncedQ, setDebouncedQ] = useState(initialQ);
-  const [tab, setTab] = useState<TabValue>(
-    (searchParams.get('tab') as TabValue) || 'all',
-  );
+  // ── URL là NGUỒN SỰ THẬT DUY NHẤT cho truy vấn & tab (tránh loop state↔URL) ──
+  const debouncedQ = (searchParams.get('q') || '').trim();
+  const tab = ((searchParams.get('tab') as TabValue) || 'all') as TabValue;
+
+  // Ô nhập là state cục bộ (gõ mượt); phản chiếu theo URL khi URL đổi từ ngoài.
+  const [inputValue, setInputValue] = useState(debouncedQ);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounce input -> debouncedQ
+  // URL q đổi từ ngoài (vd: bấm hashtag khi đang ở trang Tìm kiếm) -> cập nhật ô nhập.
+  useEffect(() => {
+    setInputValue(debouncedQ);
+  }, [debouncedQ]);
+
+  // Debounce: gõ -> ghi q vào URL (chỉ ghi khi khác để không lặp).
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedQ(inputValue.trim());
+      const next = inputValue.trim();
+      if (next === debouncedQ) return;
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next) p.set('q', next);
+          else p.delete('q');
+          return p;
+        },
+        { replace: true },
+      );
     }, 400);
     return () => clearTimeout(handler);
-  }, [inputValue]);
+  }, [inputValue, debouncedQ, setSearchParams]);
 
-  // Sync URL params
-  useEffect(() => {
-    const params: Record<string, string> = {};
-    if (debouncedQ) params.q = debouncedQ;
-    if (tab !== 'all') params.tab = tab;
-    setSearchParams(params, { replace: true });
-  }, [debouncedQ, tab, setSearchParams]);
-
-  // Đồng bộ URL -> state (vd: bấm hashtag khi đang ở trang Tìm kiếm).
-  // Guard `!==` tránh loop với effect state->URL phía trên.
-  useEffect(() => {
-    const urlQ = searchParams.get('q') || '';
-    const urlTab = (searchParams.get('tab') as TabValue) || 'all';
-    if (urlQ !== debouncedQ) {
-      setInputValue(urlQ);
-      setDebouncedQ(urlQ);
-    }
-    if (urlTab !== tab) setTab(urlTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // Đổi tab -> ghi vào URL (giữ q).
+  const handleTabChange = (v: TabValue) => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (v === 'all') p.delete('tab');
+        else p.set('tab', v);
+        return p;
+      },
+      { replace: true },
+    );
+  };
 
   // Lưu lịch sử khi có truy vấn ổn định
   useEffect(() => {
@@ -112,28 +120,89 @@ export default function SearchPage() {
 
   const hasQuery = debouncedQ.length > 0;
   const [relationFilter, setRelationFilter] = useState<RelationFilter>('all');
+
+  // getNextPageParam: search.service trả meta.total_pages -> còn trang thì +1.
+  const getNextPageParam = (last: any) => {
+    const m = last?.data?.meta;
+    return m && m.page < m.total_pages ? m.page + 1 : undefined;
+  };
   // placeholderData: giữ kết quả cũ khi đổi query key (đổi hashtag/filter) -> hết nhấp nháy.
-  const queryOpts = (active: boolean) => ({
-    query: { enabled: hasQuery && active, placeholderData: keepPreviousData },
-  });
+  const infiniteOpts = (active: boolean) =>
+    ({
+      query: {
+        enabled: hasQuery && active,
+        placeholderData: keepPreviousData,
+        initialPageParam: 1,
+        getNextPageParam,
+      },
+    }) as any;
 
   // ── Queries (chỉ chạy khi tab tương ứng được chọn) ──
   const allQuery = useSearchControllerSearchAll(
     { q: debouncedQ },
-    queryOpts(tab === 'all'),
+    {
+      query: {
+        enabled: hasQuery && tab === 'all',
+        placeholderData: keepPreviousData,
+      },
+    },
   );
-  const usersQuery = useSearchControllerSearchUsers(
-    { q: debouncedQ, relation: relationFilter } as any,
-    queryOpts(tab === 'users'),
+  const usersQuery = useSearchControllerSearchUsersInfinite(
+    { q: debouncedQ, relation: relationFilter, limit: 12 } as any,
+    infiniteOpts(tab === 'users'),
   );
-  const postsQuery = useSearchControllerSearchPosts(
-    { q: debouncedQ, relation: relationFilter } as any,
-    queryOpts(tab === 'posts'),
+  const postsQuery = useSearchControllerSearchPostsInfinite(
+    { q: debouncedQ, relation: relationFilter, limit: 12 } as any,
+    infiniteOpts(tab === 'posts'),
   );
-  const hashtagQuery = useSearchControllerSearchByHashtag(
-    { tag: debouncedQ },
-    queryOpts(tab === 'hashtag'),
+  const hashtagQuery = useSearchControllerSearchByHashtagInfinite(
+    { tag: debouncedQ, limit: 12 } as any,
+    infiniteOpts(tab === 'hashtag'),
   );
+
+  // ── Sentinel cuộn vô tận cho từng tab (tab nào đang mở thì ref mới gắn vào DOM) ──
+  const usersSentinel = useInView();
+  const postsSentinel = useInView();
+  const hashtagSentinel = useInView();
+  useEffect(() => {
+    if (
+      usersSentinel.inView &&
+      usersQuery.hasNextPage &&
+      !usersQuery.isFetchingNextPage
+    )
+      usersQuery.fetchNextPage();
+  }, [
+    usersSentinel.inView,
+    usersQuery.hasNextPage,
+    usersQuery.isFetchingNextPage,
+    usersQuery.fetchNextPage,
+  ]);
+  useEffect(() => {
+    if (
+      postsSentinel.inView &&
+      postsQuery.hasNextPage &&
+      !postsQuery.isFetchingNextPage
+    )
+      postsQuery.fetchNextPage();
+  }, [
+    postsSentinel.inView,
+    postsQuery.hasNextPage,
+    postsQuery.isFetchingNextPage,
+    postsQuery.fetchNextPage,
+  ]);
+  useEffect(() => {
+    if (
+      hashtagSentinel.inView &&
+      hashtagQuery.hasNextPage &&
+      !hashtagQuery.isFetchingNextPage
+    )
+      hashtagQuery.fetchNextPage();
+  }, [
+    hashtagSentinel.inView,
+    hashtagQuery.hasNextPage,
+    hashtagQuery.isFetchingNextPage,
+    hashtagQuery.fetchNextPage,
+  ]);
 
   // ── Dữ liệu đã chuẩn hóa ──
   const allUsers = useMemo(
@@ -150,22 +219,52 @@ export default function SearchPage() {
       [],
     [allQuery.data],
   );
-  const users = useMemo(() => extractArray(usersQuery.data), [usersQuery.data]);
-  const posts = useMemo(() => extractArray(postsQuery.data), [postsQuery.data]);
+  // Gộp mọi trang của infinite query thành 1 mảng.
+  const users = useMemo(
+    () =>
+      ((usersQuery.data as any)?.pages ?? []).flatMap((p: any) =>
+        extractArray(p),
+      ),
+    [usersQuery.data],
+  );
+  const posts = useMemo(
+    () =>
+      ((postsQuery.data as any)?.pages ?? []).flatMap((p: any) =>
+        extractArray(p),
+      ),
+    [postsQuery.data],
+  );
   const hashtagPosts = useMemo(
-    () => extractArray(hashtagQuery.data),
+    () =>
+      ((hashtagQuery.data as any)?.pages ?? []).flatMap((p: any) =>
+        extractArray(p),
+      ),
     [hashtagQuery.data],
   );
 
   const handleClear = () => {
     setInputValue('');
-    setDebouncedQ('');
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.delete('q');
+        return p;
+      },
+      { replace: true },
+    );
     inputRef.current?.focus();
   };
 
   const handleSelectHistory = (term: string) => {
     setInputValue(term);
-    setDebouncedQ(term);
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set('q', term);
+        return p;
+      },
+      { replace: true },
+    );
     inputRef.current?.focus();
   };
 
@@ -194,6 +293,27 @@ export default function SearchPage() {
       {list.map((p: any) => (
         <PostCard key={p.id} post={mapPost(p)} showFollowButton />
       ))}
+    </div>
+  );
+
+  // Sentinel + trạng thái cuối danh sách cho cuộn vô tận.
+  const renderLoadMore = (
+    sentinelRef: (node?: Element | null) => void,
+    q: { isFetchingNextPage: boolean; hasNextPage: boolean },
+    count: number,
+  ) => (
+    <div ref={sentinelRef} className="py-6 flex justify-center">
+      {q.isFetchingNextPage && (
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-kyte-blue" />
+          <span className="text-sm text-muted-foreground">
+            Đang tải thêm...
+          </span>
+        </div>
+      )}
+      {!q.hasNextPage && !q.isFetchingNextPage && count > 0 && (
+        <span className="text-sm text-muted-foreground">Đã hết kết quả</span>
+      )}
     </div>
   );
 
@@ -250,7 +370,7 @@ export default function SearchPage() {
             onClear={clearHistory}
           />
         ) : (
-          <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
+          <Tabs value={tab} onValueChange={(v) => handleTabChange(v as TabValue)}>
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="all">Tất cả</TabsTrigger>
               <TabsTrigger value="users">Mọi người</TabsTrigger>
@@ -289,30 +409,49 @@ export default function SearchPage() {
             {/* Tab Mọi người */}
             <TabsContent value="users" className="mt-4">
               {renderRelationChips()}
-              {usersQuery.isLoading
-                ? renderLoader()
-                : users.length === 0
-                  ? renderEmpty('người dùng')
-                  : renderUserList(users)}
+              {usersQuery.isLoading ? (
+                renderLoader()
+              ) : users.length === 0 ? (
+                renderEmpty('người dùng')
+              ) : (
+                <>
+                  {renderUserList(users)}
+                  {renderLoadMore(usersSentinel.ref, usersQuery, users.length)}
+                </>
+              )}
             </TabsContent>
 
             {/* Tab Bài viết */}
             <TabsContent value="posts" className="mt-4">
               {renderRelationChips()}
-              {postsQuery.isLoading
-                ? renderLoader()
-                : posts.length === 0
-                  ? renderEmpty('bài viết')
-                  : renderPostList(posts)}
+              {postsQuery.isLoading ? (
+                renderLoader()
+              ) : posts.length === 0 ? (
+                renderEmpty('bài viết')
+              ) : (
+                <>
+                  {renderPostList(posts)}
+                  {renderLoadMore(postsSentinel.ref, postsQuery, posts.length)}
+                </>
+              )}
             </TabsContent>
 
             {/* Tab Hashtag */}
             <TabsContent value="hashtag" className="mt-4">
-              {hashtagQuery.isLoading
-                ? renderLoader()
-                : hashtagPosts.length === 0
-                  ? renderEmpty('bài viết với hashtag')
-                  : renderPostList(hashtagPosts)}
+              {hashtagQuery.isLoading ? (
+                renderLoader()
+              ) : hashtagPosts.length === 0 ? (
+                renderEmpty('bài viết với hashtag')
+              ) : (
+                <>
+                  {renderPostList(hashtagPosts)}
+                  {renderLoadMore(
+                    hashtagSentinel.ref,
+                    hashtagQuery,
+                    hashtagPosts.length,
+                  )}
+                </>
+              )}
             </TabsContent>
           </Tabs>
         )}

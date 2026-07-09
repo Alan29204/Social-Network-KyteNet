@@ -42,7 +42,10 @@ export default function LoginPage() {
       onSuccess: (res) => {
         // res is wrapped by NestJS TransformInterceptor: { statusCode, message, data: { accessToken, user } }
         const payloadData = res.data || res;
-        const token = payloadData.accessToken || payloadData.access_token || res.accessToken;
+        const token =
+          payloadData.accessToken ||
+          payloadData.access_token ||
+          res.accessToken;
         const user = payloadData.user || res.user;
         setAuth(token, user);
         navigate(user?.role === 'admin' ? '/admin' : '/');
@@ -71,7 +74,7 @@ export default function LoginPage() {
           <CardTitle className="text-4xl tracking-tight font-bold mb-4">
             KyteNet
           </CardTitle>
-          <CardDescription>Đăng nhập để xem ảnh và video từ bạn bè.</CardDescription>
+          <CardDescription> Đăng nhập để khám phá và kết nối. </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -84,7 +87,9 @@ export default function LoginPage() {
                 {...register('email')}
               />
               {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
+                <p className="text-xs text-destructive">
+                  {errors.email.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -120,7 +125,10 @@ export default function LoginPage() {
         <CardContent className="flex justify-center items-center py-6">
           <p className="text-sm">
             Bạn chưa có tài khoản?{' '}
-            <Link to="/register" className="font-semibold text-primary hover:underline">
+            <Link
+              to="/register"
+              className="font-semibold text-primary hover:underline"
+            >
               Đăng ký
             </Link>
           </p>

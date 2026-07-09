@@ -269,24 +269,10 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
           if (postStatus === 'loading' || postStatus === 'success') e.preventDefault();
         }}
       >
-        <DialogHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
-          <div className="w-8" /> {/* Spacer to center title */}
+        <DialogHeader className="p-4 border-b border-border">
           <DialogTitle className="text-center text-base font-semibold">
             Tạo bài viết mới
           </DialogTitle>
-          {postStatus === 'idle' || postStatus === 'error' ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-primary font-semibold text-sm hover:text-primary/80 hover:bg-transparent px-0"
-              onClick={handleCreatePost}
-              disabled={(!caption.trim() && images.length === 0) || isPending}
-            >
-              Chia sẻ
-            </Button>
-          ) : (
-            <div className="w-8" />
-          )}
         </DialogHeader>
 
         {postStatus === 'loading' && (
@@ -314,7 +300,8 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         )}
 
         {postStatus === 'idle' && (
-          <div className="flex flex-col h-full max-h-[85vh] overflow-y-auto">
+          <>
+          <div className="flex flex-col overflow-y-auto max-h-[70vh]">
           {/* User Info & Privacy */}
           <div className="flex items-center gap-3 p-4">
             <Avatar className="w-10 h-10">
@@ -467,7 +454,19 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
               onChange={handleImageChange}
             />
           </div>
-        </div>
+          </div>
+
+          <div className="p-4 border-t border-border">
+            <Button
+              className="w-full"
+              onClick={handleCreatePost}
+              disabled={(!caption.trim() && images.length === 0) || isPending}
+            >
+              {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Đăng bài
+            </Button>
+          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

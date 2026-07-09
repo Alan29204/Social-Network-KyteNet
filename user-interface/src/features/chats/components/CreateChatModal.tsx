@@ -120,18 +120,8 @@ export function CreateChatModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden bg-card border-none rounded-2xl">
-        <DialogHeader className="px-4 py-3 border-b border-border/50 flex flex-row items-center justify-between">
-          <div className="flex-1" />
-          <DialogTitle className="text-[16px] font-bold text-center flex-1">Tin nhắn mới</DialogTitle>
-          <div className="flex-1 flex justify-end">
-            <button
-              onClick={handleCreateChat}
-              disabled={selectedUsers.length === 0}
-              className={`text-[14px] font-semibold ${selectedUsers.length > 0 ? 'text-primary' : 'text-primary/50 cursor-not-allowed'}`}
-            >
-              Chat
-            </button>
-          </div>
+        <DialogHeader className="px-4 py-3 border-b border-border/50">
+          <DialogTitle className="text-[16px] font-bold text-center">Tin nhắn mới</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center px-4 py-2 border-b border-border/50">
@@ -247,6 +237,20 @@ export function CreateChatModal({
               Không có gợi ý.
             </div>
           )}
+        </div>
+
+        <div className="p-4 border-t border-border/50">
+          <button
+            onClick={handleCreateChat}
+            disabled={selectedUsers.length === 0}
+            className={`w-full py-2.5 rounded-lg font-semibold text-[14px] transition-colors ${
+              selectedUsers.length > 0
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-primary/40 text-primary-foreground/70 cursor-not-allowed'
+            }`}
+          >
+            {selectedUsers.length > 1 ? 'Tạo nhóm' : 'Nhắn tin'}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

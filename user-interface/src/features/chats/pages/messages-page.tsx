@@ -145,6 +145,19 @@ export default function MessagesPage() {
     });
   const chatRooms: any[] = (chatRoomsResponse as any)?.data?.data || [];
 
+  // Danh sách "Tin nhắn đang chờ" (requests) — luôn lấy để biết có tin chưa đọc,
+  // hiển thị chấm đỏ trên tab dù đang đứng ở tab nào. (Trùng query-key khi
+  // selectedTab === 'requests' nên react-query tự dedupe, không fetch dư.)
+  const { data: requestRoomsResponse } = useChatRoomsControllerGetListChatRoom({
+    page: 1,
+    limit: 50,
+    type: 'requests',
+  });
+  const requestRooms: any[] = (requestRoomsResponse as any)?.data?.data || [];
+  const hasUnreadRequests = requestRooms.some(
+    (r: any) => (r.unread_count || 0) > 0,
+  );
+
   // 2. Fetch Message History (Query Cache as Source of Truth)
   const { data: messagesResponse } = useChatMessagesControllerGetMessageHistory(
     selectedRoomId as string,
@@ -1438,9 +1451,12 @@ export default function MessagesPage() {
             </button>
             <button
               onClick={() => setSelectedTab('requests')}
-              className={`text-[15px] font-semibold transition-colors ${selectedTab === 'requests' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}
+              className={`relative text-[15px] font-semibold transition-colors ${selectedTab === 'requests' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}
             >
               Tin nhắn đang chờ
+              {hasUnreadRequests && (
+                <span className="absolute -top-1 -right-2.5 h-2 w-2 rounded-full bg-red-500" />
+              )}
             </button>
           </div>
 

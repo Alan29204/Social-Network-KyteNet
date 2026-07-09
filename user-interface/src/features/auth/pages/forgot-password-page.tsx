@@ -38,13 +38,12 @@ export default function ForgotPasswordPage() {
     }
     forgotMutation.mutate(email, {
       onSuccess: (res: any) => {
+        void res;
         setStep('otp');
-        const devCode = res?.data?.dev_reset_code || res?.dev_reset_code;
         toast({
           title: 'Đã gửi mã OTP',
-          description: devCode
-            ? `Mã xác thực (dev): ${devCode}`
-            : 'Nếu email tồn tại, mã xác thực đã được gửi tới hộp thư của bạn.',
+          description:
+            'Nếu email tồn tại, mã xác thực đã được gửi tới hộp thư của bạn.',
         });
       },
       onError: () =>

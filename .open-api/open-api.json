@@ -401,14 +401,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "tags": [
@@ -2474,14 +2467,14 @@
     "/feed/explore": {
       "get": {
         "operationId": "FeedController_getExploreFeed",
-        "summary": "Get Explore Feed (ranked by engagement)",
+        "summary": "Get Explore Feed (khám phá liên tục)",
         "parameters": [
           {
             "name": "cursor",
             "required": false,
             "in": "query",
             "schema": {
-              "type": "number"
+              "type": "string"
             }
           },
           {

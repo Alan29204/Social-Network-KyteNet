@@ -44,6 +44,10 @@ import {
   isVideoPostMedia,
   normalizePostMediaUrl,
 } from '@/features/posts/utils/post-card-mapper';
+import {
+  bumpPostCommentCount,
+  applyPostReactionInLists,
+} from '@/features/posts/utils/post-cache';
 
 interface PostResponse {
   id: string;
@@ -310,18 +314,14 @@ export function PostDetailModal({
       setCommentText('');
       setReplyingTo(null);
       setShowEmoji(false);
+      // Chỉ refetch dữ liệu RIÊNG của modal để hiện bình luận mới.
+      // (react-query giữ data cũ khi refetch nên modal KHÔNG đóng/nháy.)
       queryClient.invalidateQueries({
         queryKey: ['postDetail', initialPost.id],
       });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/following'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/explore'],
-      });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
+      // Cập nhật số bình luận TẠI CHỖ ở feed/profile/search — KHÔNG refetch feed
+      // nên feed không nhảy và modal không bị đóng.
+      bumpPostCommentCount(queryClient, initialPost.id, 1);
     },
   });
 
@@ -333,18 +333,11 @@ export function PostDetailModal({
       reaction: string;
     }) => orvalClient({ url: '/reactions', method: 'POST', data }),
     onSuccess: () => {
+      // Chỉ reconcile dữ liệu RIÊNG của modal; KHÔNG invalidate feed (tránh nhảy/đóng modal).
+      // Số like/cảm xúc trên feed đã được cập nhật tại chỗ ở handleReactPost.
       queryClient.invalidateQueries({
         queryKey: ['postDetail', initialPost.id],
       });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/following'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/explore'],
-      });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
     },
   });
 
@@ -355,15 +348,7 @@ export function PostDetailModal({
       queryClient.invalidateQueries({
         queryKey: ['postDetail', initialPost.id],
       });
-      queryClient.invalidateQueries({ queryKey: ['postsControllerFindAll'] });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/following'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['infinite', '/feed/explore'],
-      });
-      queryClient.invalidateQueries({ queryKey: ['profile-posts'] });
-      queryClient.invalidateQueries({ queryKey: ['profile-reposts'] });
+      bumpPostCommentCount(queryClient, initialPost.id, -1);
       setCommentAction(null);
       toast({ description: 'Đã xóa bình luận' });
     },
@@ -534,6 +519,20 @@ export function PostDetailModal({
         },
       };
     });
+    // Đồng bộ số like + cảm xúc sang feed/profile TẠI CHỖ (không refetch -> không nhảy/đóng modal).
+    const updatedPd: any = queryClient.getQueryData([
+      'postDetail',
+      initialPost.id,
+    ]);
+    const it = updatedPd?.data?.interactions;
+    if (it) {
+      applyPostReactionInLists(
+        queryClient,
+        initialPost.id,
+        it.my_reaction ?? null,
+        it.likes ?? 0,
+      );
+    }
     reactionMutation.mutate({
       postId: post?.id || initialPost.id,
       reaction: type,

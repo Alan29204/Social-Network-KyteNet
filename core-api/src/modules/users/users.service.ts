@@ -17,7 +17,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RedisService } from 'src/infra/redis/redis.service';
 import { AfterSignUpDto } from './dto/after-signup.dto';
-import { ConfigService } from '@nestjs/config';
 import { PrivacyType } from 'src/common/enums/privacy.enum';
 import { RelationsService } from 'src/modules/users/relations/relations.service';
 import { RelationType } from 'src/common/enums/relation.enum';
@@ -36,7 +35,6 @@ export class UsersService {
     private usersRepository: Repository<User>,
     private redisService: RedisService,
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
     @Inject(forwardRef(() => RelationsService))
     private readonly relationsService: RelationsService,
     private readonly mediaService: MediaService,
@@ -189,14 +187,10 @@ export class UsersService {
     await this.redisService.set(`register_otp:${email}`, otp);
     await this.redisService.getClient().expire(`register_otp:${email}`, 600); // 10 phút
 
-    const sent = await this.mailService.sendOtp(email, otp, 'register');
+    await this.mailService.sendOtp(email, otp, 'register');
 
     return {
       message: 'Đã gửi mã OTP tới email của bạn',
-      // Chỉ lộ OTP khi chưa cấu hình SMTP hoặc môi trường dev (để demo/test).
-      ...((!sent || this.configService.get('NODE_ENV') !== 'production') && {
-        dev_otp: otp,
-      }),
     };
   }
 
@@ -587,14 +581,10 @@ export class UsersService {
     await this.redisService.getClient().expire(`password_reset:${email}`, 900); // 15 min
 
     // Gửi mã OTP qua email (nếu SMTP đã cấu hình)
-    const sent = await this.mailService.sendOtp(email, resetCode, 'reset');
+    await this.mailService.sendOtp(email, resetCode, 'reset');
 
     return {
       message: 'If this email exists, a reset link has been sent',
-      // Lộ mã khi chưa cấu hình SMTP hoặc môi trường dev (để demo/test).
-      ...((!sent || this.configService.get('NODE_ENV') !== 'production') && {
-        dev_reset_code: resetCode,
-      }),
     };
   }
 

@@ -347,3 +347,144 @@ export const restorePostSurfaces = (
     queryClient.setQueryData(queryKey, data);
   });
 };
+
+// ── Cập nhật SỐ BÌNH LUẬN tại chỗ (không refetch feed) ──
+// Duyệt cây các list bài viết, cộng `delta` vào interactions.comments / commentsCount
+// của bài có id khớp (kể cả shared_post trong repost). Giữ nguyên tham chiếu khi
+// không đổi để tránh re-render thừa.
+const bumpCommentCountValue = (
+  value: unknown,
+  postId: string,
+  delta: number,
+): unknown => {
+  if (!postId) return value;
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const updated = bumpCommentCountValue(item, postId, delta);
+      if (updated !== item) changed = true;
+      return updated;
+    });
+    return changed ? next : value;
+  }
+
+  if (!isObject(value)) return value;
+
+  const base =
+    isPostLike(value) && value.id === postId
+      ? {
+          ...value,
+          ...(isObject(value.interactions)
+            ? {
+                interactions: {
+                  ...value.interactions,
+                  comments: Math.max(
+                    0,
+                    (typeof value.interactions.comments === 'number'
+                      ? value.interactions.comments
+                      : 0) + delta,
+                  ),
+                },
+              }
+            : {}),
+          ...(typeof value.commentsCount === 'number'
+            ? { commentsCount: Math.max(0, value.commentsCount + delta) }
+            : {}),
+        }
+      : value;
+
+  let changed = base !== value;
+  const next: Record<string, any> = changed ? { ...base } : { ...value };
+
+  Object.entries(base).forEach(([key, nested]) => {
+    const updated = bumpCommentCountValue(nested, postId, delta);
+    if (updated !== nested) {
+      next[key] = updated;
+      changed = true;
+    }
+  });
+
+  return changed ? next : value;
+};
+
+export const bumpPostCommentCount = (
+  queryClient: QueryClient,
+  postId: string,
+  delta: number,
+) => {
+  if (!postId || !delta) return;
+  queryClient.setQueriesData(
+    { predicate: (query) => isPostSurfaceKey(query.queryKey) },
+    (old: unknown) => bumpCommentCountValue(old, postId, delta),
+  );
+};
+
+// ── Cập nhật CẢM XÚC/LIKE của BÀI tại chỗ (không refetch feed) ──
+// Đặt giá trị TUYỆT ĐỐI: my_reaction (null = chưa thả), is_liked, likes.
+const applyReactionValue = (
+  value: unknown,
+  postId: string,
+  myReaction: string | null,
+  likes: number,
+): unknown => {
+  if (!postId) return value;
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const updated = applyReactionValue(item, postId, myReaction, likes);
+      if (updated !== item) changed = true;
+      return updated;
+    });
+    return changed ? next : value;
+  }
+
+  if (!isObject(value)) return value;
+
+  const safeLikes = Math.max(0, likes);
+  const base =
+    isPostLike(value) && value.id === postId
+      ? {
+          ...value,
+          interactions: {
+            ...(isObject(value.interactions) ? value.interactions : {}),
+            my_reaction: myReaction,
+            is_liked: !!myReaction,
+            likes: safeLikes,
+          },
+          // Các surface đã map sẵn (post-card) dùng các field phẳng này:
+          ...(typeof value.likesCount === 'number'
+            ? { likesCount: safeLikes }
+            : {}),
+          ...('isLiked' in value ? { isLiked: !!myReaction } : {}),
+          ...('myReaction' in value ? { myReaction } : {}),
+        }
+      : value;
+
+  let changed = base !== value;
+  const next: Record<string, any> = changed ? { ...base } : { ...value };
+
+  Object.entries(base).forEach(([key, nested]) => {
+    const updated = applyReactionValue(nested, postId, myReaction, likes);
+    if (updated !== nested) {
+      next[key] = updated;
+      changed = true;
+    }
+  });
+
+  return changed ? next : value;
+};
+
+export const applyPostReactionInLists = (
+  queryClient: QueryClient,
+  postId: string,
+  myReaction: string | null,
+  likes: number,
+) => {
+  if (!postId) return;
+  queryClient.setQueriesData(
+    { predicate: (query) => isPostSurfaceKey(query.queryKey) },
+    (old: unknown) => applyReactionValue(old, postId, myReaction, likes),
+  );
+};

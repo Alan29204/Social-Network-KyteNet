@@ -102,7 +102,9 @@ export default function HomePage() {
         /* nếu refresh lỗi vẫn tải lại danh sách hiện có */
       }
       await queryClient.resetQueries({
-        queryKey: getFeedControllerGetExploreFeedInfiniteQueryKey({ limit: 10 }),
+        queryKey: getFeedControllerGetExploreFeedInfiniteQueryKey({
+          limit: 10,
+        }),
       });
     } else {
       await queryClient.resetQueries({
@@ -241,7 +243,7 @@ export default function HomePage() {
               <p className="text-sm text-muted-foreground text-center max-w-xs">
                 {activeTab === 'explore'
                   ? 'Chưa có nội dung để khám phá. Hãy quay lại sau nhé!'
-                  : 'Hãy theo dõi mọi người để thấy bài viết của họ trên bảng tin của bạn.'}
+                  : 'Hãy theo dõi mọi người để cập nhật bài viết của họ trên bảng tin của bạn.'}
               </p>
             </div>
           ) : (

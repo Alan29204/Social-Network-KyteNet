@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Wind, Image as ImageIcon, Smile } from 'lucide-react';
 import { CreatePostModal } from '@/features/posts/components/create-post-modal';
-import { useAuthStore } from '@/features/auth/stores/auth-store';
-import { getDisplayName } from '@/utils/user';
 
 /**
  * Thanh "tạo bài viết" ở đầu trang chủ. Bấm vào mở đúng CreatePostModal như
@@ -11,8 +9,6 @@ import { getDisplayName } from '@/utils/user';
  */
 export function FeedComposer() {
   const [open, setOpen] = useState(false);
-  const { user } = useAuthStore();
-  const name = getDisplayName(user);
 
   return (
     <>

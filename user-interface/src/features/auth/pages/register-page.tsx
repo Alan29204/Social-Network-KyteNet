@@ -77,27 +77,26 @@ export default function RegisterPage() {
     sendOtpMutation.mutate(
       { email: data.email, username: data.username },
       {
-      onSuccess: (res: any) => {
-        setPayload(rest);
-        setStep('otp');
-        const devOtp = res?.data?.dev_otp || res?.dev_otp;
-        toast({
-          title: 'Đã gửi mã OTP',
-          description: devOtp
-            ? `Mã xác thực (dev): ${devOtp}`
-            : 'Vui lòng kiểm tra email để lấy mã xác thực.',
-        });
+        onSuccess: (res: any) => {
+          setPayload(rest);
+          setStep('otp');
+          void res;
+          toast({
+            title: 'Đã gửi mã OTP',
+            description: 'Vui lòng kiểm tra email để lấy mã xác thực.',
+          });
+        },
+        onError: (err: any) => {
+          toast({
+            title: 'Không gửi được mã',
+            description:
+              err?.response?.data?.message ||
+              'Email có thể đã tồn tại hoặc dữ liệu chưa hợp lệ.',
+            variant: 'destructive',
+          });
+        },
       },
-      onError: (err: any) => {
-        toast({
-          title: 'Không gửi được mã',
-          description:
-            err?.response?.data?.message ||
-            'Email có thể đã tồn tại hoặc dữ liệu chưa hợp lệ.',
-          variant: 'destructive',
-        });
-      },
-    });
+    );
   };
 
   // Bước 2: gửi OTP + thông tin -> tạo tài khoản
@@ -131,14 +130,15 @@ export default function RegisterPage() {
     sendOtpMutation.mutate(
       { email: payload.email, username: payload.username },
       {
-      onSuccess: (res: any) => {
-        const devOtp = res?.data?.dev_otp || res?.dev_otp;
-        toast({
-          title: 'Đã gửi lại mã OTP',
-          description: devOtp ? `Mã xác thực (dev): ${devOtp}` : 'Kiểm tra email của bạn.',
-        });
+        onSuccess: (res: any) => {
+          void res;
+          toast({
+            title: 'Đã gửi lại mã OTP',
+            description: 'Kiểm tra email của bạn.',
+          });
+        },
       },
-    });
+    );
   };
 
   if (step === 'otp') {
@@ -150,7 +150,9 @@ export default function RegisterPage() {
           </CardTitle>
           <CardDescription>
             Nhập mã OTP gồm 6 số đã gửi tới{' '}
-            <span className="font-medium text-foreground">{payload?.email}</span>
+            <span className="font-medium text-foreground">
+              {payload?.email}
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -160,7 +162,9 @@ export default function RegisterPage() {
             maxLength={6}
             placeholder="______"
             value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) =>
+              setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
+            }
             onKeyDown={(e) => e.key === 'Enter' && onVerifyOtp()}
             className="text-center text-2xl tracking-[0.5em] font-semibold"
           />
@@ -205,7 +209,7 @@ export default function RegisterPage() {
             KyteNet
           </CardTitle>
           <CardDescription>
-            Đăng ký để xem ảnh và video từ bạn bè.
+            Đăng ký để kết nối và chia sẻ với cộng đồng.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,7 +223,9 @@ export default function RegisterPage() {
                 {...register('email')}
               />
               {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
+                <p className="text-xs text-destructive">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -319,8 +325,8 @@ export default function RegisterPage() {
             </div>
 
             <div className="text-xs text-muted-foreground text-center pt-2">
-              Bằng cách đăng ký, bạn đồng ý với Điều khoản, Chính sách dữ liệu và
-              Chính sách cookie của chúng tôi.
+              Bằng cách đăng ký, bạn đồng ý với Điều khoản, Chính sách dữ liệu
+              và Chính sách cookie của chúng tôi.
             </div>
 
             <Button

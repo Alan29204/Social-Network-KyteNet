@@ -6,11 +6,11 @@
       "actions": ["Read", "List"]
     },
     {
-      "name": "snet-admin",
+      "name": "kytenet-admin",
       "credentials": [
         {
-          "accessKey": "snet-access-key",
-          "secretKey": "snet-secret-key"
+          "accessKey": "access-key",
+          "secretKey": "secret-key"
         }
       ],
       "actions": ["Admin", "Read", "Write", "List", "Tagging"]

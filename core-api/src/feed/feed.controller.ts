@@ -38,16 +38,15 @@ export class FeedController {
    * Uses cursor-based pagination for infinite scroll.
    */
   @Get('explore')
-  @ApiOperation({ summary: 'Get Explore Feed (ranked by engagement)' })
-  @ApiQuery({ name: 'cursor', required: false, type: Number })
+  @ApiOperation({ summary: 'Get Explore Feed (khám phá liên tục)' })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   getExploreFeed(
     @User() user: IUser,
     @Query('cursor') cursor?: string,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
   ) {
-    const cursorNum = cursor ? Number(cursor) : undefined;
-    return this.feedService.getExploreFeed(user.id, cursorNum, limit);
+    return this.feedService.getExploreFeed(user.id, cursor, limit);
   }
 
   /**

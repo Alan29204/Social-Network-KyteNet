@@ -11,7 +11,7 @@ import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions';
 import { searchControllerSearchUsers } from '@/services/apis/gen/queries';
 import { getDisplayName, getAvatarUrl } from '@/utils/user';
 import { PostContentRenderer } from '@/features/posts/components/post-content-renderer';
-import { invalidatePostSurfaces } from '@/features/posts/utils/post-cache';
+import { bumpPostCommentCount } from '@/features/posts/utils/post-cache';
 
 interface ReelCommentPanelProps {
   postId: string;
@@ -87,7 +87,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
       setText('');
       setReplyingTo(null);
       queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
-      invalidatePostSurfaces(queryClient, { postId });
+      bumpPostCommentCount(queryClient, postId, 1);
     },
   });
 
@@ -99,9 +99,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
         data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
-      invalidatePostSurfaces(queryClient, { postId });
-    },
+      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });    },
   });
 
   // Sửa / Xóa bình luận
@@ -110,7 +108,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
       orvalClient({ url: `/comments/${id}`, method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
-      invalidatePostSurfaces(queryClient, { postId });
+      bumpPostCommentCount(queryClient, postId, -1);
       setCommentAction(null);
       toast({ description: 'Đã xóa bình luận' });
     },
@@ -129,9 +127,7 @@ export function ReelCommentPanel({ postId, onClose }: ReelCommentPanelProps) {
         data: { content },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });
-      invalidatePostSurfaces(queryClient, { postId });
-      setEditingComment(null);
+      queryClient.invalidateQueries({ queryKey: ['postDetail', postId] });      setEditingComment(null);
       toast({ description: 'Đã cập nhật bình luận' });
     },
     onError: () =>

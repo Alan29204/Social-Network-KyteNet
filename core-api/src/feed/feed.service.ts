@@ -13,7 +13,7 @@ import { computeReactionStats } from 'src/common/utils/reaction-stats';
 const MAX_FEED_SIZE = 500;
 
 /*Ngưỡng số lượng follower để phân loại user là celebrity */
-const CELEBRITY_THRESHOLD = 1000;
+const CELEBRITY_THRESHOLD = 500;
 
 /*TTL (giây) cho cache các danh sách theo dõi/ chặn */
 const RELATION_CACHE_TTL = 60;
@@ -196,21 +196,63 @@ export class FeedService {
    * @param cursor - Offset into the ranked list (undefined = start)
    * @param limit - Number of posts to return
    */
-  async getExploreFeed(userId: string, cursor?: number, limit: number = 10) {
+  async getExploreFeed(userId: string, cursor?: string, limit: number = 10) {
     try {
-      const offset = cursor && cursor > 0 ? cursor : 0;
-
       const rankedIds = await this.getPersonalizedExploreRanking(userId);
-      if (rankedIds.length === 0) {
-        return { data: [], meta: { next_cursor: null, has_more: false } };
+
+      // Cursor "hộp đen": undefined => head@0; "h:<offset>" => head;
+      // "t:<createdAtMs>:<id>" => long-tail keyset ("t:" trống => từ mới nhất).
+      let phase: 'head' | 'tail' = 'head';
+      let headOffset = 0;
+      let tailBefore: { ts: number; id: string } | null = null;
+      if (cursor && cursor.startsWith('t:')) {
+        phase = 'tail';
+        const parts = cursor.split(':');
+        const ts = Number(parts[1]);
+        tailBefore = Number.isFinite(ts) ? { ts, id: parts[2] || '' } : null;
+      } else if (cursor) {
+        const off = Number(cursor.replace(/^h:/, ''));
+        headOffset = Number.isFinite(off) && off > 0 ? off : 0;
       }
 
-      const pageIds = rankedIds.slice(offset, offset + limit);
+      let pageIds: string[] = [];
+      let nextCursor: string | null = null;
+
+      if (phase === 'head') {
+        pageIds = rankedIds.slice(headOffset, headOffset + limit);
+        const nextOffset = headOffset + pageIds.length;
+        if (nextOffset < rankedIds.length) {
+          nextCursor = `h:${nextOffset}`;
+        } else if (pageIds.length < limit) {
+          // Head cạn ngay trong trang này -> nối tiếp long-tail (từ mới nhất).
+          const tail = await this.getExploreLongTailIds(
+            userId,
+            rankedIds,
+            null,
+            limit - pageIds.length,
+          );
+          pageIds = [...pageIds, ...tail.ids];
+          nextCursor = tail.nextCursor;
+        } else {
+          // Head vừa hết đúng ranh giới -> long-tail bắt đầu ở trang sau.
+          nextCursor = 't:';
+        }
+      } else {
+        const tail = await this.getExploreLongTailIds(
+          userId,
+          rankedIds,
+          tailBefore,
+          limit,
+        );
+        pageIds = tail.ids;
+        nextCursor = tail.nextCursor;
+      }
+
       if (pageIds.length === 0) {
         return { data: [], meta: { next_cursor: null, has_more: false } };
       }
 
-      // Mark these posts as "seen" so future builds push them down / surface fresh.
+      // Đánh dấu đã xem (lần dựng head sau sẽ loại-trừ; long-tail cũng loại seen).
       const now = Date.now();
       await this.redisService.zAdd(
         `explore:seen:${userId}`,
@@ -226,24 +268,17 @@ export class FeedService {
         -(SEEN_MAX + 1),
       );
 
-      // Hydrate and restore the ranked order (getPostsByIds sorts by created_at).
+      // Hydrate + giữ đúng thứ tự trang (getPostsByIds sắp theo created_at).
       const posts = await this.getPostsByIds(pageIds);
       const orderMap = new Map(pageIds.map((id, idx) => [id, idx]));
       posts.sort(
         (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
       );
-
       const enriched = await this.enrichInteractions(posts, userId);
-
-      const nextOffset = offset + limit;
-      const hasMore = nextOffset < rankedIds.length;
 
       return {
         data: enriched,
-        meta: {
-          next_cursor: hasMore ? nextOffset : null,
-          has_more: hasMore,
-        },
+        meta: { next_cursor: nextCursor, has_more: nextCursor !== null },
       };
     } catch (error) {
       console.error('Error fetching explore feed:', error);
@@ -252,13 +287,78 @@ export class FeedService {
   }
 
   /**
+   * Long-tail cho Explore: khi đã cạn pool cá nhân hóa, nạp thêm bài PUBLIC theo
+   * recency (keyset created_at,id), loại bài đã có trong pool (`excludeIds`),
+   * bài của mình/người đã theo dõi/bị chặn/đã xem. Nhờ vậy Explore khám phá liên
+   * tục (không dead-end) và bài mới đăng (0 tương tác) cũng xuất hiện ở đây.
+   */
+  private async getExploreLongTailIds(
+    userId: string,
+    excludeIds: string[],
+    before: { ts: number; id: string } | null,
+    limit: number,
+  ): Promise<{ ids: string[]; nextCursor: string | null }> {
+    const blocked = await this.getBlockedUserIds(userId);
+    const following = await this.getFollowingIds(userId);
+    const seen = await this.redisService.zRange(
+      `explore:seen:${userId}`,
+      0,
+      -1,
+    );
+
+    const qb = this.postRepository
+      .createQueryBuilder('post')
+      .leftJoin('post.user', 'user')
+      .select('post.id', 'id')
+      .addSelect('post.created_at', 'created_at')
+      .where('post.privacy = :pub', { pub: PrivacyType.PUBLIC })
+      .andWhere('user.privacy = :upub', { upub: PrivacyType.PUBLIC })
+      .andWhere('post.shared_post_id IS NULL')
+      .andWhere('post.user_id != :uid', { uid: userId });
+
+    // Keyset: (created_at, id) < (before.ts, before.id) — phân trang ổn định.
+    if (before) {
+      qb.andWhere(
+        '(post.created_at < :bts OR (post.created_at = :bts AND post.id < :bid))',
+        { bts: new Date(before.ts), bid: before.id },
+      );
+    }
+
+    const exclude = [...new Set([...excludeIds, ...seen])];
+    if (exclude.length > 0) {
+      qb.andWhere('post.id NOT IN (:...exclude)', { exclude });
+    }
+    if (blocked.length > 0) {
+      qb.andWhere('post.user_id NOT IN (:...blocked)', { blocked });
+    }
+    if (following.length > 0) {
+      qb.andWhere('post.user_id NOT IN (:...following)', { following });
+    }
+
+    const rows = await qb
+      .orderBy('post.created_at', 'DESC')
+      .addOrderBy('post.id', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    const ids = rows.map((r) => r.id as string);
+    let nextCursor: string | null = null;
+    if (rows.length === limit && rows.length > 0) {
+      const last = rows[rows.length - 1];
+      const ts = new Date(last.created_at).getTime();
+      nextCursor = `t:${ts}:${last.id}`;
+    }
+    return { ids, nextCursor };
+  }
+
+  /**
    * Builds (or reads from cache) the personalized, diversity-aware ordering of
    * Explore post IDs for a user. Cached at `explore:ranked:{uid}` so pagination
    * is stable and subsequent pages avoid recomputation.
    *
-   * Seen-tracking: posts the user already viewed are pushed to the bottom
-   * (oldest-seen first) so refresh/scroll surfaces fresh content, while never
-   * leaving the feed empty — once all unseen are exhausted, seen posts recycle.
+   * Seen-tracking: bài đã xem bị LOẠI khỏi head (bộ lọc loại-trừ, không còn
+   * recycle). Khi head cạn, getExploreFeed chuyển sang long-tail theo recency
+   * để khám phá liên tục.
    */
   private async getPersonalizedExploreRanking(
     userId: string,
@@ -276,14 +376,19 @@ export class FeedService {
     const candidates = await this.getExploreCandidates();
     const blockedSet = new Set(await this.getBlockedUserIds(userId));
     const followingSet = new Set(await this.getFollowingIds(userId));
+    // Bài đã xem => BỘ LỌC LOẠI-TRỪ (đã bỏ recycle "đẩy bài cũ lên").
+    const seenSet = new Set(
+      await this.redisService.zRange(`explore:seen:${userId}`, 0, -1),
+    );
 
-    // Per-user filtering: hide own posts, blocked authors, and people already
-    // followed (those belong in the Following feed).
+    // Per-user filtering: bỏ bài của mình, người bị chặn, người đã theo dõi
+    // (thuộc feed "Đang theo dõi"), và bài ĐÃ XEM.
     const visible = candidates.filter(
       (c) =>
         c.authorId !== userId &&
         !blockedSet.has(c.authorId) &&
-        !followingSet.has(c.authorId),
+        !followingSet.has(c.authorId) &&
+        !seenSet.has(c.id),
     );
 
     if (visible.length === 0) {
@@ -331,33 +436,13 @@ export class FeedService {
       );
     }
 
-    // Seen-tracking: chưa xem lên trước, đã xem (cũ nhất trước) xuống sau.
-    const seenMembers = await this.redisService.zRange(
-      `explore:seen:${userId}`,
-      0,
-      -1,
-    ); // thứ tự cũ -> mới (score = thời điểm xem)
-    const seenOrder = new Map(seenMembers.map((id, idx) => [id, idx]));
-    const seenSet = new Set(seenMembers);
-
-    const unseen = visible.filter((c) => !seenSet.has(c.id));
-    const seen = visible.filter((c) => seenSet.has(c.id));
-
-    // Phần chưa xem: điểm cá nhân hóa giảm dần + đa dạng tác giả
-    unseen.sort(
+    // Xếp theo điểm cá nhân hóa giảm dần + đa dạng tác giả (chỉ bài chưa xem).
+    const sorted = [...visible].sort(
       (a, b) =>
         (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0) ||
         b.score - a.score,
     );
-    const unseenRankedIds = this.applyAuthorDiversity(unseen);
-
-    // Phần đã xem: xem lâu nhất trước (đỡ lặp lại ngay)
-    seen.sort(
-      (a, b) => (seenOrder.get(a.id) ?? 0) - (seenOrder.get(b.id) ?? 0),
-    );
-    const seenRankedIds = seen.map((c) => c.id);
-
-    const rankedIds = [...unseenRankedIds, ...seenRankedIds];
+    const rankedIds = this.applyAuthorDiversity(sorted);
 
     await this.redisService.set(
       cacheKey,
