@@ -853,50 +853,6 @@ export class RelationsService {
   }
 
   /**
-   * Lấy danh sách mutual (theo dõi lẫn nhau) đang online realtime.
-   * Online = có key Redis `connection_number:{id}` > 0 (do WebSocket gateway set).
-   * Trả tối đa `limit` người (không bao giờ gồm chính mình vì mutual là người khác).
-   */
-  async getActiveMutuals(userId: string, limit = 10) {
-    limit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 10)));
-
-    // 1. Lấy id các mutual
-    const rels = await this.relationRepository.find({
-      where: {
-        request_side_id: userId,
-        relation_type: RelationType.FOLLOWING,
-        is_mutual: true,
-      },
-      select: ['accept_side_id'],
-    });
-    const ids = [...new Set(rels.map((r) => r.accept_side_id))];
-    if (ids.length === 0) return [];
-
-    // 2. Lọc người đang online (batch-check Redis)
-    const client = this.redisService.getClient();
-    const pipeline = client.pipeline();
-    ids.forEach((id) => pipeline.get(`presence:${id}`));
-    const results = await pipeline.exec();
-    const onlineIds = ids.filter((_, i) => {
-      const val = results?.[i]?.[1] as string | null;
-      return !!val;
-    });
-    if (onlineIds.length === 0) return [];
-
-    const top = onlineIds.slice(0, limit);
-
-    // 3. Hydrate thông tin user, giữ thứ tự
-    const users = await this.relationRepository.manager.getRepository(User).find({
-      where: { id: In(top) },
-      select: ['id', 'username', 'full_name', 'avatar'],
-    });
-    const orderMap = new Map(top.map((id, i) => [id, i]));
-    return users.sort(
-      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
-    );
-  }
-
-  /**
    * Danh sách bạn bè (mutual — theo dõi lẫn nhau) của `targetUserId`, phân trang.
    */
   /**

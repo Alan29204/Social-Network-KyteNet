@@ -592,40 +592,6 @@
         ]
       }
     },
-    "/relations/active-mutuals": {
-      "get": {
-        "operationId": "RelationsController_getActiveMutuals",
-        "summary": "Get mutual-follow users who are currently online",
-        "parameters": [
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Relations"
-        ]
-      }
-    },
     "/relations/block": {
       "post": {
         "operationId": "RelationsController_blockUser",

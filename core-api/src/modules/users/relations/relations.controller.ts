@@ -79,15 +79,6 @@ const mutualFriendsResponseSchema = {
   },
 };
 
-const activeMutualsResponseSchema = {
-  type: 'object',
-  properties: {
-    statusCode: { type: 'number' },
-    message: { type: 'string' },
-    data: { type: 'array', items: relationUserSchema },
-  },
-};
-
 const relationListResponseSchema = {
   type: 'object',
   properties: {
@@ -222,22 +213,6 @@ export class RelationsController {
     @Query('limit') limit: number = 5,
   ) {
     return this.relationShipsService.getSuggestedUsers(user.id, limit);
-  }
-
-  @Get('active-mutuals')
-  @ResponseMessage('Get active mutuals successfully')
-  @ApiOperation({ summary: 'Get mutual-follow users who are currently online' })
-  @ApiQuery({ name: 'limit', type: Number, required: false })
-  @ApiResponse({
-    status: 200,
-    description: 'Get active mutuals successfully',
-    schema: activeMutualsResponseSchema,
-  })
-  async getActiveMutuals(
-    @User() user: IUser,
-    @Query('limit') limit: number = 10,
-  ) {
-    return this.relationShipsService.getActiveMutuals(user.id, limit);
   }
 
   @Get('mutuals/:user_id')

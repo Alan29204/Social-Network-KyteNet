@@ -401,31 +401,7 @@ export default function ChatDetailsDrawer({
     );
   };
 
-  // 4. Block / Restrict handlers
-  const handleRestrict = () => {
-    if (!otherMember) return;
-    updateRelationMutation.mutate(
-      { data: { user_id: otherMember.id, action: 'restrict' as any } },
-      {
-        onSuccess: () => {
-          toast({
-            title: 'Đã hạn chế người dùng',
-            description: 'Tin nhắn của họ sẽ được chuyển vào mục spam/chờ.',
-          });
-          navigate('/messages');
-          if (onClose) onClose();
-        },
-        onError: () => {
-          toast({
-            title: 'Lỗi',
-            description: 'Không thể thực hiện tác vụ',
-            variant: 'destructive',
-          });
-        },
-      },
-    );
-  };
-
+  // 4. Block handlers
   const handleBlockUnblock = () => {
     if (!otherMember) return;
     if (blockedByMe) {
@@ -831,40 +807,6 @@ export default function ChatDetailsDrawer({
 
         {/* Section 3: Safety & Actions */}
         <div className="space-y-3 pt-4 border-t border-border/50">
-          {/* Restrict button (Only for Direct Chats) */}
-          {isDirect && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 rounded-xl"
-                >
-                  <ShieldAlert className="w-5 h-5" />
-                  <span>Hạn chế người dùng</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Hạn chế người dùng này?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tin nhắn của người này sẽ được chuyển sang mục "Tin nhắn
-                    chờ", đồng thời họ sẽ không thấy khi bạn online hoặc đã đọc
-                    tin nhắn của họ.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleRestrict}
-                    className="bg-amber-500 hover:bg-amber-600 text-white"
-                  >
-                    Hạn chế
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-
           {/* Block button (Only for Direct Chats) */}
           {isDirect && (
             <AlertDialog>

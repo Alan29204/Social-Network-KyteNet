@@ -1239,10 +1239,6 @@ export type RelationsControllerGetSuggestedUsers200 = {
   data?: RelationsControllerGetSuggestedUsers200DataItem[];
 };
 
-export type RelationsControllerGetActiveMutualsParams = {
-limit?: number;
-};
-
 export type RelationsControllerGetBlockedUsersParams = {
 page?: number;
 limit?: number;
@@ -3558,126 +3554,6 @@ export function useRelationsControllerGetSuggestedUsers<TData = Awaited<ReturnTy
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getRelationsControllerGetSuggestedUsersQueryOptions(params,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export type relationsControllerGetActiveMutualsResponse200 = {
-  data: User[]
-  status: 200
-}
-
-export type relationsControllerGetActiveMutualsResponseSuccess = (relationsControllerGetActiveMutualsResponse200) & {
-  headers: Headers;
-};
-;
-
-export type relationsControllerGetActiveMutualsResponse = (relationsControllerGetActiveMutualsResponseSuccess)
-
-export const getRelationsControllerGetActiveMutualsUrl = (params?: RelationsControllerGetActiveMutualsParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/relations/active-mutuals?${stringifiedParams}` : `/relations/active-mutuals`
-}
-
-/**
- * @summary Get mutual-follow users who are currently online
- */
-export const relationsControllerGetActiveMutuals = async (params?: RelationsControllerGetActiveMutualsParams, options?: RequestInit): Promise<relationsControllerGetActiveMutualsResponse> => {
-
-  return orvalClient<relationsControllerGetActiveMutualsResponse>(getRelationsControllerGetActiveMutualsUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getRelationsControllerGetActiveMutualsQueryKey = (params?: RelationsControllerGetActiveMutualsParams,) => {
-    return [
-    `/relations/active-mutuals`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getRelationsControllerGetActiveMutualsQueryOptions = <TData = Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError = unknown>(params?: RelationsControllerGetActiveMutualsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getRelationsControllerGetActiveMutualsQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>> = ({ signal }) => relationsControllerGetActiveMutuals(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type RelationsControllerGetActiveMutualsQueryResult = NonNullable<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>>
-export type RelationsControllerGetActiveMutualsQueryError = unknown
-
-
-export function useRelationsControllerGetActiveMutuals<TData = Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError = unknown>(
- params: undefined |  RelationsControllerGetActiveMutualsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>,
-          TError,
-          Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useRelationsControllerGetActiveMutuals<TData = Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError = unknown>(
- params?: RelationsControllerGetActiveMutualsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>,
-          TError,
-          Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useRelationsControllerGetActiveMutuals<TData = Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError = unknown>(
- params?: RelationsControllerGetActiveMutualsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/**
- * @summary Get mutual-follow users who are currently online
- */
-
-export function useRelationsControllerGetActiveMutuals<TData = Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError = unknown>(
- params?: RelationsControllerGetActiveMutualsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof relationsControllerGetActiveMutuals>>, TError, TData>>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getRelationsControllerGetActiveMutualsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
