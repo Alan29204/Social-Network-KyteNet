@@ -14,7 +14,7 @@ export function MessagePostCard({ post }: MessagePostCardProps) {
   if (!post) {
     // Post was deleted completely
     return (
-      <div className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 text-center w-[250px] bg-muted text-muted-foreground`}>
+      <div className={`p-4 rounded-xl flex flex-col items-center justify-center gap-2 text-center w-full max-w-[250px] bg-muted text-muted-foreground`}>
         <FileX2 className="w-8 h-8 opacity-50" />
         <span className="text-sm font-medium">Bài viết không khả dụng hoặc đã bị xóa</span>
       </div>
@@ -31,7 +31,7 @@ export function MessagePostCard({ post }: MessagePostCardProps) {
     }
 
     return (
-      <div className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 text-center w-[250px] bg-muted text-muted-foreground`}>
+      <div className={`p-4 rounded-xl flex flex-col items-center justify-center gap-3 text-center w-full max-w-[250px] bg-muted text-muted-foreground`}>
         <div className="w-12 h-12 rounded-full bg-background/50 flex items-center justify-center">
           <Lock className="w-6 h-6 opacity-70" />
         </div>
@@ -47,7 +47,7 @@ export function MessagePostCard({ post }: MessagePostCardProps) {
   return (
     <>
       <div 
-        className={`w-[250px] rounded-xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] border bg-muted border-border text-foreground`}
+        className={`w-full max-w-[250px] rounded-xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] border bg-muted border-border text-foreground`}
         onClick={() => setIsDetailOpen(true)}
       >
         {/* Header */}

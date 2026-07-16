@@ -1,7 +1,9 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/features/auth/stores/auth-store';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import {
+  ArrowLeft,
   Edit,
   Info,
   MoreVertical,
@@ -1318,6 +1320,10 @@ export default function MessagesPage() {
   // Whether we're in virtual chat mode (no room created yet)
   const isVirtualChat = !selectedRoomId && !!virtualRecipient;
 
+  // Trên mobile chỉ hiện được MỘT cột: danh sách hội thoại HOẶC khung chat.
+  // Desktop (md+) vẫn hiện đồng thời như cũ.
+  const hasOpenConversation = !!selectedRoomId || isVirtualChat;
+
   // Group chat block warning states
   const [showGroupBlockWarning, setShowGroupBlockWarning] = useState(false);
   const [groupBlockedUser, setGroupBlockedUser] = useState<any>(null);
@@ -1407,9 +1413,23 @@ export default function MessagesPage() {
 
   return (
     <>
-      <div className="flex h-screen bg-background overflow-hidden">
-        {/* Left Sidebar - Chat List */}
-        <div className="w-[350px] flex flex-col border-r border-border/40 shrink-0">
+      {/* Chiều cao: khi CHƯA mở phòng, MobileBottomNav (h-14) vẫn hiện nên phải
+          trừ đi 3.5rem, tránh danh sách bị nav che. Desktop luôn full 100dvh. */}
+      <div
+        className={cn(
+          'flex bg-background overflow-hidden',
+          selectedRoomId
+            ? 'h-[100dvh]'
+            : 'h-[calc(100dvh-3.5rem)] md:h-[100dvh]',
+        )}
+      >
+        {/* Left Sidebar - Chat List (mobile: ẩn khi đã mở một hội thoại) */}
+        <div
+          className={cn(
+            'w-full md:w-[350px] flex flex-col border-r border-border/40 shrink-0',
+            hasOpenConversation && 'hidden md:flex',
+          )}
+        >
           {/* Header */}
           <div className="h-20 flex items-center justify-between px-6 shrink-0 pt-4">
             <div className="flex items-center gap-2 font-bold text-xl cursor-pointer">
@@ -1573,57 +1593,73 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {/* Main & Right column wrapper */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Main & Right column wrapper (mobile: ẩn khi chưa chọn hội thoại) */}
+        <div
+          className={cn(
+            'flex-1 flex overflow-hidden',
+            !hasOpenConversation && 'hidden md:flex',
+          )}
+        >
           {/* Right Column - Chat View */}
           <div className="flex-1 flex flex-col bg-background relative overflow-hidden border-r">
             {(selectedRoomId && activeRoom) || isVirtualChat ? (
               <>
                 {/* Chat Header */}
-                <div className="h-[75px] border-b border-border/40 flex items-center justify-between px-6 shrink-0">
-                  <div
-                    className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => {
-                      if (activeRoom?.type === 'group') {
-                        setShowInfo(!showInfo);
-                      } else {
-                        otherUser?.id && navigate(`/profile/${otherUser.id}`);
-                      }
-                    }}
-                  >
-                    <div className="relative">
-                      <Avatar className="w-11 h-11">
-                        <AvatarImage
-                          src={
-                            activeRoom?.type === 'group'
-                              ? getGroupAvatarUrl(activeRoom.avatar)
-                              : getUserAvatarUrl(otherUser)
-                          }
-                          className="object-cover"
-                        />
-                        <AvatarFallback className="bg-muted" />
-                      </Avatar>
-                      {activeRoom?.type !== 'group' &&
-                        otherUser?.is_online &&
-                        !activeRoom?.is_blocked && (
-                          <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
-                        )}
-                    </div>
-                    <div>
-                      <p className="font-bold text-base">
-                        {activeRoom?.type === 'group'
-                          ? activeRoom.name
-                          : getDisplayName(otherUser)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activeRoom?.type === 'group'
-                          ? `${activeRoom.members?.length || 0} thành viên`
-                          : getStatusText(otherUser)}
-                      </p>
+                <div className="h-[75px] border-b border-border/40 flex items-center justify-between gap-2 px-4 md:px-6 shrink-0">
+                  <div className="flex items-center gap-1 min-w-0 flex-1">
+                    {/* Quay lại danh sách hội thoại — chỉ mobile */}
+                    <button
+                      onClick={() => navigate('/messages')}
+                      className="md:hidden -ml-2 p-2 rounded-full hover:bg-muted/50 transition-colors shrink-0"
+                      aria-label="Quay lại danh sách hội thoại"
+                    >
+                      <ArrowLeft className="w-6 h-6" />
+                    </button>
+
+                    <div
+                      className="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        if (activeRoom?.type === 'group') {
+                          setShowInfo(!showInfo);
+                        } else {
+                          otherUser?.id && navigate(`/profile/${otherUser.id}`);
+                        }
+                      }}
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="w-11 h-11">
+                          <AvatarImage
+                            src={
+                              activeRoom?.type === 'group'
+                                ? getGroupAvatarUrl(activeRoom.avatar)
+                                : getUserAvatarUrl(otherUser)
+                            }
+                            className="object-cover"
+                          />
+                          <AvatarFallback className="bg-muted" />
+                        </Avatar>
+                        {activeRoom?.type !== 'group' &&
+                          otherUser?.is_online &&
+                          !activeRoom?.is_blocked && (
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                          )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-base truncate">
+                          {activeRoom?.type === 'group'
+                            ? activeRoom.name
+                            : getDisplayName(otherUser)}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {activeRoom?.type === 'group'
+                            ? `${activeRoom.members?.length || 0} thành viên`
+                            : getStatusText(otherUser)}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-foreground">
+                  <div className="flex items-center gap-4 text-foreground shrink-0">
                     <button
                       onClick={() => setShowInfo((prev) => !prev)}
                       className={`hover:opacity-75 p-2 rounded-full transition-colors ${showInfo ? 'bg-muted text-[#0084ff]' : ''}`}
@@ -3012,7 +3048,19 @@ export default function MessagesPage() {
 
           {/* Chat Details Drawer */}
           {showInfo && selectedRoomId && activeRoom && (
-            <div className="w-[320px] border-l border-border/40 shrink-0 bg-background flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+            <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden animate-in slide-in-from-right duration-200 md:static md:z-auto md:w-[320px] md:shrink-0 md:border-l md:border-border/40">
+              {/* Thanh đóng — chỉ mobile, vì lúc này drawer chiếm toàn màn hình */}
+              <div className="md:hidden h-[75px] shrink-0 flex items-center gap-2 px-4 border-b border-border/40">
+                <button
+                  onClick={() => setShowInfo(false)}
+                  className="-ml-2 p-2 rounded-full hover:bg-muted/50 transition-colors"
+                  aria-label="Đóng thông tin chi tiết"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <span className="font-bold text-base">Thông tin chi tiết</span>
+              </div>
+
               <ChatDetailsDrawer
                 roomId={selectedRoomId}
                 activeRoom={activeRoom}
@@ -3053,8 +3101,8 @@ export default function MessagesPage() {
 
       {/* ═══ Forward Dialog ═══ */}
       {forwardingMsg && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-150">
-          <div className="bg-background rounded-2xl shadow-2xl w-[420px] max-h-[500px] flex flex-col animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-[420px] max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-150">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="text-lg font-bold">Chuyển tiếp</h3>

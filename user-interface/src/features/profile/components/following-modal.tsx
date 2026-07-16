@@ -139,7 +139,7 @@ export function FollowingModal({ userId, isOpen, onClose }: FollowingModalProps)
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex flex-col gap-4 max-h-[400px] overflow-y-auto mt-2 pb-4">
+        <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto mt-2 pb-4">
           {status === 'pending' ? (
             <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : status === 'error' ? (

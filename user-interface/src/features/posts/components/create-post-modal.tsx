@@ -276,14 +276,14 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         </DialogHeader>
 
         {postStatus === 'loading' && (
-          <div className="flex flex-col items-center justify-center h-[375px] gap-4">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] max-h-[70vh] gap-4">
             <Loader2 className="w-12 h-12 animate-spin text-primary" />
             <p className="text-lg font-semibold animate-pulse">Đang đăng bài...</p>
           </div>
         )}
 
         {postStatus === 'success' && (
-          <div className="flex flex-col items-center justify-center h-[375px] gap-4">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] max-h-[70vh] gap-4">
             <div className="relative">
               <CheckCircle2 className="w-16 h-16 text-green-500 animate-checkmark stroke-[1.5]" />
             </div>
@@ -292,7 +292,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         )}
 
         {postStatus === 'error' && (
-          <div className="flex flex-col items-center justify-center h-[375px] gap-4 px-6 text-center">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] max-h-[70vh] gap-4 px-6 text-center">
             <AlertTriangle className="w-16 h-16 text-destructive" />
             <p className="text-lg font-semibold text-destructive">{errorMessage}</p>
             <Button variant="outline" onClick={() => setPostStatus('idle')}>Quay lại</Button>

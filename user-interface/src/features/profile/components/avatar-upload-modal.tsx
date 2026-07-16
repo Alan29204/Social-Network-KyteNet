@@ -183,7 +183,7 @@ export function AvatarUploadModal({
 
           {imageSrc ? (
             // Cropper UI
-            <div className="flex flex-col h-[500px]">
+            <div className="flex flex-col h-[60vh] min-h-[300px] max-h-[500px]">
               <div className="flex justify-between items-center p-4 border-b border-border">
                 <Button
                   variant="ghost"

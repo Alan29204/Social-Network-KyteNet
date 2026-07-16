@@ -257,7 +257,7 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="birthday">Ngày sinh</Label>
                 <Input id="birthday" type="date" {...register('birthday')} />

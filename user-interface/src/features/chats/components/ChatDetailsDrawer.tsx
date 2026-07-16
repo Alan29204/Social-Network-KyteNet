@@ -6,7 +6,6 @@ import {
   BellOff,
   Users,
   Smile,
-  ShieldAlert,
   Ban,
   Trash2,
   ChevronDown,
@@ -50,7 +49,6 @@ import {
   useChatRoomsControllerUpdateNameOrAvatar,
   useChatRoomsControllerUpdateEmoji,
   useChatRoomsControllerSoftDeleteHistory,
-  useRelationsControllerUpdateRelation,
   getChatMessagesControllerGetMessageHistoryQueryKey,
   getChatRoomsControllerGetListChatRoomQueryKey,
   useChatMembersControllerLeaveRoom,
@@ -111,7 +109,6 @@ export default function ChatDetailsDrawer({
   const updateEmojiMutation = useChatRoomsControllerUpdateEmoji();
   const deleteHistoryMutation = useChatRoomsControllerSoftDeleteHistory();
   const leaveRoomMutation = useChatMembersControllerLeaveRoom();
-  const updateRelationMutation = useRelationsControllerUpdateRelation();
   const removeMemberMutation = useChatMembersControllerRemoveMember();
   const updatePermissionMutation =
     useChatRoomsControllerUpdatePermissionAddMember();

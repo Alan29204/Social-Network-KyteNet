@@ -168,7 +168,7 @@ export function BlockedAccountsModal({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col h-[400px] overflow-y-auto mt-2">
+          <div className="flex flex-col h-[60vh] max-h-[400px] overflow-y-auto mt-2">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

@@ -23,31 +23,6 @@
         ]
       }
     },
-    "/chatbot/new": {
-      "post": {
-        "operationId": "AppController_chatbot",
-        "summary": "Tạo prompt với Chatbot AI",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatbotDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "App"
-        ]
-      }
-    },
     "/users": {
       "get": {
         "operationId": "UsersController_findAll",
@@ -4450,18 +4425,6 @@
       }
     },
     "schemas": {
-      "ChatbotDto": {
-        "type": "object",
-        "properties": {
-          "prompt": {
-            "type": "string",
-            "example": "Hãy viết một bài đăng chào mừng"
-          }
-        },
-        "required": [
-          "prompt"
-        ]
-      },
       "LoginDto": {
         "type": "object",
         "properties": {

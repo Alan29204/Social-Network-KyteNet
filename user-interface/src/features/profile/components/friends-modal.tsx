@@ -129,7 +129,7 @@ export function FriendsModal({ userId, isOpen, onClose }: FriendsModalProps) {
             {total} người bạn
           </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col max-h-[420px] overflow-y-auto pb-2">
+        <div className="flex flex-col max-h-[60vh] overflow-y-auto pb-2">
           {status === 'pending' ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

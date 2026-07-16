@@ -1,5 +1,4 @@
 ﻿import { SidebarRight } from '@/layouts/components/sidebar-right';
-import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
 import {
   useFeedControllerGetFollowingFeedInfinite,
@@ -136,7 +135,7 @@ export default function HomePage() {
   const posts: any[] = (infiniteQuery.data?.pages ?? []).flatMap(extractPosts);
 
   return (
-    <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
+    <div className="flex justify-center w-full min-h-screen">
       {/* Center Feed Area */}
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6 px-0 sm:px-0 lg:translate-x-14">
         {/* Thanh tạo bài viết */}
@@ -288,9 +287,6 @@ export default function HomePage() {
       <div className="hidden lg:block ml-16 w-[350px] sticky top-6 h-fit translate-x-[25%]">
         <SidebarRight />
       </div>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
     </div>
   );
 }

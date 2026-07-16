@@ -218,7 +218,7 @@ export function SharePostModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto max-h-[300px] p-2">
+        <div className="flex-1 overflow-y-auto max-h-[50vh] p-2">
           {isLoading ? (
             <div className="flex justify-center p-4">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

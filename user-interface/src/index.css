@@ -305,3 +305,10 @@
 .mentions-input-reel__highlighter span {
   visibility: visible !important;
 }
+
+@layer utilities {
+  /* Chừa chỗ cho home indicator của iPhone (notch) dưới thanh điều hướng mobile */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

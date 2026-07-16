@@ -4,7 +4,6 @@ import { useInView } from 'react-intersection-observer';
 import { Bookmark, Loader2 } from 'lucide-react';
 import AXIOS_INSTANCE from '@/services/apis/axios-client';
 import { PostCard } from '@/features/home/components/post-card';
-import { MobileBottomNav } from '@/layouts/components/mobile-bottom-nav';
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -45,7 +44,7 @@ export default function SavedPage() {
     [];
 
   return (
-    <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
+    <div className="flex justify-center w-full min-h-screen">
       <div className="flex flex-col w-full max-w-[470px] mt-2 sm:mt-6">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 sm:px-0 mb-4">
@@ -108,8 +107,6 @@ export default function SavedPage() {
           </div>
         )}
       </div>
-
-      <MobileBottomNav />
     </div>
   );
 }

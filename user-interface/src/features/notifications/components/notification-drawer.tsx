@@ -12,7 +12,7 @@ import {
   useNotificationControllerMarkAsUnread,
 } from '@/services/apis/gen/queries';
 import { orvalClient } from '@/services/apis/axios-client';
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Loader2, MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
@@ -161,14 +161,26 @@ export function NotificationDrawer({
         <div className="fixed inset-0 z-20 bg-transparent" onClick={onClose} />
       )}
 
-      {/* Drawer Panel */}
+      {/* Drawer Panel — mobile: full-screen; desktop: panel cạnh sidebar (w-[88px]) */}
       <div
-        className={`fixed top-0 left-[72px] h-screen w-[397px] bg-background border-r border-border z-30 shadow-2xl transition-transform duration-300 ease-in-out flex flex-col rounded-r-2xl ${
+        className={`fixed top-0 left-0 h-[100dvh] w-full bg-background border-r border-border z-30 shadow-2xl transition-transform duration-300 ease-in-out flex flex-col md:left-[88px] md:w-[397px] md:rounded-r-2xl ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 md:p-6 pb-2 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-foreground">Thông báo</h2>
+        <div className="p-4 md:p-6 pb-2 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-1 min-w-0">
+            {/* Đóng — chỉ mobile: lúc này drawer phủ kín, không chạm được backdrop */}
+            <button
+              onClick={onClose}
+              className="md:hidden -ml-2 p-2 rounded-full hover:bg-muted/50 transition-colors shrink-0"
+              aria-label="Đóng thông báo"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold text-foreground truncate">
+              Thông báo
+            </h2>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

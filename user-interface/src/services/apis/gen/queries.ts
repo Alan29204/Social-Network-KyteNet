@@ -30,10 +30,6 @@ import type {
 } from '@tanstack/react-query';
 
 import { orvalClient } from '../axios-client';
-export type ChatbotDto = {
-  prompt: string;
-};
-
 export type LoginDto = {
   email: string;
   /** @minLength 6 */
@@ -1860,88 +1856,6 @@ export function useAppControllerHome<TData = Awaited<ReturnType<typeof appContro
 
 
 
-
-export type appControllerChatbotResponse201 = {
-  data: void
-  status: 201
-}
-
-export type appControllerChatbotResponseSuccess = (appControllerChatbotResponse201) & {
-  headers: Headers;
-};
-;
-
-export type appControllerChatbotResponse = (appControllerChatbotResponseSuccess)
-
-export const getAppControllerChatbotUrl = () => {
-
-
-
-
-  return `/chatbot/new`
-}
-
-/**
- * @summary Tạo prompt với Chatbot AI
- */
-export const appControllerChatbot = async (chatbotDto: ChatbotDto, options?: RequestInit): Promise<appControllerChatbotResponse> => {
-
-  return orvalClient<appControllerChatbotResponse>(getAppControllerChatbotUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(chatbotDto)
-  }
-);}
-
-
-
-
-export const getAppControllerChatbotMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext> => {
-
-const mutationKey = ['appControllerChatbot'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof appControllerChatbot>>, {data: ChatbotDto}> = (props) => {
-          const {data} = props ?? {};
-
-          return  appControllerChatbot(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AppControllerChatbotMutationResult = NonNullable<Awaited<ReturnType<typeof appControllerChatbot>>>
-    export type AppControllerChatbotMutationBody = ChatbotDto
-    export type AppControllerChatbotMutationError = unknown
-
-    /**
- * @summary Tạo prompt với Chatbot AI
- */
-export const useAppControllerChatbot = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof appControllerChatbot>>, TError,{data: ChatbotDto}, TContext>, request?: SecondParameter<typeof orvalClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof appControllerChatbot>>,
-        TError,
-        {data: ChatbotDto},
-        TContext
-      > => {
-      return useMutation(getAppControllerChatbotMutationOptions(options), queryClient);
-    }
 
 export type usersControllerFindAllResponse200 = {
   data: UsersControllerFindAll200Item[]

@@ -814,15 +814,17 @@ export function PostDetailModal({
       <DialogContent
         className={
           isTheater
-            ? 'max-w-[1100px] w-[95vw] h-[96vh] p-0 flex flex-row overflow-hidden bg-card border-none rounded-2xl gap-0'
-            : 'max-w-[600px] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0'
+            ? 'max-w-[1100px] w-[95vw] h-[96vh] p-0 flex flex-col md:flex-row overflow-hidden bg-card border-none rounded-2xl gap-0'
+            : 'max-w-[600px] w-[95vw] h-[85vh] p-0 flex flex-col overflow-hidden bg-card border-none rounded-xl gap-0'
         }
       >
         <DialogTitle className="sr-only">Chi tiết bài viết</DialogTitle>
 
-        {/* Cột trái: media lớn (chỉ ở theater) */}
+        {/* Cột trái: media lớn (chỉ ở theater).
+            Trên mobile xếp thành hàng trên cùng — trước đây `hidden md:flex`
+            khiến người dùng mobile KHÔNG thấy ảnh của bài viết. */}
         {isTheater && (
-          <div className="hidden md:flex flex-1 min-w-0 bg-muted items-center justify-center">
+          <div className="flex shrink-0 max-h-[45vh] md:max-h-none md:flex-1 min-w-0 bg-muted items-center justify-center overflow-hidden">
             <div className="w-full">{mediaBlock}</div>
           </div>
         )}
@@ -831,7 +833,7 @@ export function PostDetailModal({
         <div
           className={
             isTheater
-              ? 'flex flex-col w-full md:w-[440px] shrink-0 h-full min-w-0 border-l border-border'
+              ? 'flex flex-col w-full md:w-[440px] flex-1 min-h-0 min-w-0 md:flex-none md:shrink-0 md:h-full border-t md:border-t-0 md:border-l border-border'
               : 'flex flex-col h-full min-h-0 w-full'
           }
         >

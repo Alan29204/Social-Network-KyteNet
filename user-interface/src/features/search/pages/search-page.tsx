@@ -336,7 +336,7 @@ export default function SearchPage() {
   );
 
   return (
-    <div className="flex justify-center w-full min-h-screen pb-20 sm:pb-0">
+    <div className="flex justify-center w-full min-h-screen">
       <div className="flex flex-col w-full max-w-[600px] mt-6 px-3 sm:px-4">
         {/* Search input */}
         <div className="relative mb-4 sticky top-0 z-10 bg-background pt-1 pb-2">

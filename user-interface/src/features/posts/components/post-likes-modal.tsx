@@ -115,7 +115,7 @@ export function PostLikesModal({
           ))}
         </div>
 
-        <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pb-2">
+        <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pb-2">
           {status === 'pending' ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
